@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, ipcMain } = require('electron')
 
 const createWindow = () => {
   const win = new BrowserWindow({
@@ -7,7 +7,7 @@ const createWindow = () => {
     webPreferences: {
       preload: 'src/preload.js'
     }
-  })
+  });
 
   win.loadFile('src/index.html')
 }

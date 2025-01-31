@@ -9,7 +9,6 @@
             body {
                 box-sizing: border-box;
                 margin: 0;
-                height: 100vh;
             }
         </style>
 
@@ -17,6 +16,22 @@
     </head>
     <body>
         <canvas id="canvas"></canvas>
-        <h1>hello</h1>
+        <h1>Hello World!</h1>
+
+        <script>
+            const eyedropper = document.createElement("input");
+            eyedropper.type = "color";
+
+            window.addEventListener("keydown", debugKey);
+
+            function debugKey (event) {
+                console.log(event.keyCode);
+
+                if (event.keyCode == 112) {
+                    eyedropper.click();
+                }
+            }
+        </script>
+        <script src="renderWorld.js"></script>
     </body>
 </html>
