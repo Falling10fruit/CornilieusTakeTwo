@@ -1,8 +1,7 @@
-const canvas = document.getElementById('canvas');
-const gl = canvas.getContext('webgl2');
+const canvas = document.createElement("canvas");
+const gl = canvas.getContext("webgl2", {antialias: false});
 canvas.width = canvas.clientWidth;
 canvas.height = canvas.clientHeight;
-
 const vertexShaderSource = `#version 300 es
 in vec2 a_position;
 
@@ -15,12 +14,15 @@ void main() {
 
 const fragmentShaderSource = `#version 300 es
 precision highp float;
+precision mediump usampler2D;
 
 in vec2 v_position;
 
 uniform vec2 u_cameraPosition;
 uniform float u_cameraZoom;
 uniform vec2 u_cameraRotation;
+
+uniform usampler2D u_worldData;
 
 out vec4 outColor;
 
@@ -32,12 +34,12 @@ void main() {
     position *= u_cameraZoom;
     position += u_cameraPosition;
     
-    outColor = vec4(v_position, position.x/255.0, 1.0);
+    outColor = vec4(v_position.y, position.x/255.0, float(texelFetch(u_worldData, ivec2(position), 0).r)/255.0, 1.0);
 }`;
 
-const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-const program = createProgram(gl, vertexShader, fragmentShader);
+const vertexShader = window.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+const fragmentShader = window.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+const program = window.createProgram(gl, vertexShader, fragmentShader);
 gl.useProgram(program);
 
 const cameraPositionUniformLocation = gl.getUniformLocation(program, 'u_cameraPosition');
@@ -47,32 +49,16 @@ const cameraRotationUniformLocation = gl.getUniformLocation(program, 'u_cameraRo
 const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
 const positionBuffer = gl.createBuffer();
 
-const camera = {
-    x: 0,
-    y: 0,
-    zoom: 1,
-    rotation: (0)*Math.PI/180,
-};
+const Uint8WorldData = window.generateWorldUint8Array(window.world.width, window.world.height, window.world.seed);
+uploadWorldToGPU(window.world.width, window.world.height, Uint8WorldData);
 
-const keyIsDown = {
-    w: false,
-    a: false,
-    s: false,
-    d: false,
-    e: false, 
-    q: false,
-    arrowLeft: false,
-    arrowRight: false,
-};
-
-const world = new Float32Array(1440000);
-const worker = new Worker(new URL('generateWorldWorker.js', import.meta.url));
-
-window.addEventListener('keydown', setKeyIsDown);
-window.addEventListener('keyup', setKeyIsDown);
+const parseUint8WorldWorker = new Worker('parseUint8WorldWorker.js');
+parseUint8WorldWorker.onmessage = (event) => {
+    const {worldData} = event.data;
+    window.world.data = worldData;
+}
 
 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
     -1, -1,
     1, -1,
@@ -101,98 +87,47 @@ function render () {
     requestAnimationFrame(render);
 }
 
+function uploadWorldToGPU (width, height, data) {
+    const worldTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, worldTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32UI, width, height, 0, gl.RED_INTEGER, gl.UNSIGNED_INT, data);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    const worldUniformLocation = gl.getUniformLocation(program, 'u_worldData');
+    gl.uniform1i(worldUniformLocation, 0);
+}
+
 function controlCamera() {
-    if (keyIsDown.w) {
-        camera.y += 10;
+    if (window.keyIsDown.w) {
+        window.camera.y += 10;
     }
 
-    if (keyIsDown.s) {
-        camera.y -= 10;
+    if (window.keyIsDown.s) {
+        window.camera.y -= 10;
     }
 
-    if (keyIsDown.a) {
-        camera.x -= 10;
+    if (window.keyIsDown.a) {
+        window.camera.x -= 10;
     }
 
-    if (keyIsDown.d) {
-        camera.x += 10;
+    if (window.keyIsDown.d) {
+        window.camera.x += 10;
     }
 
-    if (keyIsDown.e) {
-        camera.zoom *= 1.01;
+    if (window.keyIsDown.e) {
+        window.camera.zoom *= 1.01;
     }
 
-    if (keyIsDown.q) {
-        camera.zoom *= 0.99;
+    if (window.keyIsDown.q) {
+        window.camera.zoom *= 0.99;
     }
 
-    if (keyIsDown.arrowLeft) {
-        camera.rotation += Math.PI/180;
+    if (window.keyIsDown.arrowLeft) {
+        window.camera.rotation += Math.PI/180;
     }
 
-    if (keyIsDown.arrowRight) {
-        camera.rotation -= Math.PI/180;
+    if (window.keyIsDown.arrowRight) {
+        window.camera.rotation -= Math.PI/180;
     }
-}
-
-function setKeyIsDown (event) {
-    const isDown = event.type === 'keydown' ? true : false;
-
-    switch (event.keyCode) {
-        case 87:
-            keyIsDown.w = isDown;
-            console.log(isDown);
-            break;
-        case 83:
-            keyIsDown.s = isDown;
-            break;
-        case 65:
-            keyIsDown.a = isDown;
-            break;
-        case 68:
-            keyIsDown.d = isDown;
-            break;
-        case 69:
-            keyIsDown.e = isDown;
-            break;
-        case 81:
-            keyIsDown.q = isDown;
-            break;
-        case 37:
-            keyIsDown.arrowLeft = isDown;
-            break;
-        case 39:
-            keyIsDown.arrowRight = isDown;
-            break;
-    }
-
-}
-
-function createShader(gl, type, source) {
-    const shader = gl.createShader(type);
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-    if (success) {
-      return shader;
-    }
-  
-    console.error(gl.getShaderInfoLog(shader));  // eslint-disable-line
-    gl.deleteShader(shader);
-    return undefined;
-}
-
-function createProgram(gl, vertexShader, fragmentShader) {
-    const program = gl.createProgram();
-    gl.attachShader(program, vertexShader);
-    gl.attachShader(program, fragmentShader);
-    gl.linkProgram(program);
-    const success = gl.getProgramParameter(program, gl.LINK_STATUS);
-    if (success) {
-      return program;
-    }
-  
-    console.log(gl.getProgramInfoLog(program));  // eslint-disable-line
-    gl.deleteProgram(program);
-    return undefined;
 }

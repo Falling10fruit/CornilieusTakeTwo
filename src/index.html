@@ -22,16 +22,38 @@
             const eyedropper = document.createElement("input");
             eyedropper.type = "color";
 
-            window.addEventListener("keydown", debugKey);
+            window.world = {
+                width: 1600,
+                height: 900,
+                seed: 43758.5453,
+                data: []
+            };
 
-            function debugKey (event) {
-                console.log(event.keyCode);
+            window.camera = {
+                x: 0,
+                y: 0,
+                zoom: 1,
+                rotation: (0)*Math.PI/180,
+            };
 
-                if (event.keyCode == 112) {
+            window.keyIsDown = {};
+        
+            window.setKeyIsDown = (event) => {
+                if (event.type === "keydown") {
+                    window.keyIsDown[event.key] = true;
+                } else if (event.type === "keyup") {
+                    window.keyIsDown[event.key] = false;
+                }
+
+                if (event.key === "f5") {
                     eyedropper.click();
                 }
-            }
+            };
         </script>
-        <script src="renderWorld.js"></script>
+
+        <script type="module" src="webgl2Boilerplate.js"></script>
+        <script type="module" src="generateWorldShader.js"></script>
+        <script type="module" src="renderWorld.js"></script>
+        <script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin></script><!--Ignore red it's fine-->
     </body>
 </html>
