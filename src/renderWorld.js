@@ -53,10 +53,7 @@ const Uint8WorldData = window.generateWorldUint8Array(window.world.width, window
 uploadWorldToGPU(window.world.width, window.world.height, Uint8WorldData);
 
 const parseUint8WorldWorker = new Worker('parseUint8WorldWorker.js');
-parseUint8WorldWorker.onmessage = (event) => {
-    const {worldData} = event.data;
-    window.world.data = worldData;
-}
+parseUint8WorldWorker.postMessage(Uint8WorldData);
 
 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([

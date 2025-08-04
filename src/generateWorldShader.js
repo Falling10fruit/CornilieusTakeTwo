@@ -4,11 +4,11 @@ const gl = canvas.getContext("webgl2", {antialias: false});
 
             const vss = `#version 300 es
             in vec2 a_position;
-            uniform vec2 u_size;
+            uniform vec2 u_worldSize;
             out vec2 v_position;
 
             void main () {
-                v_position = (a_position/2.0 + vec2(0.5, 0.5))*u_size;
+                v_position = (a_position/2.0 + vec2(0.5, 0.5))*u_worldSize;
                 // v_position = a_position*100.0;
 
                 gl_Position = vec4(a_position, 0.0, 1.0);
@@ -74,11 +74,12 @@ const gl = canvas.getContext("webgl2", {antialias: false});
                 } else {
                     out_color.x = 3.0; // ice
                 }
+                out_color.x /= 255.0;
 
                 float carving = snoise(v_position/20.0)*snoise(v_position/20.0);
                 if (carving < 0.15) {
                     out_color.y = 0.0;
-                } else { out_color.y = 1.0; }
+                } else { out_color.y = 1.0/255.0; }
 
                 // out_color *= carving;
                 // out_color = vec4(carving, carving, carving, 1.0);
@@ -96,11 +97,11 @@ const generateWorldProgram = window.createProgram(gl, vs, fs);
 gl.useProgram(generateWorldProgram);
 const worldSizeUniformLocation = gl.getUniformLocation(generateWorldProgram, 'u_worldSize');
 
-gl.bindVertexArray(gl.createVertexArray()); // assuming that other js files do not also bind the VAO
+const generationVAO = gl.createVertexArray();
+gl.bindVertexArray(generationVAO); // binding vao is global
 
 const positionAttributeLocation = gl.getAttribLocation(generateWorldProgram, 'a_position');
-const positionBuffer = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
     -1, -1,
     1, -1, 
@@ -111,16 +112,20 @@ gl.enableVertexAttribArray(positionAttributeLocation);
 gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
 window.generateWorldUint8Array = (width = 1600, height = 900, seed = 0) => {
+    canvas.width = width;
+    canvas.height = height;
+    gl.useProgram(generateWorldProgram);
     gl.uniform2f(worldSizeUniformLocation, width, height);
+    gl.bindVertexArray(generationVAO);
     
-    gl.viewport(0, 0, window.world.width, window.world.height);
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.viewport(0, 0, width, height);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     const data = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
 
-    return gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+    return data;
 }
 
-console.log("look mom i generated: " + window.generateWorld(world.width, world.height, world.seed));
+// console.table(world);
+// console.log("look mom i generated: " + window.generateWorldUint8Array(world.width, world.height, world.seed));
