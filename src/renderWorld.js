@@ -22,7 +22,7 @@ uniform vec2 u_cameraPosition;
 uniform float u_cameraZoom;
 uniform vec2 u_cameraRotation;
 
-uniform usampler2D u_worldData;
+uniform sampler2D u_worldData;
 
 out vec4 outColor;
 
@@ -52,8 +52,9 @@ const positionBuffer = gl.createBuffer();
 const Uint8WorldData = window.generateWorldUint8Array(window.world.width, window.world.height, window.world.seed);
 uploadWorldToGPU(window.world.width, window.world.height, Uint8WorldData);
 
+console.log("parsing");
 const parseUint8WorldWorker = new Worker('parseUint8WorldWorker.js');
-parseUint8WorldWorker.postMessage(Uint8WorldData);
+parseUint8WorldWorker.postMessage({ Uint8World: Uint8WorldData });
 
 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
@@ -87,7 +88,7 @@ function render () {
 function uploadWorldToGPU (width, height, data) {
     const worldTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, worldTexture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32UI, width, height, 0, gl.RED_INTEGER, gl.UNSIGNED_INT, data);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 

@@ -1,5 +1,5 @@
 onmessage = (message) => {
-    const {Uint8World} = message.data;
+    const { Uint8World } = message.data;
     const worldData = new Uint8Array(Uint8World.length/4 * 2); // first value is tile type, second value is health
 
     const noOfTiles = Uint8World.length/4;
