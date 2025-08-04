@@ -16,6 +16,8 @@ precision mediump usampler2D;
 
 in vec2 v_position;
 
+uniform vec2 u_viewport;
+
 uniform vec2 u_cameraPosition;
 uniform float u_cameraZoom;
 uniform vec2 u_cameraRotation;
@@ -25,14 +27,29 @@ uniform sampler2D u_worldData;
 out vec4 outColor;
 
 void main() {
-    vec2 position = v_position * vec2(` + canvas.clientWidth + `.0, ` + canvas.clientHeight + `.0);
-    position = vec2(
-        position.x * u_cameraRotation.y + position.y * u_cameraRotation.x,
-        position.y * u_cameraRotation.y - position.x * u_cameraRotation.x);
+    vec2 position = v_position * u_viewport;
+    // position = vec2(
+    //     position.x * u_cameraRotation.y + position.y * u_cameraRotation.x,
+    //     position.y * u_cameraRotation.y - position.x * u_cameraRotation.x);
     position *= u_cameraZoom;
     position += u_cameraPosition;
     
-    outColor = vec4(v_position.y, position.x/255.0, float(texelFetch(u_worldData, ivec2(position), 0).r)/255.0, 1.0);
+    // outColor = vec4(v_position.y, position.x/255.0, float(texelFetch(u_worldData, ivec2(position), 0).r)/255.0, 1.0);
+
+    vec4 tileData = texelFetch(u_worldData, ivec2(position), 0);
+
+    float biome = tileData.x;
+    if (biome == 0.0) {
+        outColor.xy = vec2(0.0, 6.0); // green stone
+    } else if (biome == 1.0) {
+        outColor.xy = vec2(1.0, 8.0); // dark stone
+    } else if (biome == 2.0) {
+        outColor.xy = vec2(2.0, 4.0); // aquarite
+    } else {
+        outColor.xy = vec2(3.0, 2.0); // ice
+    }
+
+    outColor.w = 1.0;
 
     // outColor = vec4(0.4, 0.4, 0.4, 1.0);
 }`;
@@ -40,19 +57,23 @@ void main() {
 const vertexShader = window.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
 const fragmentShader = window.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
 const program = window.createProgram(gl, vertexShader, fragmentShader);
-gl.useProgram(program);
 
+gl.useProgram(program);
+const viewportUniformLocation = gl.getUniformLocation(program, 'u_viewport');
 const cameraPositionUniformLocation = gl.getUniformLocation(program, 'u_cameraPosition');
 const cameraZoomUniformLocation = gl.getUniformLocation(program, 'u_cameraZoom');
 const cameraRotationUniformLocation = gl.getUniformLocation(program, 'u_cameraRotation');
+const worldUniformLocation = gl.getUniformLocation(program, 'u_worldData');
+
+const worldTexture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, worldTexture);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 const Uint8WorldData = window.generateWorldUint8Array(window.world.width, window.world.height, window.world.seed);
-const parseUint8WorldWorker = new Worker('parseUint8WorldWorker.js');
-parseUint8WorldWorker.postMessage({ Uint8World: Uint8WorldData });
-parseUint8WorldWorker.onmessage = ({ worldData }) => {
-    window.worldData = worldData; 
-    uploadWorldToGPU(window.world.width, window.world.height, worldData);
-}
+console.log(Uint8WorldData);
+window.worldData = Uint8WorldData; 
+uploadWorldToGPU(window.world.width, window.world.height, Uint8WorldData);
 
 const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
 
@@ -92,46 +113,41 @@ function render () {
 }
 
 function uploadWorldToGPU (width, height, data) {
-    const worldTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, worldTexture);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-    const worldUniformLocation = gl.getUniformLocation(program, 'u_worldData');
     gl.uniform1i(worldUniformLocation, 0);
 }
 
 function controlCamera() {
     if (window.keyIsDown.w) {
-        window.camera.y += 10;
+        window.camera.y += 10*window.camera.zoom;
     }
 
     if (window.keyIsDown.s) {
-        window.camera.y -= 10;
+        window.camera.y -= 10*window.camera.zoom;
     }
 
     if (window.keyIsDown.a) {
-        window.camera.x -= 10;
+        window.camera.x -= 10*window.camera.zoom;
     }
 
     if (window.keyIsDown.d) {
-        window.camera.x += 10;
+        window.camera.x += 10*window.camera.zoom;
     }
 
     if (window.keyIsDown.e) {
-        window.camera.zoom *= 1.01;
+        window.camera.zoom *= 1.02;
     }
 
     if (window.keyIsDown.q) {
-        window.camera.zoom *= 0.99;
+        window.camera.zoom *= 0.98;
     }
 
-    if (window.keyIsDown.arrowLeft) {
+    if (window.keyIsDown.ArrowLeft) {
         window.camera.rotation += Math.PI/180;
     }
 
-    if (window.keyIsDown.arrowRight) {
+    if (window.keyIsDown.ArrowRight) {
         window.camera.rotation -= Math.PI/180;
     }
 }
@@ -141,4 +157,6 @@ function resizeCanvas () {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.useProgram(program);
+    gl.uniform2f(viewportUniformLocation, canvas.width, canvas.height);
 }

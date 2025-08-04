@@ -55,31 +55,31 @@ const gl = canvas.getContext("webgl2", {antialias: false});
             void main () {
                 float biome = snoise(v_position/50.0)/2.0 + 0.5;
 
-                if (biome < 0.3) {
-                    out_color = vec4(0.2, 0.5, 0.4, 1.0); // green stone
-                } else if (biome < 0.8) {
-                    out_color = vec4(0.2, 0.2, 0.2, 1.0); // dark stone
-                } else if (biome < 0.9) {
-                    out_color = vec4(0.6, 0.5, 0.2, 1.0); // aquarite
-                } else {
-                    out_color = vec4(1.0, 1.0, 1.0, 1.0); // ice
-                }
+                // if (biome < 0.3) {
+                //     out_color = vec4(0.2, 0.5, 0.4, 1.0); // green stone
+                // } else if (biome < 0.8) {
+                //     out_color = vec4(0.2, 0.2, 0.2, 1.0); // dark stone
+                // } else if (biome < 0.9) {
+                //     out_color = vec4(0.6, 0.5, 0.2, 1.0); // aquarite
+                // } else {
+                //     out_color = vec4(1.0, 1.0, 1.0, 1.0); // ice
+                // }
                 
                 if (biome < 0.3) {
-                    out_color.x = 0.0; // green stone
+                    out_color.xy = vec2(0.0, 6.0); // green stone
                 } else if (biome < 0.8) {
-                    out_color.x = 1.0; // dark stone
+                    out_color.xy = vec2(1.0, 8.0); // dark stone
                 } else if (biome < 0.9) {
-                    out_color.x = 2.0; // aquarite
+                    out_color.xy = vec2(2.0, 4.0); // aquarite
                 } else {
-                    out_color.x = 3.0; // ice
+                    out_color.xy = vec2(3.0, 2.0); // ice
                 }
-                out_color.x /= 255.0;
+                out_color /= 255.0;
 
                 float carving = snoise(v_position/20.0)*snoise(v_position/20.0);
                 if (carving < 0.15) {
                     out_color.y = 0.0;
-                } else { out_color.y = 1.0/255.0; }
+                }
 
                 // out_color *= carving;
                 // out_color = vec4(carving, carving, carving, 1.0);
@@ -87,7 +87,8 @@ const gl = canvas.getContext("webgl2", {antialias: false});
                 // if (carving < 0.15) {
                 //     out_color *= 0.5;
                 // }
-                // out_color.a = 1.0; // Ensure alpha is set to 1.0
+                
+                out_color.zw = vec2(1.0, 1.0); // make it visible
             }`;
 
 const vs = window.createShader(gl, gl.VERTEX_SHADER, vss);

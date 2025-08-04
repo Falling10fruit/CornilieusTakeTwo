@@ -37,17 +37,13 @@
             };
 
             window.keyIsDown = {};
-        
-            window.setKeyIsDown = (event) => {
-                if (event.type === "keydown") {
-                    window.keyIsDown[event.key] = true;
-                } else if (event.type === "keyup") {
-                    window.keyIsDown[event.key] = false;
-                }
 
-                if (event.key === "f5") {
-                    eyedropper.click();
-                }
+            window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
+            window.onkeydown = (event) => {
+                window.keyIsDown[event.key] = true;
+                console.log(event.key);
+
+                if (event.key === "F5") eyedropper.click();
             };
         </script>
 
