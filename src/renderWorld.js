@@ -1,7 +1,5 @@
-const canvas = document.createElement("canvas");
+const canvas = document.getElementById("canvas");
 const gl = canvas.getContext("webgl2", {antialias: false});
-canvas.width = canvas.clientWidth;
-canvas.height = canvas.clientHeight;
 const vertexShaderSource = `#version 300 es
 in vec2 a_position;
 
@@ -35,6 +33,8 @@ void main() {
     position += u_cameraPosition;
     
     outColor = vec4(v_position.y, position.x/255.0, float(texelFetch(u_worldData, ivec2(position), 0).r)/255.0, 1.0);
+
+    // outColor = vec4(0.4, 0.4, 0.4, 1.0);
 }`;
 
 const vertexShader = window.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
@@ -46,9 +46,6 @@ const cameraPositionUniformLocation = gl.getUniformLocation(program, 'u_cameraPo
 const cameraZoomUniformLocation = gl.getUniformLocation(program, 'u_cameraZoom');
 const cameraRotationUniformLocation = gl.getUniformLocation(program, 'u_cameraRotation');
 
-const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
-const positionBuffer = gl.createBuffer();
-
 const Uint8WorldData = window.generateWorldUint8Array(window.world.width, window.world.height, window.world.seed);
 const parseUint8WorldWorker = new Worker('parseUint8WorldWorker.js');
 parseUint8WorldWorker.postMessage({ Uint8World: Uint8WorldData });
@@ -57,10 +54,12 @@ parseUint8WorldWorker.onmessage = ({ worldData }) => {
     uploadWorldToGPU(window.world.width, window.world.height, worldData);
 }
 
+const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+
 const renderWorldVAO = gl.createVertexArray();
 gl.bindVertexArray(renderWorldVAO);
 
-gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
     -1, -1,
     1, -1,
@@ -70,19 +69,23 @@ gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
 gl.enableVertexAttribArray(positionAttributeLocation);
 gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
 
-gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-render();
+resizeCanvas();
+window.onresize = resizeCanvas;
+
+render(); // render and gametick are not synced
 function render () {
     controlCamera();
-
-    gl.bindVertexArray(renderWorldVAO);
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+    gl.useProgram(program);
     gl.uniform2f(cameraPositionUniformLocation, camera.x, camera.y);
     gl.uniform1f(cameraZoomUniformLocation, camera.zoom);
     gl.uniform2f(cameraRotationUniformLocation, Math.sin(camera.rotation), Math.cos(camera.rotation));
+
+    // console.log("ahn~ im drawing");
+    gl.bindVertexArray(renderWorldVAO);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     requestAnimationFrame(render);
@@ -131,4 +134,11 @@ function controlCamera() {
     if (window.keyIsDown.arrowRight) {
         window.camera.rotation -= Math.PI/180;
     }
+}
+
+function resizeCanvas () {
+    console.log("setting canvas to width:", canvas.clientWidth, "height:", canvas.clientHeight);
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 }

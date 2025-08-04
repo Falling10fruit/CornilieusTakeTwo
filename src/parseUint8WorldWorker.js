@@ -26,7 +26,7 @@ onmessage = (message) => {
         }
     }
 
-    console.log(worldData)
+    // console.log(worldData)
 
     postMessage({ worldData });
 }
