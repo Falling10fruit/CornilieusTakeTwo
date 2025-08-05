@@ -36,22 +36,27 @@ void main() {
     
     // outColor = vec4(v_position.y, position.x/255.0, float(texelFetch(u_worldData, ivec2(position), 0).r)/255.0, 1.0);
 
-    vec4 tileData = texelFetch(u_worldData, ivec2(position), 0);
+    vec4 tileData = texelFetch(u_worldData, ivec2(position), 0)*255.0;
+
+    outColor = vec4(247.0, 0.0, 214.0, 69.0);
 
     float biome = tileData.x;
     if (biome == 0.0) {
-        outColor.xy = vec2(0.0, 6.0); // green stone
+        outColor = vec4(51.0, 127.5, 102.0, 69.0); // green stone
     } else if (biome == 1.0) {
-        outColor.xy = vec2(1.0, 8.0); // dark stone
+        outColor = vec4(51.0, 51.0, 51.0, 69.0); // dark stone
     } else if (biome == 2.0) {
-        outColor.xy = vec2(2.0, 4.0); // aquarite
-    } else {
-        outColor.xy = vec2(3.0, 2.0); // ice
+        outColor = vec4(153.0, 127.5, 51.0, 69.0); // aquarite
+    } else if (biome == 3.0) {
+        outColor = vec4(255.0, 255.0, 255.0, 69.0); // ice
     }
 
-    outColor.w = 1.0;
+    if (tileData.y == 0.0) { outColor /= 2.0; };
+    
+    outColor /= 255.0;
+    outColor.a = 1.0;
 
-    // outColor = vec4(0.4, 0.4, 0.4, 1.0);
+    // outColor = vec4(tileData.xyz/25.5, 1.0);
 }`;
 
 const vertexShader = window.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
@@ -120,19 +125,19 @@ function uploadWorldToGPU (width, height, data) {
 
 function controlCamera() {
     if (window.keyIsDown.w) {
-        window.camera.y += 10*window.camera.zoom;
+        window.camera.y += 30*window.camera.zoom;
     }
 
     if (window.keyIsDown.s) {
-        window.camera.y -= 10*window.camera.zoom;
+        window.camera.y -= 30*window.camera.zoom;
     }
 
     if (window.keyIsDown.a) {
-        window.camera.x -= 10*window.camera.zoom;
+        window.camera.x -= 30*window.camera.zoom;
     }
 
     if (window.keyIsDown.d) {
-        window.camera.x += 10*window.camera.zoom;
+        window.camera.x += 30*window.camera.zoom;
     }
 
     if (window.keyIsDown.e) {
