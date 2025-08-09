@@ -69,8 +69,8 @@ const cameraRotationUniformLocation = window.gl.getUniformLocation(program, 'u_c
 const worldUniformLocation = window.gl.getUniformLocation(program, 'u_worldData');
 
 const worldTexture = window.generateWorldTexture(window.world.width, window.world.height, window.world.seed);
-console.log("world texture:", worldTexture);
 window.gl.bindTexture(window.gl.TEXTURE_2D, worldTexture);
+window.gl.useProgram(program);
 window.gl.uniform1i(worldUniformLocation, 0);
 
 const positionAttributeLocation = window.gl.getAttribLocation(program, 'a_position');
@@ -105,7 +105,7 @@ function render () {
 
     // console.log("ahn~ im drawing");
     window.gl.bindVertexArray(renderWorldVAO);
-    window.gl.drawArrays(window.gl.TRIANwindow.glE_STRIP, 0, 4);
+    window.gl.drawArrays(window.gl.TRIANGLE_STRIP, 0, 4);
 
     requestAnimationFrame(render);
 }

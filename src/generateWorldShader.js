@@ -131,7 +131,8 @@ window.generateWorldTexture = (width = 1600, height = 900, seed = 0) => {
     window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, width, height, 0, window.gl.RGBA, window.gl.UNSIGNED_BYTE, null);
     window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, fboGeneratedWorld);
     
-    window.gl.drawArrays(window.gl.TRIANwindow.glE_STRIP, 0, 4);
+    window.gl.drawArrays(window.gl.TRIANGLE_STRIP, 0, 4);
+    window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, null);
     return textureGeneratedWorld;
 }
 

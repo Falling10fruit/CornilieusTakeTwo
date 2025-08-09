@@ -19,6 +19,9 @@
         <h1>Hello World!</h1>
 
         <script>
+            const canvas = document.getElementById("canvas");
+            window.gl = canvas.getContext("webgl2", { antialias: false });
+
             const eyedropper = document.createElement("input");
             eyedropper.type = "color";
 
