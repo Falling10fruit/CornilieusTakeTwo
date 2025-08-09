@@ -1,17 +1,13 @@
-const canvas = document.createElement("canvas");
-const gl = canvas.getContext("webgl2", {antialias: false});
-
-
             const vss = `#version 300 es
-            in vec2 a_position;
+            in vec2 a_bufferToIterate;
             uniform vec2 u_worldSize;
             out vec2 v_position;
 
             void main () {
-                v_position = (a_position/2.0 + vec2(0.5, 0.5))*u_worldSize;
-                // v_position = a_position*100.0;
+                v_position = (a_bufferToIterate/2.0 + vec2(0.5, 0.5))*u_worldSize;
+                // v_position = a_bufferToIterate*100.0;
 
-                gl_Position = vec4(a_position, 0.0, 1.0);
+                gl_Position = vec4(a_bufferToIterate, 0.0, 1.0);
             }
             `;
 
@@ -91,41 +87,52 @@ const gl = canvas.getContext("webgl2", {antialias: false});
                 out_color.zw = vec2(1.0, 1.0); // make it visible
             }`;
 
-const vs = window.createShader(gl, gl.VERTEX_SHADER, vss);
-const fs = window.createShader(gl, gl.FRAGMENT_SHADER, fss);
-const generateWorldProgram = window.createProgram(gl, vs, fs);
+const vs = window.createShader(window.gl, window.gl.VERTEX_SHADER, vss);
+const fs = window.createShader(window.gl, window.gl.FRAGMENT_SHADER, fss);
+const generateWorldProgram = window.createProgram(window.gl, vs, fs);
 
-gl.useProgram(generateWorldProgram);
-const worldSizeUniformLocation = gl.getUniformLocation(generateWorldProgram, 'u_worldSize');
+window.gl.useProgram(generateWorldProgram);
+const worldSizeUniformLocation = window.gl.getUniformLocation(generateWorldProgram, 'u_worldSize');
 
-const generationVAO = gl.createVertexArray();
-gl.bindVertexArray(generationVAO); // binding vao is global
+const generationVAO = window.gl.createVertexArray();
+window.gl.bindVertexArray(generationVAO); // binding vao is window.global
 
-const positionAttributeLocation = gl.getAttribLocation(generateWorldProgram, 'a_position');
-gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+const positionAttributeLocation = window.gl.getAttribLocation(generateWorldProgram, 'a_bufferToIterate');
+window.gl.bindBuffer(window.gl.ARRAY_BUFFER, window.gl.createBuffer());
+window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array([
     -1, -1,
     1, -1, 
     -1, 1,
     1, 1,
-]), gl.STATIC_DRAW);
-gl.enableVertexAttribArray(positionAttributeLocation);
-gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+]), window.gl.STATIC_DRAW);
+window.gl.enableVertexAttribArray(positionAttributeLocation);
+window.gl.vertexAttribPointer(positionAttributeLocation, 2, window.gl.FLOAT, false, 0, 0);
 
-window.generateWorldUint8Array = (width = 1600, height = 900, seed = 0) => {
+const fboGeneratedWorld = window.gl.createFramebuffer();
+window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, fboGeneratedWorld);
+
+const textureGeneratedWorld = window.gl.createTexture();
+window.gl.bindTexture(window.gl.TEXTURE_2D, textureGeneratedWorld);
+window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.NEAREST);
+window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.NEAREST);
+window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, 0, 0, 0, window.gl.RGBA, window.gl.UNSIGNED_BYTE, null);
+window.gl.framebufferTexture2D(window.gl.FRAMEBUFFER, window.gl.COLOR_ATTACHMENT0, window.gl.TEXTURE_2D, textureGeneratedWorld, 0);
+
+window.generateWorldTexture = (width = 1600, height = 900, seed = 0) => {
     canvas.width = width;
     canvas.height = height;
-    gl.useProgram(generateWorldProgram);
-    gl.uniform2f(worldSizeUniformLocation, width, height);
-    gl.bindVertexArray(generationVAO);
+    window.gl.viewport(0, 0, width, height);
+    window.gl.useProgram(generateWorldProgram);
+    window.gl.uniform2f(worldSizeUniformLocation, width, height);
     
-    gl.viewport(0, 0, width, height);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    const data = new Uint8Array(width * height * 4);
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
-
-    return data;
+    window.gl.bindVertexArray(generationVAO);
+        
+    window.gl.bindTexture(window.gl.TEXTURE_2D, textureGeneratedWorld);
+    window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, width, height, 0, window.gl.RGBA, window.gl.UNSIGNED_BYTE, null);
+    window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, fboGeneratedWorld);
+    
+    window.gl.drawArrays(window.gl.TRIANwindow.glE_STRIP, 0, 4);
+    return textureGeneratedWorld;
 }
 
 // console.table(world);

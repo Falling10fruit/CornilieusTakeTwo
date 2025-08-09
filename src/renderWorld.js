@@ -1,5 +1,3 @@
-const canvas = document.getElementById("canvas");
-const gl = canvas.getContext("webgl2", {antialias: false});
 const vertexShaderSource = `#version 300 es
 in vec2 a_position;
 
@@ -59,41 +57,36 @@ void main() {
     // outColor = vec4(tileData.xyz/25.5, 1.0);
 }`;
 
-const vertexShader = window.createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-const fragmentShader = window.createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
-const program = window.createProgram(gl, vertexShader, fragmentShader);
+const vertexShader = window.createShader(window.gl, window.gl.VERTEX_SHADER, vertexShaderSource);
+const fragmentShader = window.createShader(window.gl, window.gl.FRAGMENT_SHADER, fragmentShaderSource);
+const program = window.createProgram(window.gl, vertexShader, fragmentShader);
 
-gl.useProgram(program);
-const viewportUniformLocation = gl.getUniformLocation(program, 'u_viewport');
-const cameraPositionUniformLocation = gl.getUniformLocation(program, 'u_cameraPosition');
-const cameraZoomUniformLocation = gl.getUniformLocation(program, 'u_cameraZoom');
-const cameraRotationUniformLocation = gl.getUniformLocation(program, 'u_cameraRotation');
-const worldUniformLocation = gl.getUniformLocation(program, 'u_worldData');
+window.gl.useProgram(program);
+const viewportUniformLocation = window.gl.getUniformLocation(program, 'u_viewport');
+const cameraPositionUniformLocation = window.gl.getUniformLocation(program, 'u_cameraPosition');
+const cameraZoomUniformLocation = window.gl.getUniformLocation(program, 'u_cameraZoom');
+const cameraRotationUniformLocation = window.gl.getUniformLocation(program, 'u_cameraRotation');
+const worldUniformLocation = window.gl.getUniformLocation(program, 'u_worldData');
 
-const worldTexture = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, worldTexture);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+const worldTexture = window.generateWorldTexture(window.world.width, window.world.height, window.world.seed);
+console.log("world texture:", worldTexture);
+window.gl.bindTexture(window.gl.TEXTURE_2D, worldTexture);
+window.gl.uniform1i(worldUniformLocation, 0);
 
-const Uint8WorldData = window.generateWorldUint8Array(window.world.width, window.world.height, window.world.seed);
-console.log(Uint8WorldData);
-window.worldData = Uint8WorldData; 
-uploadWorldToGPU(window.world.width, window.world.height, Uint8WorldData);
+const positionAttributeLocation = window.gl.getAttribLocation(program, 'a_position');
 
-const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+const renderWorldVAO = window.gl.createVertexArray();
+window.gl.bindVertexArray(renderWorldVAO);
 
-const renderWorldVAO = gl.createVertexArray();
-gl.bindVertexArray(renderWorldVAO);
-
-gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+window.gl.bindBuffer(window.gl.ARRAY_BUFFER, window.gl.createBuffer());
+window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array([
     -1, -1,
-    1, -1,
-    -1, 1,
-    1, 1,
-]), gl.STATIC_DRAW);
-gl.enableVertexAttribArray(positionAttributeLocation);
-gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+     1, -1,
+    -1,  1,
+     1,  1,
+]), window.gl.STATIC_DRAW);
+window.gl.enableVertexAttribArray(positionAttributeLocation);
+window.gl.vertexAttribPointer(positionAttributeLocation, 2, window.gl.FLOAT, false, 0, 0);
 
 resizeCanvas();
 window.onresize = resizeCanvas;
@@ -102,25 +95,19 @@ render(); // render and gametick are not synced
 function render () {
     controlCamera();
 
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
+    window.gl.clearColor(0, 0, 0, 0);
+    window.gl.clear(window.gl.COLOR_BUFFER_BIT);
 
-    gl.useProgram(program);
-    gl.uniform2f(cameraPositionUniformLocation, camera.x, camera.y);
-    gl.uniform1f(cameraZoomUniformLocation, camera.zoom);
-    gl.uniform2f(cameraRotationUniformLocation, Math.sin(camera.rotation), Math.cos(camera.rotation));
+    window.gl.useProgram(program);
+    window.gl.uniform2f(cameraPositionUniformLocation, camera.x, camera.y);
+    window.gl.uniform1f(cameraZoomUniformLocation, camera.zoom);
+    window.gl.uniform2f(cameraRotationUniformLocation, Math.sin(camera.rotation), Math.cos(camera.rotation));
 
     // console.log("ahn~ im drawing");
-    gl.bindVertexArray(renderWorldVAO);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    window.gl.bindVertexArray(renderWorldVAO);
+    window.gl.drawArrays(window.gl.TRIANwindow.glE_STRIP, 0, 4);
 
     requestAnimationFrame(render);
-}
-
-function uploadWorldToGPU (width, height, data) {
-    gl.bindTexture(gl.TEXTURE_2D, worldTexture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
-    gl.uniform1i(worldUniformLocation, 0);
 }
 
 function controlCamera() {
@@ -161,7 +148,7 @@ function resizeCanvas () {
     console.log("setting canvas to width:", canvas.clientWidth, "height:", canvas.clientHeight);
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-    gl.useProgram(program);
-    gl.uniform2f(viewportUniformLocation, canvas.width, canvas.height);
+    window.gl.viewport(0, 0, window.gl.canvas.width, window.gl.canvas.height);
+    window.gl.useProgram(program);
+    window.gl.uniform2f(viewportUniformLocation, canvas.width, canvas.height);
 }
