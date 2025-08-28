@@ -1,0 +1,19 @@
+#error_box {
+    width: 200px;
+    height: 150px;
+
+    position: fixed;
+    left: calc(50vw - 100px);
+    top: calc(50vh - 75px);
+
+    background-color: aliceblue;
+    border: 1px solid gray;
+    padding: 10px;
+    font-family: 'Times New Roman', Times, serif;
+}
+
+#error_box p {
+    text-wrap: nowrap;
+    overflow-x: auto;
+    color: red;
+}

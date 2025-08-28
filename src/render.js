@@ -1,8 +1,7 @@
 resizeCanvas();
 window.onresize = resizeCanvas;
 
-render(); // render and gametick are not synced
-function render () {
+window.render = () => {
     controlCamera();
 
     window.gl.clearColor(0, 0, 0, 0);
@@ -28,7 +27,4 @@ function resizeCanvas () {
     // console.log("setting canvas to width:", canvas.clientWidth, "height:", canvas.clientHeight);
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-    window.gl.viewport(0, 0, window.gl.canvas.width, window.gl.canvas.height);
-
-    window.updateWorldRenderViewport(canvas.width, canvas.height);
 }

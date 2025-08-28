@@ -6,22 +6,29 @@
         <title>Cornileius</title>
 
         <style>
-            body {
+            * {
                 box-sizing: border-box;
+            }
+
+            body {
                 margin: 0;
             }
         </style>
 
         <link rel="stylesheet" href="canvas.css">
+        <link rel="stylesheet" href="error_box.css">
     </head>
     <body>
         <canvas id="canvas"></canvas>
         <h1>Hello World!</h1>
 
-        <script>
-            const canvas = document.getElementById("canvas");
-            window.gl = canvas.getContext("webgl2", { antialias: false });
+        <div id="error_box" style="visibility: hidden;">
+            <h2>huh.</h2>
+            <p>idk, shit happens</p>
+            <button>well fuck</button> <button>copy error</button>
+        </div>
 
+        <script>
             const eyedropper = document.createElement("input");
             eyedropper.type = "color";
 
@@ -54,6 +61,7 @@
         <script type="module" src="generateWorldShader.js"></script>
         <script type="module" src="renderWorld.js"></script>
         <script type="module" src="render.js"></script>
+        <script defer type="module" src="setUpGPU.js"></script>
         <!--<script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin></script><!--Ignore red it's fine-->
     </body>
 </html>
