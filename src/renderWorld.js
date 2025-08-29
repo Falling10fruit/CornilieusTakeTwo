@@ -41,7 +41,7 @@ global.setUp = () => {
         `
     });
 
-    const bindGroupLayouts = window.device.createBindGroupLayout({
+    const bindGroupLayout = window.device.createBindGroupLayout({
         label: `generate world bind group layout`,
         entries: [{
             binding: 0,
@@ -54,7 +54,7 @@ global.setUp = () => {
         label: `render world pipeline`,
         layout: window.device.createPipelineLayout({
             label: `render world pipeline layout`,
-            bindGroupLayouts,
+            bindGroupLayouts: [bindGroupLayout],
         }),
         vertex: {
             module: vShader,
@@ -69,5 +69,5 @@ global.setUp = () => {
         },
     });
 
-    window.renderWorld = function() {};
+    global.renderWorld = function() {};
 }

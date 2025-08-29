@@ -29,7 +29,9 @@ async function setUpGPU() {
     window.device = device;
 
     window.generateWorld.setUp();
-    // window.renderWorld.setUp();
+    window.renderWorld.setUp();
+
+    window.world.storageBuffer = window.generateWorld.generateWorldBuffer(window.world.width, window.world.heigh, window.world.seed);
 
     // window.render(); // render and gametick are not synced
 }

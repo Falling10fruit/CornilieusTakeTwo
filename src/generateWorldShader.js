@@ -1,23 +1,30 @@
 const global = window.generateWorld = {};
-
 global.setUp = () => {
     const computeShader = window.device.createShaderModule({
         label: `generate world shader`,
         code: `
-            fn permute(x : vec3f) -> vec3f { return mod(((x*34.0)+1.0)*x, 289.0); }
+            // Simplex 2D noise
+            // https://gist.github.com/patriciogonzalezvivo/670c22f3966e662d2f83
+
+            fn permute(x : vec3f) -> vec3f {
+                var newX : vec3f = (34.0*x + 1.0) * x;
+                return newX - floor(newX / 289.0) * 289.0;
+            }
             
             fn snoise(v : vec2f) -> f32 {
                 const C : vec4f = vec4(0.211324865405187, 0.366025403784439,-0.577350269189626, 0.024390243902439);
+
+                var i : vec2f = floor(v + dot(v, C.yy));
                                 
                 let x0 : vec2f = v - i + dot(i, C.xx);
                 
                 let i1 : vec2f = select(vec2(1.0, 0.0), vec2(0.0, 1.0), (x0.x > x0.y));
                 
                 var x12 : vec4f = x0.xyxy + C.xxzz;
-                x12.x -= i1;
-                x12.y -= i1;
+                x12.x -= i1.x;
+                x12.y -= i1.y;
                 
-                i = mod(i, 289.0);
+                i = i - floor(i / 289.0) * 289.0;
                 
                 let p : vec3f = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
                 
@@ -33,8 +40,8 @@ global.setUp = () => {
                 
                 m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
                 
-                let gx : 32f = a0.x  * x0.x  + h.x  * x0.y;
-                let gyz : 32f = a0.yz * x12.xz + h.yz * x12.yw;
+                let gx : f32 = a0.x  * x0.x  + h.x  * x0.y;
+                let gyz : f32 = a0.yz * x12.xz + h.yz * x12.yw;
                 let g : vec3f = vec3(gx, gyz, gyz);
                 
                 return 130.0 * dot(m, g);
@@ -42,17 +49,18 @@ global.setUp = () => {
 
             struct TileFormat { id : u32, hitPoints : u32 }
 
-            struct TileTypes {
-                const GREEN_STONE : TileFormat = TileFormat(0u, 6u);
-                const DARK_STONE  : TileFormat = TileFormat(1u, 8u);
-                const AQUARITE    : TileFormat = TileFormat(2u, 4u);
-                const ICE         : TileFormat = TileFormat(3u, 2u);
-            }
+            struct TileTypesStruct { GREEN_STONE : TileFormat, DARK_STONE : TileFormat, AQUARITE : TileFormat, ICE : TileFormat }
+            const TileTypes : TileTypesStruct = TileTypesStruct(
+                TileFormat(0u, 6u), // GREEN_STONE
+                TileFormat(1u, 8u), // DARK_STONE
+                TileFormat(2u, 4u), // AQUARITE
+                TileFormat(3u, 2u)  // ICE
+            );
 
             @group(0) @binding(0) var<storage, write> sworldData : texture_storage_2d<u32, write>;
 
             @compute @workgroup_size(16, 16, 1) fn cShader(
-                @builtin(global_invocation_id) global_invocation_id : vec3u
+                @builtin(global_invocation_id) global_invocation_id : vec3u,
                 @builtin(num_workgroups) dispatchSize : vec3u
             ) -> @builtin(position) vec4f {
                 
@@ -70,13 +78,13 @@ global.setUp = () => {
                 if (carving < 0.15) { tileData.hitPoints = 0u; }
 
                 let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x;
-                sWorldData[tileIndex] = (tileData.id      & 3u) << 30  +
-                                        (carved.hitPoints & 1u) << 29;
+                sWorldData[tileIndex] = ((tileData.id      & 3u) << 30)  +
+                                        ((carved.hitPoints & 1u) << 29);
             }
         `
     });
 
-    const bindGroupLayouts = window.device.createBindGroupLayout({
+    const bindGroupLayout = window.device.createBindGroupLayout({
         label: `generate world bind group layout`,
         entries: [{
             binding: 0,
@@ -89,7 +97,7 @@ global.setUp = () => {
         label: `generate world pipeline`,
         layout: window.device.createPipelineLayout({
             label: `generate world pipeline layout`,
-            bindGroupLayouts,
+            bindGroupLayouts: [bindGroupLayout],
         }),
         compute: {
             module: computeShader,
@@ -97,7 +105,7 @@ global.setUp = () => {
         }
     });
 
-    window.generateWorldTexture = (width = 80, height = 60, seed = 0) => { 
+    global.generateWorldBuffer = (width = 80, height = 60, seed = 0) => { 
         const worldDataBuffer = window.device.createBuffer({
             label: `world data buffer`,
             size: width * height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
