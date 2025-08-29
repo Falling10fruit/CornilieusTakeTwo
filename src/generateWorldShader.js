@@ -1,6 +1,7 @@
 const global = window.generateWorld = {};
+
 global.setUp = () => {
-    const computeShader = device.createShaderModule({
+    const computeShader = window.device.createShaderModule({
         label: `generate world shader`,
         code: `
             fn permute(x : vec3f) -> vec3f { return mod(((x*34.0)+1.0)*x, 289.0); }
@@ -39,45 +40,84 @@ global.setUp = () => {
                 return 130.0 * dot(m, g);
             }
 
-            @group(0) @binding(0) var<storage, write> u_worldData : texture_storage_2d<u32, write>;
+            struct TileFormat { id : u32, hitPoints : u32 }
 
             struct TileTypes {
-                const GRASS 
+                const GREEN_STONE : TileFormat = TileFormat(0u, 6u);
+                const DARK_STONE  : TileFormat = TileFormat(1u, 8u);
+                const AQUARITE    : TileFormat = TileFormat(2u, 4u);
+                const ICE         : TileFormat = TileFormat(3u, 2u);
             }
 
-            @compute @workgroup_size(16, 16, 1) fn cShader(
-                @builtin(global_invocation_id) v_position : vec3u
-                @builtin(workgroup_id) workgroupSize : vec3u
-            ) -> @builtin(position) vec4f {
-                var tileData : u32;
-                var biomeData : u32;
-                var health
-            
-                let biome : f32 = 1.0;
+            @group(0) @binding(0) var<storage, write> sworldData : texture_storage_2d<u32, write>;
 
-                if (biome < 0.3) {
-                    outColor.r
-                }
+            @compute @workgroup_size(16, 16, 1) fn cShader(
+                @builtin(global_invocation_id) global_invocation_id : vec3u
+                @builtin(num_workgroups) dispatchSize : vec3u
+            ) -> @builtin(position) vec4f {
+                
+                // tileType (<<30) carved (<<29)
+                //      01              0        10101 01010101 01010101 01010101
+                var tileData : TileFormat;
+    
+                let biome : f32 = 1.0;
+                     if (biome < 0.3) { tileData = TileTypes.GREEN_STONE; }
+                else if (biome < 0.8) { tileData = TileTypes.DARK_STONE; }
+                else if (biome < 0.9) { tileData = TileTypes.AQUARITE; }
+                else                  { tileData = TileTypes.ICE; }
+
+                let carving : f32 = 1.0;
+                if (carving < 0.15) { tileData.hitPoints = 0u; }
+
+                let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x;
+                sWorldData[tileIndex] = (tileData.id      & 3u) << 30  +
+                                        (carved.hitPoints & 1u) << 29;
             }
         `
     });
 
-    const layout = device.createPipelineLayout({
-        label: `generate world pipeline layout`,
-        bindGroupLayouts: [{
+    const bindGroupLayouts = window.device.createBindGroupLayout({
+        label: `generate world bind group layout`,
+        entries: [{
             binding: 0,
-
-        }],
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" }
+        }]
     });
 
-    const pipeline = device.createComputePipeline({
-        layout,
+    const pipeline = window.device.createComputePipeline({
+        label: `generate world pipeline`,
+        layout: window.device.createPipelineLayout({
+            label: `generate world pipeline layout`,
+            bindGroupLayouts,
+        }),
         compute: {
             module: computeShader,
             entryPoint: "cShader",
         }
     });
-}
 
-window.generateWorldTexture = (width = 1600, height = 900, seed = 0) => {
+    window.generateWorldTexture = (width = 80, height = 60, seed = 0) => { 
+        const worldDataBuffer = window.device.createBuffer({
+            label: `world data buffer`,
+            size: width * height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+        });
+
+        const bindGroup = window.device.createBindGroup({
+            label: `generate world bind group`,
+            layout: pipeline.getBindGroupLayout(0),
+            entries: [{ binding: 0, resource: { buffer: worldDataBuffer } }]
+        });
+
+        const commandEncoder = window.device.createCommandEncoder({ label: `generate world command encoder` });
+        const passEncoder = commandEncoder.beginComputePass({ label: `generate world compute pass` });
+        passEncoder.setPipeline(pipeline);
+        passEncoder.setBindGroup(0, bindGroup);
+        passEncoder.dispatchWorkgroups(width, height);
+        passEncoder.end();
+        window.device.queue.submit([commandEncoder.finish()]);
+
+        return worldDataBuffer;
+    }
 }

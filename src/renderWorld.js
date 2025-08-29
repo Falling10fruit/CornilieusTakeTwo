@@ -19,8 +19,9 @@ global.setUp = () => {
     const fShader = window.device.createShaderModule({
         label: `world fragment shader`,
         code: `
-            @group(0) @binding(0) var u_worldData : texture_2d<u32>;
-            @group(0) @binding(1) var u_worldSampler : sampler;
+            struct TileFormat { id : u32, hitPoints : u32 }
+
+            @group(0) @binding(0) var<storage, read> uworldData : u32;
 
             struct Transform {
                 @location(0) viewport : vec2f;
@@ -39,12 +40,21 @@ global.setUp = () => {
             }
         `
     });
+
+    const bindGroupLayouts = window.device.createBindGroupLayout({
+        label: `generate world bind group layout`,
+        entries: [{
+            binding: 0,
+            visibility: GPUShaderStage.COMPUTE,
+            buffer: { type: "storage" }
+        }]
+    });
     
     window.renderWorld.pipeline = window.device.createRenderPipeline({
         label: `render world pipeline`,
         layout: window.device.createPipelineLayout({
             label: `render world pipeline layout`,
-            bindGroupLayouts: wind,
+            bindGroupLayouts,
         }),
         vertex: {
             module: vShader,
@@ -59,11 +69,5 @@ global.setUp = () => {
         },
     });
 
-}
-
-window.renderWorld = function() {}
-
-window.updateWorldRenderViewport = (width, height) => {
-    window.gl.useProgram(program);
-
+    window.renderWorld = function() {};
 }
