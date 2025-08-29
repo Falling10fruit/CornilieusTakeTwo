@@ -20,18 +20,28 @@ async function setUpGPU() {
         if (e.reason !== "destroyed") setUpGPU();
     });
 
-    const ctx = document.getElementById("canvas").getContext("webgpu");
+    const ctx = document.getElementById("canvas").getContext("webgpu", { alpha: `premultiplied` });
     ctx.configure({
         device: device,
         format: navigator.gpu.getPreferredCanvasFormat()
     });
     
     window.device = device;
+    window.renderPassDescriptor = {
+        label: `canvas render pass`,
+        colorAttatchments: [{
+            clearValue: [0.0, 0.0, 0.0, 0.0],
+            loadOp: `clear`,
+            storeOp: `store`,
+            view: ctx.getCurrentTexture().createView(),
+        }],
+    };
 
     window.generateWorld.setUp();
-    window.renderWorld.setUp();
+    window.world.storageBuffer = window.generateWorld.generateWorldStorageBuffer(window.world);
+    window.generateWorld.generateWorldToBuffer({...window.world, bufferCopySrc: window.world.storageBuffer});
 
-    window.world.storageBuffer = window.generateWorld.generateWorldBuffer(window.world.width, window.world.heigh, window.world.seed);
+    window.renderWorld.setUp();
 
     // window.render(); // render and gametick are not synced
 }

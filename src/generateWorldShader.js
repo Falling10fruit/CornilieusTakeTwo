@@ -27,8 +27,16 @@ global.setUp = () => {
                 i = i - floor(i / 289.0) * 289.0;
                 
                 let p : vec3f = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
-                
-                var m : vec3f = pow(max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0), 4.0);
+
+                var m : vec3f = vec3f(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw));
+                // m = max(0.5 - m, 0.0);
+                m.x = max(0.5 - m.x, 0.0);
+                m.y = max(0.5 - m.y, 0.0);
+                m.z = max(0.5 - m.z, 0.0);
+                // m = pow(m, 4.0);
+                m.x = pow(m.x, 4.0);
+                m.y = pow(m.y, 4.0);
+                m.z = pow(m.z, 4.0);
                 
                 let x : vec3f = 2.0 * fract(p * C.www) - 1.0;
                 
@@ -40,9 +48,10 @@ global.setUp = () => {
                 
                 m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
                 
-                let gx : f32 = a0.x  * x0.x  + h.x  * x0.y;
-                let gyz : f32 = a0.yz * x12.xz + h.yz * x12.yw;
-                let g : vec3f = vec3(gx, gyz, gyz);
+                var g : vec3f;
+                g.x = a0.x  * x0.x  + h.x  * x0.y;
+                g.y = a0.y * x12.x + h.y * x12.y;
+                g.z = a0.z * x12.z + h.z * x12.w;
                 
                 return 130.0 * dot(m, g);
             }
@@ -57,12 +66,12 @@ global.setUp = () => {
                 TileFormat(3u, 2u)  // ICE
             );
 
-            @group(0) @binding(0) var<storage, write> sworldData : texture_storage_2d<u32, write>;
+            @group(0) @binding(0) var<storage, read_write> sWorldData : array<u32>;
 
             @compute @workgroup_size(16, 16, 1) fn cShader(
                 @builtin(global_invocation_id) global_invocation_id : vec3u,
                 @builtin(num_workgroups) dispatchSize : vec3u
-            ) -> @builtin(position) vec4f {
+            ) {
                 
                 // tileType (<<30) carved (<<29)
                 //      01              0        10101 01010101 01010101 01010101
@@ -78,8 +87,8 @@ global.setUp = () => {
                 if (carving < 0.15) { tileData.hitPoints = 0u; }
 
                 let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x;
-                sWorldData[tileIndex] = ((tileData.id      & 3u) << 30)  +
-                                        ((carved.hitPoints & 1u) << 29);
+                sWorldData[tileIndex] = ((tileData.id        & 3u) << 30)  +
+                                        ((tileData.hitPoints & 1u) << 29);
             }
         `
     });
@@ -105,17 +114,19 @@ global.setUp = () => {
         }
     });
 
-    global.generateWorldBuffer = (width = 80, height = 60, seed = 0) => { 
-        const worldDataBuffer = window.device.createBuffer({
+    global.generateWorldStorageBuffer = ({ width = 80, height = 60 }) => {
+        return device.createBuffer({
             label: `world data buffer`,
             size: width * height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
         });
+    }
 
+    global.generateWorldToBuffer = ({ width = 80, height = 60, bufferCopySrc }) => {
         const bindGroup = window.device.createBindGroup({
             label: `generate world bind group`,
             layout: pipeline.getBindGroupLayout(0),
-            entries: [{ binding: 0, resource: { buffer: worldDataBuffer } }]
+            entries: [{ binding: 0, resource: { buffer: bufferCopySrc } }]
         });
 
         const commandEncoder = window.device.createCommandEncoder({ label: `generate world command encoder` });
@@ -125,7 +136,5 @@ global.setUp = () => {
         passEncoder.dispatchWorkgroups(width, height);
         passEncoder.end();
         window.device.queue.submit([commandEncoder.finish()]);
-
-        return worldDataBuffer;
     }
 }
