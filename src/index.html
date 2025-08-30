@@ -40,10 +40,14 @@
             };
 
             window.camera = {
-                x: 0,
-                y: 0,
-                zoom: 1,
+                xPos: 0,
+                yPos: 0,
+                yVel: 0,
+                xVel: 0,
+                scale: 1,
+                scaleVel: 0,
                 rotation: (0)*Math.PI/180,
+                rotationVel: 0
             };
 
             window.keyIsDown = {};
@@ -61,6 +65,7 @@
         <script type="module" src="generateWorldShader.js"></script>
         <script type="module" src="renderWorld.js"></script>
         <script type="module" src="render.js"></script>
+        <script type="module" src="canvasResize.js"></script>
         <script defer type="module" src="setUpGPU.js"></script>
         <!--<script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin></script><!--Ignore red it's fine-->
     </body>

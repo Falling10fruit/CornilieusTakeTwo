@@ -1,15 +1,29 @@
-resizeCanvas();
-window.onresize = resizeCanvas;
+const global = window.render = {};
 
-window.render = () => {
-    controlCamera();
+global.setUp = (device, ctx) => {
+    const renderPassDescriptor = {
+        label: `canvas render pass`,
+        colorAttatchments: [{
+            clearValue: [0.0, 0.0, 0.0, 0.0],
+            loadOp: `clear`,
+            storeOp: `store`,
+            view: ctx.getCurrentTexture().createView(),
+        }],
+    };
 
-    window.gl.clearColor(0, 0, 0, 0);
-    window.gl.clear(window.gl.COLOR_BUFFER_BIT);
+    window.render = () => { // Yes I am rep
+        controlCamera(); // comment this out later
 
-    window.renderWorld();
+        const commanderEncoder = device.createCommandEncoder({ label: `render world command encoder`});
+        const pass = commanderEncoder.beginRenderPass(window.renderPassDescriptor);
 
-    requestAnimationFrame(render);
+        window.renderWorld(pass);
+
+        pass.end();
+        device.queue.submit([commanderEncoder.finish()]);
+
+        requestAnimationFrame(render);
+    }
 }
 
 function controlCamera() {
@@ -21,10 +35,4 @@ function controlCamera() {
     if (window.keyIsDown.q) window.camera.zoom *= 0.98;
     if (window.keyIsDown.ArrowLeft) window.camera.rotation += Math.PI/180;
     if (window.keyIsDown.ArrowRight) window.camera.rotation -= Math.PI/180;
-}
-
-function resizeCanvas () {
-    // console.log("setting canvas to width:", canvas.clientWidth, "height:", canvas.clientHeight);
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
 }

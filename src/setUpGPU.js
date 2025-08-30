@@ -27,23 +27,17 @@ async function setUpGPU() {
     });
     
     window.device = device;
-    window.renderPassDescriptor = {
-        label: `canvas render pass`,
-        colorAttatchments: [{
-            clearValue: [0.0, 0.0, 0.0, 0.0],
-            loadOp: `clear`,
-            storeOp: `store`,
-            view: ctx.getCurrentTexture().createView(),
-        }],
-    };
 
-    window.generateWorld.setUp();
+    window.generateWorld.setUp(device);
     window.world.storageBuffer = window.generateWorld.generateWorldStorageBuffer(window.world);
     window.generateWorld.generateWorldToBuffer({...window.world, bufferCopySrc: window.world.storageBuffer});
 
-    window.renderWorld.setUp();
+    window.renderWorld.setUp(device);
+    window.renderWorld.bindWorldStorageBuffer({...window.world, storageBuffer: window.world.storageBuffer});
 
-    // window.render(); // render and gametick are not synced
+    window.canvasResize.setUp();
+
+    window.render.setUp(device, ctx); // render and gametick are not synced
 }
 
 setUpGPU();

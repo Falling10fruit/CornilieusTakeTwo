@@ -1,6 +1,6 @@
 const global = window.generateWorld = {};
-global.setUp = () => {
-    const computeShader = window.device.createShaderModule({
+global.setUp = (device) => {
+    const computeShader = device.createShaderModule({
         label: `generate world shader`,
         code: `
             // Simplex 2D noise
@@ -57,7 +57,6 @@ global.setUp = () => {
             }
 
             struct TileFormat { id : u32, hitPoints : u32 }
-
             struct TileTypesStruct { GREEN_STONE : TileFormat, DARK_STONE : TileFormat, AQUARITE : TileFormat, ICE : TileFormat }
             const TileTypes : TileTypesStruct = TileTypesStruct(
                 TileFormat(0u, 6u), // GREEN_STONE
@@ -93,7 +92,7 @@ global.setUp = () => {
         `
     });
 
-    const bindGroupLayout = window.device.createBindGroupLayout({
+    const bindGroupLayout = device.createBindGroupLayout({
         label: `generate world bind group layout`,
         entries: [{
             binding: 0,
@@ -102,9 +101,9 @@ global.setUp = () => {
         }]
     });
 
-    const pipeline = window.device.createComputePipeline({
+    const pipeline = device.createComputePipeline({
         label: `generate world pipeline`,
-        layout: window.device.createPipelineLayout({
+        layout: device.createPipelineLayout({
             label: `generate world pipeline layout`,
             bindGroupLayouts: [bindGroupLayout],
         }),
@@ -123,18 +122,18 @@ global.setUp = () => {
     }
 
     global.generateWorldToBuffer = ({ width = 80, height = 60, bufferCopySrc }) => {
-        const bindGroup = window.device.createBindGroup({
+        const bindGroup = device.createBindGroup({
             label: `generate world bind group`,
             layout: pipeline.getBindGroupLayout(0),
             entries: [{ binding: 0, resource: { buffer: bufferCopySrc } }]
         });
 
-        const commandEncoder = window.device.createCommandEncoder({ label: `generate world command encoder` });
+        const commandEncoder = device.createCommandEncoder({ label: `generate world command encoder` });
         const passEncoder = commandEncoder.beginComputePass({ label: `generate world compute pass` });
         passEncoder.setPipeline(pipeline);
         passEncoder.setBindGroup(0, bindGroup);
         passEncoder.dispatchWorkgroups(width, height);
         passEncoder.end();
-        window.device.queue.submit([commandEncoder.finish()]);
+        device.queue.submit([commandEncoder.finish()]);
     }
 }

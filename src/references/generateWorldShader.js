@@ -1,5 +1,5 @@
 const global = window.generateWorld = {};
-global.setUp = () => {
+global.setUp = (device) => {
     const computeShader = device.createShaderModule({
         label: `generate world shader`,
         code: `
