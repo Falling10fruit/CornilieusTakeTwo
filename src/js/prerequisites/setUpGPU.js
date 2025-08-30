@@ -1,4 +1,4 @@
-async function setUpGPU() {
+window.setUpGPU = async function () {
     if (!navigator.gpu) { window.fail({
         title: "WebGPU is not supported in this browser",
         message: "you should never see this error"
@@ -25,20 +25,9 @@ async function setUpGPU() {
         device: device,
         format: navigator.gpu.getPreferredCanvasFormat()
     });
-    
-    window.device = device;
 
-    window.generateWorld.setUp(device);
-    window.world.storageBuffer = window.generateWorld.generateWorldStorageBuffer(window.world);
-    window.generateWorld.generateWorldToBuffer({...window.world, bufferCopySrc: window.world.storageBuffer});
-
-    window.renderWorld.setUp(device);
-    window.renderWorld.bindWorldStorageBuffer({...window.world, storageBuffer: window.world.storageBuffer});
-
-    window.canvasResize.setUp();
-
-    window.render.setUp(device, ctx); // render and gametick are not synced
-}
+    return { device, ctx };
+};
 
 setUpGPU();
 
