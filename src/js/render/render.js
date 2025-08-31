@@ -1,17 +1,9 @@
-let renderPassDescriptor = undefined;
 let device = undefined;
+let ctx = undefined;
 
 window.setUpRender = (input) => {
-    device = input.device
-    renderPassDescriptor = {
-        label: `canvas render pass`,
-        colorAttachments: [{
-            clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 0.0],
-            loadOp: `clear`,
-            storeOp: `store`,
-            view: input.ctx.getCurrentTexture().createView(),
-        }],
-    };
+    device = input.device;
+    ctx = input.ctx;
 
     window.render = render;
 }
@@ -19,8 +11,16 @@ window.setUpRender = (input) => {
 function render () {
     controlCamera(); // comment this out later
 
-    const commanderEncoder = device.createCommandEncoder({ label: `render world command encoder`});
-    const pass = commanderEncoder.beginRenderPass(renderPassDescriptor);
+    const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
+    const pass = commanderEncoder.beginRenderPass({
+        label: `canvas render pass`,
+        colorAttachments: [{
+            clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 0.0],
+            loadOp: `clear`,
+            storeOp: `store`,
+            view: ctx.getCurrentTexture().createView(),
+        }],
+    });
 
     window.renderWorld.render(pass);
 
