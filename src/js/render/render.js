@@ -1,10 +1,28 @@
-window.render = ({ device, renderPassDescriptor}) => { // Yes I am replacing the function
+let renderPassDescriptor = undefined;
+let device = undefined;
+
+window.setUpRender = (input) => {
+    device = input.device
+    renderPassDescriptor = {
+        label: `canvas render pass`,
+        colorAttachments: [{
+            clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 0.0],
+            loadOp: `clear`,
+            storeOp: `store`,
+            view: input.ctx.getCurrentTexture().createView(),
+        }],
+    };
+
+    window.render = render;
+}
+
+function render () {
     controlCamera(); // comment this out later
 
     const commanderEncoder = device.createCommandEncoder({ label: `render world command encoder`});
     const pass = commanderEncoder.beginRenderPass(renderPassDescriptor);
 
-    window.renderWorld(pass);
+    window.renderWorld.render(pass);
 
     pass.end();
     device.queue.submit([commanderEncoder.finish()]);

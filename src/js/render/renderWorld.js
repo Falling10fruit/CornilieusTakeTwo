@@ -167,7 +167,7 @@ global.setUp = (device) => {
     global.writeViewportBuffer = ({ width = canvas.width, height = canvas.height }) => device.queue.writeBuffer(viewportUniform, 0, new Float32Array([width, height]));
     global.writeTransformUniform = ({ xPos = 0, yPos = 0, scale = 1, rotation = 0}) => device.queue.writeBuffer(cameraTransformUniform, 0, new Float32Array([xPos, yPos, scale, rotation]));
 
-    global.renderWorld = function (pass) {
+    global.render = function (pass) {
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, bindGroup);
         pass.draw(3);

@@ -8,14 +8,6 @@ window.renderWorld.setUp(device);
 window.renderWorld.bindWorldStorageBuffer({...window.world, storageBuffer: window.world.storageBuffer});
 
 window.canvasResize.setUp();
+window.setUpRender({ device, ctx });
 
-const renderPassDescriptor = {
-    label: `canvas render pass`,
-    colorAttatchments: [{
-        clearValue: [0.0, 0.0, 0.0, 0.0],
-        loadOp: `clear`,
-        storeOp: `store`,
-        view: ctx.getCurrentTexture().createView(),
-    }],
-};
-window.render({ device, renderPassDescriptor}); // render and gametick are not synced
+window.render(); // render and gametick are not synced
