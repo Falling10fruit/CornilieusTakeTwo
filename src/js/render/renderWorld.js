@@ -4,13 +4,13 @@ global.setUp = (device) => {
         label: `render world vertex shader`,
         code: `
             const vertexArray : array<vec2f, 3> = array(
-                vec2f(2.0, -1.0),
+                vec2f(3.0, -1.0),
                 vec2f(-1.0, -1.0),
-                vec2f(2.0, -1.0),
+                vec2f(-1.0, 3.0),
             );
 
             @vertex fn vertexShader( @builtin(vertex_index) vertexIndex : u32 ) -> @builtin(position) vec4f {
-                return vec4f(vertexArray[vertexIndex] * vec2f(1.0, -1.0), 0.0, 1.0);
+                return vec4f(vertexArray[vertexIndex], 0.0, 1.0);
             }
         `
     });
@@ -30,13 +30,13 @@ global.setUp = (device) => {
             @group(0) @binding(0) var<storage, read> sWorldData : array<u32>;
             @group(0) @binding(1) var<uniform> sWorldSize : vec2f;
 
-            struct Transform {
+            struct TransformStruct {
                 @location(0) position : vec2f,
                 @location(1) scale : f32,
                 @location(2) rotation : f32,
             }
 
-            @group(0) @binding(2) var<uniform> uTransform : Transform;
+            @group(0) @binding(2) var<uniform> uTransform : TransformStruct;
             @group(0) @binding(3) var<uniform> uviewport : vec2f;
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
@@ -74,6 +74,8 @@ global.setUp = (device) => {
                     out_color.y /= 2.0;
                     out_color.z /= 2.0;
                 }
+
+                // out_color = vec4f(1.0, 0.0, 0.0, 1.0);
 
                 return out_color;
             }
@@ -164,10 +166,10 @@ global.setUp = (device) => {
         });
     }
 
-    global.writeViewportBuffer = ({ width = canvas.width, height = canvas.height }) => device.queue.writeBuffer(viewportUniform, 0, new Float32Array([width, height]));
+    global.writeViewportBuffer = ({ width = Number(canvas.width), height = Number(canvas.height) }) => device.queue.writeBuffer(viewportUniform, 0, new Float32Array([width, height]));
     global.writeTransformUniform = ({ xPos = 0, yPos = 0, scale = 1, rotation = 0}) => device.queue.writeBuffer(cameraTransformUniform, 0, new Float32Array([xPos, yPos, scale, rotation]));
 
-    global.render = function (pass) {
+    global.render = (pass) => {
         pass.setPipeline(pipeline);
         pass.setBindGroup(0, bindGroup);
         pass.draw(3);

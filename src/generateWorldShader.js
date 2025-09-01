@@ -72,22 +72,25 @@ global.setUp = (device) => {
                 @builtin(num_workgroups) dispatchSize : vec3u
             ) {
                 
-                // tileType (<<30) carved (<<29)
-                //      01              0        10101 01010101 01010101 01010101
+                // tileType (<<30) hitPoints (<<29)
+                //      01                0         10101 01010101 01010101 01010101
                 var tileData : TileFormat;
+                let coord : vec2f = vec2f(global_invocation_id.xy);
     
-                let biome : f32 = 1.0;
+                let biome : f32 = abs(snoise(coord));
                      if (biome < 0.3) { tileData = TileTypes.GREEN_STONE; }
                 else if (biome < 0.8) { tileData = TileTypes.DARK_STONE; }
                 else if (biome < 0.9) { tileData = TileTypes.AQUARITE; }
                 else                  { tileData = TileTypes.ICE; }
 
-                let carving : f32 = 1.0;
-                if (carving < 0.15) { tileData.hitPoints = 0u; }
+                let carving : f32 = abs(snoise(coord));
+                if (carving < 0.4) { tileData.hitPoints = 0u; }
 
                 let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x;
                 sWorldData[tileIndex] = ((tileData.id        & 3u) << 30)  +
                                         ((tileData.hitPoints & 1u) << 29);
+                
+                // sWorldData[tileIndex] = tileData.id; // Just to make sure it works
             }
         `
     });
@@ -121,19 +124,28 @@ global.setUp = (device) => {
         });
     }
 
-    global.generateWorldToBuffer = ({ width = 80, height = 60, bufferCopySrc }) => {
+    global.generateWorldToBuffer = ({ width = 80, height = 60, worldBuffer }) => {
         const bindGroup = device.createBindGroup({
             label: `generate world bind group`,
             layout: pipeline.getBindGroupLayout(0),
-            entries: [{ binding: 0, resource: { buffer: bufferCopySrc } }]
+            entries: [{ binding: 0, resource: { buffer: worldBuffer } }]
         });
 
-        const commandEncoder = device.createCommandEncoder({ label: `generate world command encoder` });
-        const passEncoder = commandEncoder.beginComputePass({ label: `generate world compute pass` });
-        passEncoder.setPipeline(pipeline);
-        passEncoder.setBindGroup(0, bindGroup);
-        passEncoder.dispatchWorkgroups(width, height);
-        passEncoder.end();
-        device.queue.submit([commandEncoder.finish()]);
+        const encoder = device.createCommandEncoder({ label: `generate world command encoder` });
+        const pass = encoder.beginComputePass({ label: `generate world compute pass` });
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(width, height);
+        pass.end();
+
+        // const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
+        // encoder.copyBufferToBuffer(worldBuffer, 0, readBuffer, 0, readBuffer.size);
+
+        device.queue.submit([encoder.finish()]);
+
+        // readBuffer.mapAsync(GPUMapMode.READ).then(() => {
+        //     console.log(new Uint32Array(readBuffer.getMappedRange()));
+        //     readBuffer.unmap();
+        // });
     }
 }

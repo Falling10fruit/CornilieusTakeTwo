@@ -13,9 +13,9 @@ function render () {
 
     const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
     const pass = commanderEncoder.beginRenderPass({
-        label: `canvas render pass`,
+        label: `render pass`,
         colorAttachments: [{
-            clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 0.0],
+            clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 1.0],
             loadOp: `clear`,
             storeOp: `store`,
             view: ctx.getCurrentTexture().createView(),
