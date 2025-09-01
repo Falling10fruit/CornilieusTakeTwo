@@ -10,6 +10,7 @@ window.setUpRender = (input) => {
 
 function render () {
     controlCamera(); // comment this out later
+    window.renderWorld.writeTransformUniform(window.camera)
 
     const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
     const pass = commanderEncoder.beginRenderPass({
@@ -31,12 +32,12 @@ function render () {
 }
 
 function controlCamera() {
-    if (window.keyIsDown.w) window.camera.y += 30*window.camera.zoom;
-    if (window.keyIsDown.s) window.camera.y -= 30*window.camera.zoom;
-    if (window.keyIsDown.a) window.camera.x -= 30*window.camera.zoom;
-    if (window.keyIsDown.d) window.camera.x += 30*window.camera.zoom;
-    if (window.keyIsDown.e) window.camera.zoom *= 1.02;
-    if (window.keyIsDown.q) window.camera.zoom *= 0.98;
+    if (window.keyIsDown.w) window.camera.yPos += 30*window.camera.scale;
+    if (window.keyIsDown.s) window.camera.yPos -= 30*window.camera.scale;
+    if (window.keyIsDown.a) window.camera.xPos -= 30*window.camera.scale;
+    if (window.keyIsDown.d) window.camera.xPos += 30*window.camera.scale;
+    if (window.keyIsDown.e) window.camera.scale *= 1.02;
+    if (window.keyIsDown.q) window.camera.scale *= 0.98;
     if (window.keyIsDown.ArrowLeft) window.camera.rotation += Math.PI/180;
     if (window.keyIsDown.ArrowRight) window.camera.rotation -= Math.PI/180;
 }
