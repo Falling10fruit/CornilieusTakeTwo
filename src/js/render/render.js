@@ -5,12 +5,21 @@ window.setUpRender = (input) => {
     device = input.device;
     ctx = input.ctx;
 
+    window.camera.transformUniform = device.createBuffer({
+        label: `camera tranform uniform`,
+        size: 2 * 4 + // vec2
+              1 * 4 + // f32
+              1 * 4 + // f32
+              0 * 4 , // + padding
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+
     window.render = render;
 }
 
 function render () {
     controlCamera(); // comment this out later
-    window.renderWorld.writeTransformUniform(window.camera)
+    device.queue.writeBuffer(window.camera.transformUniform, 0, new Float32Array([window.camera.xPos, window.camera.yPos, window.camera.scale, window.camera.rotation]));
 
     const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
     const pass = commanderEncoder.beginRenderPass({

@@ -85,14 +85,14 @@ global.setUp = (device) => {
                 var tileData : TileFormat;
                 let coord : vec2f = vec2f(global_invocation_id.xy);
     
-                let biome : f32 = abs(simplexNoise2(coord/50.0));
+                let biome : f32 = abs(simplexNoise2(coord/100.0));
                      if (biome < 0.3) { tileData = TileTypes.GREEN_STONE; }
                 else if (biome < 0.8) { tileData = TileTypes.DARK_STONE; }
                 else if (biome < 0.9) { tileData = TileTypes.AQUARITE; }
                 else                  { tileData = TileTypes.ICE; }
 
-                let carving : f32 = abs(simplexNoise2(coord/20.0));
-                if (carving < 0.3) { tileData.hitPoints = 0u; }
+                let carving : f32 = abs(simplexNoise2(coord/40.0));
+                if (carving < 0.4) { tileData.hitPoints = 0u; }
 
                 let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x * 16;
                 sWorldData[tileIndex] = ((tileData.id        & 3u ) << 30)  +

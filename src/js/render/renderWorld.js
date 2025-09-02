@@ -27,17 +27,17 @@ global.setUp = (device) => {
                 TileFormat(3u, 2u)  // ICE
             );
 
-            @group(0) @binding(0) var<storage, read> sWorldData : array<u32>;
-            @group(0) @binding(1) var<uniform> sWorldSize : vec2f;
-
             struct TransformStruct {
                 @location(0) translate : vec2f,
                 @location(1) scale : f32,
                 @location(2) rotation : f32,
             }
 
-            @group(0) @binding(2) var<uniform> uTransform : TransformStruct;
-            @group(0) @binding(3) var<uniform> uViewport : vec2f;
+            @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
+            @group(0) @binding(1) var<uniform> uViewport : vec2f;
+
+            @group(0) @binding(2) var<storage, read> sWorldData : array<u32>;
+            @group(0) @binding(3) var<uniform> sWorldSize : vec2f;
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
                 var position : vec2f = (v_position.xy - uViewport/2.0) * vec2f(1.0, -1.0);
@@ -91,7 +91,7 @@ global.setUp = (device) => {
         entries: [{
             binding: 0,
             visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "read-only-storage" }
+            buffer: { type: "uniform" }
         }, {
             binding: 1,
             visibility: GPUShaderStage.FRAGMENT,
@@ -99,7 +99,7 @@ global.setUp = (device) => {
         }, {
             binding: 2,
             visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "uniform" }
+            buffer: { type: "read-only-storage" }
         }, {
             binding: 3,
             visibility: GPUShaderStage.FRAGMENT,
@@ -132,21 +132,6 @@ global.setUp = (device) => {
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
-    const cameraTransformUniform = device.createBuffer({
-        label: `render world camera transform uniform`,
-        size: 2 * 4 + // vec2
-              1 * 4 + // f32
-              1 * 4 + // f32
-              0 * 4 , // + padding
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-
-    const viewportUniform = device.createBuffer({
-        label: `render world viewport uniform`,
-        size: 2 * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-
     let bindGroup;
     global.bindWorldStorageBuffer = ({ width = 80, height = 60, storageBuffer}) => {
         device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
@@ -156,22 +141,19 @@ global.setUp = (device) => {
             layout: pipeline.getBindGroupLayout(0),
             entries: [{
                 binding: 0,
-                resource: { buffer: storageBuffer }
+                resource: { buffer: window.camera.transformUniform}
             }, {
                 binding: 1,
-                resource: { buffer: worldSizeUniform }
+                resource: { buffer: window.viewportUniform }
             }, {
                 binding: 2,
-                resource: { buffer: cameraTransformUniform}
+                resource: { buffer: storageBuffer }
             }, {
                 binding: 3,
-                resource: { buffer: viewportUniform }
+                resource: { buffer: worldSizeUniform }
             }]
         });
     }
-
-    global.writeViewportBuffer = ({ width = Number(canvas.width), height = Number(canvas.height) }) => device.queue.writeBuffer(viewportUniform, 0, new Float32Array([width, height]));
-    global.writeTransformUniform = ({ xPos = 0, yPos = 0, scale = 1, rotation = 0}) => device.queue.writeBuffer(cameraTransformUniform, 0, new Float32Array([xPos, yPos, scale, rotation]));
 
     global.render = (pass) => {
         pass.setPipeline(pipeline);
