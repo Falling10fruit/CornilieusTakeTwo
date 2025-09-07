@@ -1,8 +1,8 @@
-let device = null;
+let device: GPUDevice;
 
-const global = window.canvasResize = {};
-global.setUp = (gpu) => {
-    device = gpu.device
+/** Sets up the handler to resize the canvas when the window resizes. */
+function setUp (parameters: { device: GPUDevice }) {
+    device = parameters.device;
 
     window.viewportUniform = device.createBuffer({
         label: `render world viewport uniform`,
@@ -14,10 +14,16 @@ global.setUp = (gpu) => {
     window.onresize = resizeCanvas;
 }
 
+const canvas = document.getElementById("canvas") as HTMLCanvasElement;
+
+/**`window.onwindowresize` handler. 
+ * 
+ * This function will write to the viewport uniform buffer. */
 function resizeCanvas () {
-    // console.log("setting canvas to width:", canvas.clientWidth, "height:", canvas.clientHeight);
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
     device.queue.writeBuffer(window.viewportUniform, 0, new Float32Array([canvas.width, canvas.height]));
 }
+    
+export { setUp, resizeCanvas }

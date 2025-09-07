@@ -3,7 +3,9 @@ const res = await fetch("../../spritesheet.png");
 const blob = await res.blob();
 const spritesheetSource = await createImageBitmap(blob, { colorSpaceConversion: "none" });
 
-window.loadSpritesheet = async ({ device }) => {
+async function loadSpritesheet (parameters: { device: GPUDevice }) {
+    const device = parameters.device;
+
     window.spritesheet = {
         texture: device.createTexture({
             label: "spritesheet texture",
@@ -16,7 +18,9 @@ window.loadSpritesheet = async ({ device }) => {
 
     device.queue.copyExternalImageToTexture(
         { source: spritesheetSource, flipY: true },
-        { texture: window.spritesheet.texture },
+        { texture: window.spritesheet.texture as GPUTexture },
         spritesheetSource // width, height
     );
 }
+
+export { loadSpritesheet }

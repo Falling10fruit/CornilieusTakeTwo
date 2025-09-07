@@ -2,19 +2,23 @@
   "name": "cornilieustaketwo",
   "version": "1.0.0",
   "description": "game",
-  "main": "main.js",
   "scripts": {
-    "start": "electron .",
+    "dev": "vite",
     "tauri": "tauri",
+    "build": "tsc && vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "game"
+    "game",
+    "tauri"
   ],
   "author": "Falling10fruit",
   "license": "ISC",
   "devDependencies": {
     "@tauri-apps/cli": "^2.8.3",
-    "electron": "^34.0.2"
+    "@webgpu/types": "^0.1.64",
+    "jsdoc": "^4.0.4",
+    "typescript": "^5.9.2",
+    "vite": "^7.1.4"
   }
 }

@@ -20,6 +20,7 @@ global.setUp = (device) => {
 
             @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
             @group(0) @binding(1) var<uniform> uViewport : vec2f;
+            @group(0) @binding(2) var spritesheet : texture_2d<f32>;
 
             const vertexArray : array<vec2f, 3> = array(
                 vec2f(-3.0, -1.0),
@@ -27,7 +28,7 @@ global.setUp = (device) => {
                 vec2f(3.0, -3.0),
             );
 
-            @group(0) @binding(2) var<storage, read> sSprites : array<u32>;
+            @group(0) @binding(3) var<storage, read> sSprites : array<u32>;
 
             @vertex fn vertexShader(
                 @builtin(vertex_index) vertexIndex : u32,
@@ -47,7 +48,7 @@ global.setUp = (device) => {
     const fShader = device.createShaderModule({
         label: `render sprites fragment shader`,
         code: `
-            @group(0) @binding(3) var<sampler>
+            @group(0) @binding(4) var<sampler>;
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
 
@@ -67,12 +68,14 @@ global.setUp = (device) => {
             visibility: GPUShaderStage.VERTEX,
             buffer: { type: "uniform" }
         }, {
-            binding: 2,
-            visibility: GPUShaderStage.VERTEX,
-            buffer: { type: "uniform" }
+
         }, {
             binding: 3,
             visibility: GPUShaderStage.VERTEX,
+            buffer: { type: "uniform" }
+        }, {
+            binding: 4,
+            visibility: GPUShaderStage.FRAGMENT,
             buffer: { type: "uniform" }
         }]
     });

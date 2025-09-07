@@ -133,7 +133,7 @@ global.setUp = (device) => {
     });
 
     let bindGroup;
-    global.bindWorldStorageBuffer = ({ width = 80, height = 60, storageBuffer}) => {
+    global.bindWorldStorageBuffer = ({ width = 80, height = 60, worldBuffer}) => {
         device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
 
         bindGroup = device.createBindGroup({
@@ -147,7 +147,7 @@ global.setUp = (device) => {
                 resource: { buffer: window.viewportUniform }
             }, {
                 binding: 2,
-                resource: { buffer: storageBuffer }
+                resource: { buffer: worldBuffer }
             }, {
                 binding: 3,
                 resource: { buffer: worldSizeUniform }
