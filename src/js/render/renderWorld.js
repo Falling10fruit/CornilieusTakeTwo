@@ -87,7 +87,7 @@ global.setUp = (device) => {
     });
 
     const bindGroupLayout = device.createBindGroupLayout({
-        label: `generate world bind group layout`,
+        label: `render world bind group layout`,
         entries: [{
             binding: 0,
             visibility: GPUShaderStage.FRAGMENT,

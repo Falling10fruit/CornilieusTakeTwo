@@ -1,6 +1,6 @@
 /*
-                                 y        x     rotation  sprite
-                              11111111 11111111 111111111  1111111 
+                                 y        x     rotation   sprite
+                              11111111 11111111 11111111  11111111 
 (16 tiles * 16 pixels) = 2**8 = 255      255      255       255
                      591645
 
@@ -12,21 +12,6 @@ global.setUp = (device) => {
     const vShader = device.createShaderModule({
         label: `render sprites vertex shader`,
         code: `
-            const vertexArray : array<vec2f, 3> = array(
-                vec2f(3.0, -1.0),
-                vec2f(-1.0, -1.0),
-                vec2f(-1.0, 3.0),
-            );
-
-            @vertex fn vertexShader( @builtin(vertex_index) vertexIndex : u32 ) -> @builtin(position) vec4f {
-                return vec4f(vertexArray[vertexIndex], 0.0, 1.0);
-            }
-        `
-    });
-
-    const fShader = device.createShaderModule({
-        label: `render sprites fragment shader`,
-        code: `
             struct TransformStruct {
                 @location(0) translate : vec2f,
                 @location(1) scale : f32,
@@ -35,44 +20,36 @@ global.setUp = (device) => {
 
             @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
             @group(0) @binding(1) var<uniform> uViewport : vec2f;
-            
+
+            const vertexArray : array<vec2f, 3> = array(
+                vec2f(-3.0, -1.0),
+                vec2f(0.0, 2.0),
+                vec2f(3.0, -3.0),
+            );
+
             @group(0) @binding(2) var<storage, read> sSprites : array<u32>;
 
+            @vertex fn vertexShader(
+                @builtin(vertex_index) vertexIndex : u32,
+                @builtin(instance_index)    
+            ) -> @builtin(position) vec4f {
+                let spriteData = sSprites[instance_index];
+                let xPos = (sprite << 24) & 255u;
+                let yPos = (sprite << 16) & 255u;
+                let rotation = (sprite << 8) & 255u;
+                let sprite = (sprite << 0) & 255u;
+
+                return vec4f(vertexArray[vertexIndex], 0.0, 1.0);
+            }
+        `
+    });
+
+    const fShader = device.createShaderModule({
+        label: `render sprites fragment shader`,
+        code: `
+            @group(0) @binding(3) var<sampler>
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
-                var position : vec2f = (v_position.xy - uViewport/2.0) * vec2f(1.0, -1.0);
-                position = vec2f(
-                    position.x * cos(uTransform.rotation) - position.y * sin(uTransform.rotation),
-                    position.x * sin(uTransform.rotation) + position.y * cos(uTransform.rotation)
-                );
-                position /= uTransform.scale;
-                position += uTransform.translate;
-
-                if (position.x < 0.0 || position.x > sWorldSize.x || position.y < 0.0 || position.y > sWorldSize.y) {
-                    discard;
-                }
-
-                let dataIndex : u32 = u32(floor(position.x) + floor(position.y) * sWorldSize.x);
-                let tileData : u32 = sWorldData[dataIndex];
-
-
-                var out_color : vec4f = vec4f(0.0, 0.0, 0.0, 0.0);
-
-                switch (tileType) {
-                    case (TileTypes.GREEN_STONE.id) { out_color = vec4f(0.2, 0.5, 0.4, 1.0); }
-                    case (TileTypes.DARK_STONE.id) { out_color = vec4f(0.2, 0.2, 0.2, 1.0); }
-                    case (TileTypes.AQUARITE.id) { out_color = vec4f(0.6, 0.5, 0.2, 1.0); }    
-                    case (TileTypes.ICE.id) { out_color = vec4f(1.0, 1.0, 1.0, 1.0); }
-                    default { out_color = vec4f(0.0, 0.0, 0.0, 0.0); }
-                }
-
-                if (hitPoints == 0u) {
-                    out_color.x /= 2.0;
-                    out_color.y /= 2.0;
-                    out_color.z /= 2.0;
-                }
-
-                // out_color = vec4f(f32(dataIndex)/255.0, 0.0, 0.0, 1.0);
 
                 return out_color;
             }
@@ -80,30 +57,30 @@ global.setUp = (device) => {
     });
 
     const bindGroupLayout = device.createBindGroupLayout({
-        label: `generate world bind group layout`,
+        label: `render sprites bind group layout`,
         entries: [{
             binding: 0,
-            visibility: GPUShaderStage.FRAGMENT,
+            visibility: GPUShaderStage.VERTEX,
             buffer: { type: "read-only-storage" }
         }, {
             binding: 1,
-            visibility: GPUShaderStage.FRAGMENT,
+            visibility: GPUShaderStage.VERTEX,
             buffer: { type: "uniform" }
         }, {
             binding: 2,
-            visibility: GPUShaderStage.FRAGMENT,
+            visibility: GPUShaderStage.VERTEX,
             buffer: { type: "uniform" }
         }, {
             binding: 3,
-            visibility: GPUShaderStage.FRAGMENT,
+            visibility: GPUShaderStage.VERTEX,
             buffer: { type: "uniform" }
         }]
     });
     
     const pipeline = device.createRenderPipeline({
-        label: `render world pipeline`,
+        label: `render sprites pipeline`,
         layout: device.createPipelineLayout({
-            label: `render world pipeline layout`,
+            label: `render sprites pipeline layout`,
             bindGroupLayouts: [bindGroupLayout],
         }),
         vertex: {
@@ -119,20 +96,8 @@ global.setUp = (device) => {
         },
     });
 
-    const worldSizeUniform = device.createBuffer({
-        label: `render world world size uniform`,
-        size: 2 * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-
-    const viewportUniform = device.createBuffer({
-        label: `render world viewport uniform`,
-        size: 2 * 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-
     let bindGroup;
-    global.bindWorldStorageBuffer = ({ width = 80, height = 60, storageBuffer}) => {
+    global.bindSpritesStorageBuffer = ({ width = 80, height = 60, storageBuffer}) => {
         device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
 
         bindGroup = device.createBindGroup({
@@ -140,16 +105,13 @@ global.setUp = (device) => {
             layout: pipeline.getBindGroupLayout(0),
             entries: [{
                 binding: 0,
-                resource: { buffer: window.camera.uniformBuffer}
+                resource: { buffer: window.camera.transformUniform}
             }, {
                 binding: 1,
-                resource: { buffer: viewportUniform }
+                resource: { buffer: window.viewportUniform }
             }, {
                 binding: 2,
                 resource: { buffer: storageBuffer }
-            }, {
-                binding: 3,
-                resource: { buffer: worldSizeUniform }
             }]
         });
     }

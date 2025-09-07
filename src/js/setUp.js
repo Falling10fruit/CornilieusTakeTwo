@@ -1,6 +1,7 @@
 const { device, ctx } = await window.setUpGPU();
 
 window.canvasResize.setUp({ device });
+window.loadSpritesheet({ device });
 window.setUpRender({ device, ctx });
 
 window.generateWorld.setUp(device);

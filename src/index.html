@@ -44,11 +44,16 @@
                 yPos: 0,
                 yVel: 0,
                 xVel: 0,
-                scale: 1,
+                scale: 16,
                 scaleVel: 0,
                 rotation: (0)*Math.PI/180,
                 rotationVel: 0,
                 uniformBuffer: null,
+            };
+
+            window.spritesheet = {
+                texture: null,
+                sampler: null,
             };
 
             window.keyIsDown = {};
@@ -68,6 +73,7 @@
         <script type="module" src="js/prerequisites/canvasResize.js"></script>
         <script type="module" src="js/prerequisites/setUpGPU.js"></script>
         <script type="module" src="js/prerequisites/failMessage.js"></script>
+        <script type="module" src="js/prerequisites/loadSpritesheet.js"></script>
         <script defer type="module" src="js/setUp.js"></script>
         <!--<script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin></script><!--Ignore red it's fine-->
     </body>

@@ -10,7 +10,7 @@ global.setUp = (gpu) => {
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
 
-    resizeCanvas;
+    resizeCanvas();
     window.onresize = resizeCanvas;
 }
 
