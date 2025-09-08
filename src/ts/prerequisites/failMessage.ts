@@ -5,11 +5,13 @@ const closeButton = errorBox.children[2] as HTMLButtonElement;
 const copyButton = errorBox.children[3] as HTMLButtonElement;
 
 window.fail = (parameters: {
-    title = "huh.",
-    message = "idk, shit happens ig"
+    title: string,
+    message: unknown
 }) => {
+    const { title, message } = parameters;
+
+    if (typeof message == "string") return displayMessage({ title, message });
     if (message instanceof Error) displayMessage({ title, message: (message.stack) as string});
-    if (typeof message == "string") displayMessage({ title, message});
 
     console.error("failed to set up: ", message)
 }

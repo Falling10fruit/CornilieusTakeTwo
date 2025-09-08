@@ -39,7 +39,9 @@ declare global {
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;
 
-        /** Shows the error box with the given message and heading */
+        /** Shows the error box with the given message and heading.
+         * 
+         * Implementation at {@link window.fail}*/
         fail: (parameters: { title: string, message: unknown }) => void;
         
         /** An API to handle the world storage buffer.
