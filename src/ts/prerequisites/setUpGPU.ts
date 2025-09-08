@@ -1,10 +1,14 @@
-window.setUpGPU = async function () {
+/** Create the WebGPU device and context.
+ * @async
+ * 
+ * Implementation at {@link setUpGPU}.ts*/
+async function setUpGPU () {
     if (!navigator.gpu) { window.fail({
         title: "WebGPU is not supported in this browser",
         message: "you should never see this error"
     }) }
 
-    const adapter = await navigator.gpu?.requestAdapter();
+    const adapter = await navigator.gpu?.requestAdapter() as GPUAdapter;
     if (!adapter) { window.fail({
         title: "Unable to request adapter",
         message: "your device does not support WebGPU"
@@ -20,13 +24,15 @@ window.setUpGPU = async function () {
         if (e.reason !== "destroyed") setUpGPU();
     });
 
-    const ctx = document.getElementById("canvas").getContext("webgpu", { alpha: `premultiplied` });
+    const ctx = (document.getElementById("canvas") as HTMLCanvasElement)
+        .getContext("webgpu") as GPUCanvasContext;
     ctx.configure({
         device: device,
-        format: navigator.gpu.getPreferredCanvasFormat()
+        format: navigator.gpu.getPreferredCanvasFormat(),
+        alphaMode: "premultiplied",
     });
 
     return { device, ctx };
 };
 
-setUpGPU();
+export { setUpGPU }

@@ -1,9 +1,10 @@
 import * as canvasResize from "./prerequisites/canvasResize"
 import { loadSpritesheet } from "./prerequisites/loadSpritesheet";
+import { setUpGPU } from "./prerequisites/setUpGPU";
 
 try {
-    const { device, ctx } = await window.setUpGPU();
-    
+    const { device, ctx } = await setUpGPU();
+
     canvasResize.setUp({ device });
     loadSpritesheet({ device });
     window.setUpRender({ device, ctx });

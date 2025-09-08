@@ -87,12 +87,6 @@ declare global {
         /** Shows the error box with the given message and heading */
         fail: (parameters: { title: string, message: string}) => void;
 
-        /** Create the WebGPU device and context.
-         * @async
-         * 
-         * Implementation at [setUpGPU.js](ts/prerequisites/setUpGPU.js)*/
-        async setUpGPU: () => { device: GPUDevice, ctx: GPUCanvasContext};
-
         /** Fetches the spritesheet, then creates a texture and sampler to {@link window.spritesheet}*/
         loadSpritesheet : (parameters: { device: GPUDevice}) => void;
 
