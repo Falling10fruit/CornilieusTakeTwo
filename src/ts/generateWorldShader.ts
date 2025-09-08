@@ -1,5 +1,13 @@
-const global = window.generateWorld = {};
-global.setUp = (device) => {
+let device: GPUDevice;
+let bindGroupLayout: GPUBindGroupLayout;
+let pipeline: GPUComputePipeline;
+
+/** Initializes methods for the [generateWorld](generateWorldShader.ts) module.
+ * 
+ * Implementation at {@link setUpGenerateWorld} */
+function setUpGenerateWorld (parameters: { device: GPUDevice }) {
+    device = parameters.device;
+
     const computeShader = device.createShaderModule({
         label: `generate world shader`,
         code: `
@@ -103,7 +111,7 @@ global.setUp = (device) => {
         `
     });
 
-    const bindGroupLayout = device.createBindGroupLayout({
+    bindGroupLayout = device.createBindGroupLayout({
         label: `generate world bind group layout`,
         entries: [{
             binding: 0,
@@ -112,7 +120,7 @@ global.setUp = (device) => {
         }]
     });
 
-    const pipeline = device.createComputePipeline({
+    pipeline = device.createComputePipeline({
         label: `generate world pipeline`,
         layout: device.createPipelineLayout({
             label: `generate world pipeline layout`,
@@ -123,37 +131,41 @@ global.setUp = (device) => {
             entryPoint: "cShader",
         }
     });
-
-    global.generateWorldStorageBuffer = ({ width = 80, height = 60 }) => {
-        return device.createBuffer({
-            label: `world data buffer`,
-            size: width * height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-        });
-    }
-
-    global.generateWorldToBuffer = ({ width = 80, height = 60, worldBuffer }) => {
-        const bindGroup = device.createBindGroup({
-            label: `generate world bind group`,
-            layout: pipeline.getBindGroupLayout(0),
-            entries: [{ binding: 0, resource: { buffer: worldBuffer } }]
-        });
-
-        const encoder = device.createCommandEncoder({ label: `generate world command encoder` });
-        const pass = encoder.beginComputePass({ label: `generate world compute pass` });
-        pass.setPipeline(pipeline);
-        pass.setBindGroup(0, bindGroup);
-        pass.dispatchWorkgroups(width, height);
-        pass.end();
-
-        const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
-        encoder.copyBufferToBuffer(worldBuffer, 0, readBuffer, 0, readBuffer.size);
-
-        device.queue.submit([encoder.finish()]);
-
-        readBuffer.mapAsync(GPUMapMode.READ).then(() => {
-            console.log(new Uint32Array(readBuffer.getMappedRange()));
-            readBuffer.unmap();
-        });
-    }
 }
+
+function generateWorldStorageBuffer (parameters: { width: number, height: number }) {
+    return device.createBuffer({
+        label: `world data buffer`,
+        size: parameters.width * parameters.height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+}
+
+function generateWorldToBuffer (parameters: { width: number, height: number, worldBuffer: worldBuffer }) {
+    const { width, height, worldBuffer} = parameters;
+
+    const bindGroup = device.createBindGroup({
+        label: `generate world bind group`,
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [{ binding: 0, resource: { buffer: worldBuffer } }]
+    });
+
+    const encoder = device.createCommandEncoder({ label: `generate world command encoder` });
+    const pass = encoder.beginComputePass({ label: `generate world compute pass` });
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.dispatchWorkgroups(width, height);
+    pass.end();
+
+    const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
+    encoder.copyBufferToBuffer(worldBuffer, 0, readBuffer, 0, readBuffer.size);
+
+    device.queue.submit([encoder.finish()]);
+
+    readBuffer.mapAsync(GPUMapMode.READ).then(() => {
+        console.log(new Uint32Array(readBuffer.getMappedRange()));
+        readBuffer.unmap();
+    });
+}
+
+export { setUpGenerateWorld, generateWorldStorageBuffer, generateWorldToBuffer }

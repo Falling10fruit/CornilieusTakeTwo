@@ -48,9 +48,6 @@ declare global {
          * 
          * Implementation at [generateWorldShader.js](ts/generateWorldShader)*/
         generateWorld: {
-            /** Initializes the {@link window.generateWorld} methods.
-             * 
-             * Implementation at [generateWorldShader.js](ts/generateWorldShader) */
             setUp: (device: GPUDevice) => void;
 
             /** 
