@@ -1,11 +1,16 @@
-let device = undefined;
-let ctx = undefined;
+let device: GPUDevice;
+let ctx: GPUCanvasContext;
 
-window.setUpRender = (input) => {
-    device = input.device;
-    ctx = input.ctx;
+import { renderWorld } from "./renderWorld.ts";
 
-    window.camera.transformUniform = device.createBuffer({
+/** Sets up the {@link render} function.
+ * 
+ * Implementation at {@link setUpRender} */
+function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
+    device = parameters.device;
+    ctx = parameters.ctx;
+
+    window.camera.uniformBuffer = device.createBuffer({
         label: `camera tranform uniform`,
         size: 2 * 4 + // vec2
               1 * 4 + // f32
@@ -13,13 +18,20 @@ window.setUpRender = (input) => {
               0 * 4 , // + padding
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
-
-    window.render = render;
 }
 
+
+/** The function that renders the entire frame.
+ * 
+ * Implementation at {@link render} */
 function render () {
     controlCamera(); // comment this out later
-    device.queue.writeBuffer(window.camera.transformUniform, 0, new Float32Array([window.camera.xPos, window.camera.yPos, window.camera.scale, window.camera.rotation]));
+
+    if (window.camera.uniformBuffer == null) {
+        return
+    }
+
+    device.queue.writeBuffer(window.camera.uniformBuffer, 0, new Float32Array([window.camera.xPos, window.camera.yPos, window.camera.scale, window.camera.rotation]));
 
     const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
     const pass = commanderEncoder.beginRenderPass({
@@ -32,7 +44,7 @@ function render () {
         }],
     });
 
-    window.renderWorld.render(pass);
+    renderWorld(pass);
 
     pass.end();
     device.queue.submit([commanderEncoder.finish()]);
@@ -50,3 +62,5 @@ function controlCamera() {
     if (window.keyIsDown.ArrowLeft) window.camera.rotation += Math.PI/180;
     if (window.keyIsDown.ArrowRight) window.camera.rotation -= Math.PI/180;
 }
+
+export { setUpRender, render }

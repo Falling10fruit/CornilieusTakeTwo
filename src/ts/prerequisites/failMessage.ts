@@ -4,10 +4,19 @@ const body = errorBox.children[1] as HTMLParagraphElement;
 const closeButton = errorBox.children[2] as HTMLButtonElement;
 const copyButton = errorBox.children[3] as HTMLButtonElement;
 
-window.fail = ({
+window.fail = (parameters: {
     title = "huh.",
     message = "idk, shit happens ig"
 }) => {
+    if (message instanceof Error) displayMessage({ title, message: (message.stack) as string});
+    if (typeof message == "string") displayMessage({ title, message});
+
+    console.error("failed to set up: ", message)
+}
+
+function displayMessage (parameters: { title: string, message: string }) {
+    const { title, message } = parameters;
+
     header.innerText = title;
     body.innerText = message;
     
@@ -16,6 +25,7 @@ window.fail = ({
     
     errorBox.style.visibility = "visible";
     console.error(`${title}: ${message}`);
+
 }
 
 function closeBox () {

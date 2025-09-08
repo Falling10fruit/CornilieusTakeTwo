@@ -2,6 +2,11 @@
 const res = await fetch("./src/spritesheet.png");
 const blob = await res.blob();
 const spritesheetSource = await createImageBitmap(blob, { colorSpaceConversion: "none" });
+
+/** Fetches the spritesheet, then creates a texture and sampler to {@link window.spritesheet}
+ * 
+ * Implementation at
+ * @see {@link loadSpritesheet}*/
 async function loadSpritesheet (parameters: { device: GPUDevice }) {
     const device = parameters.device;
 

@@ -1,5 +1,15 @@
-const global = window.renderWorld = {};
-global.setUp = (device) => {
+let device: GPUDevice;
+let bindGroupLayout: GPUBindGroupLayout;
+let pipeline: GPURenderPipeline;
+let worldSizeUniform: GPUBuffer;
+let bindGroup: GPUBindGroup;
+
+/** Initializes methods for the [renderWorld.ts](renderWorld.ts) module
+ * 
+ * Implementation at {@link setUpRenderWorld}*/
+function setUpRenderWorld (parameters: { device: GPUDevice }) {
+    device = parameters.device;
+
     const vShader = device.createShaderModule({
         label: `render world vertex shader`,
         code: `
@@ -86,7 +96,7 @@ global.setUp = (device) => {
         `
     });
 
-    const bindGroupLayout = device.createBindGroupLayout({
+    bindGroupLayout = device.createBindGroupLayout({
         label: `render world bind group layout`,
         entries: [{
             binding: 0,
@@ -107,7 +117,7 @@ global.setUp = (device) => {
         }]
     });
     
-    const pipeline = device.createRenderPipeline({
+    pipeline = device.createRenderPipeline({
         label: `render world pipeline`,
         layout: device.createPipelineLayout({
             label: `render world pipeline layout`,
@@ -126,38 +136,40 @@ global.setUp = (device) => {
         },
     });
 
-    const worldSizeUniform = device.createBuffer({
+    worldSizeUniform = device.createBuffer({
         label: `render world world size uniform`,
         size: 2 * 4,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
     });
-
-    let bindGroup;
-    global.bindWorldStorageBuffer = ({ width = 80, height = 60, worldBuffer}) => {
-        device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
-
-        bindGroup = device.createBindGroup({
-            label: `render world bind group`,
-            layout: pipeline.getBindGroupLayout(0),
-            entries: [{
-                binding: 0,
-                resource: { buffer: window.camera.transformUniform}
-            }, {
-                binding: 1,
-                resource: { buffer: window.viewportUniform }
-            }, {
-                binding: 2,
-                resource: { buffer: worldBuffer }
-            }, {
-                binding: 3,
-                resource: { buffer: worldSizeUniform }
-            }]
-        });
-    }
-
-    global.render = (pass) => {
-        pass.setPipeline(pipeline);
-        pass.setBindGroup(0, bindGroup);
-        pass.draw(3);
-    };
 }
+
+function bindWorldStorageBuffer (parameters: { width: number, height: number, worldBuffer: worldBuffer}) {
+    const { width, height } = parameters;
+    device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
+
+    bindGroup = device.createBindGroup({
+        label: `render world bind group`,
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [{
+            binding: 0,
+            resource: { buffer: window.camera.uniformBuffer}
+        }, {
+            binding: 1,
+            resource: { buffer: window.viewportUniform }
+        }, {
+            binding: 2,
+            resource: { buffer: parameters.worldBuffer }
+        }, {
+            binding: 3,
+            resource: { buffer: worldSizeUniform }
+        }] as any // idfk, go have a gander at the error message
+    });
+}
+
+function renderWorld (pass: GPURenderPassEncoder) {
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.draw(3);
+};
+
+export { setUpRenderWorld, bindWorldStorageBuffer, renderWorld }
