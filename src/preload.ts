@@ -1,4 +1,3 @@
-
 const eyedropper = document.createElement("input");
 eyedropper.type = "color";
 

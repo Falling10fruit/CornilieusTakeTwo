@@ -1,8 +1,7 @@
 // const global = window.loadSpritesheet = {}; I don't think we'll have any other methods
-const res = await fetch("../../spritesheet.png");
+const res = await fetch("./src/spritesheet.png");
 const blob = await res.blob();
 const spritesheetSource = await createImageBitmap(blob, { colorSpaceConversion: "none" });
-
 async function loadSpritesheet (parameters: { device: GPUDevice }) {
     const device = parameters.device;
 

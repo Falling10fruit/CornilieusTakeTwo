@@ -2,6 +2,7 @@
   "name": "cornilieustaketwo",
   "version": "1.0.0",
   "description": "game",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "tauri": "tauri",
@@ -12,6 +13,10 @@
     "game",
     "tauri"
   ],
+  "dependencies": {
+    "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-opener": "^2"
+  },
   "author": "Falling10fruit",
   "license": "ISC",
   "devDependencies": {

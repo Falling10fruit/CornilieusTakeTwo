@@ -3,6 +3,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="/src-tauri/icons/icon.ico">
         <title>Cornileius</title>
 
         <style>
@@ -17,6 +18,15 @@
 
         <link rel="stylesheet" href="/src/css/canvas.css">
         <link rel="stylesheet" href="/src/css/error_box.css">
+
+        <script src="/src/preload.ts" defer></script>
+
+        <script type="module" src="/src/ts/generateWorldShader.js" defer></script>
+        <script type="module" src="/src/ts/render/renderWorld.js" defer></script>
+        <script type="module" src="/src/ts/render/render.js" defer></script>
+        <script type="module" src="/src/ts/prerequisites/setUpGPU.js" defer></script>
+        <script type="module" src="/src/ts/prerequisites/failMessage.ts" defer></script>
+        <script type="module" src="/src/ts/setUp.ts" defer></script>
     </head>
     <body>
         <canvas id="canvas"></canvas>
@@ -27,15 +37,5 @@
             <p>idk, shit happens</p>
             <button>well fuck</button> <button>copy error</button>
         </div>
-
-        <script src="/src/preload.ts"></script>
-
-        <script type="module" src="/src/ts/generateWorldShader.js"></script>
-        <script type="module" src="/src/ts/render/renderWorld.js"></script>
-        <script type="module" src="/src/ts/render/render.js"></script>
-        <script type="module" src="/src/ts/prerequisites/setUpGPU.js"></script>
-        <script type="module" src="/src/ts/prerequisites/failMessage.ts"></script>
-        <script defer type="module" src="/src/ts/setUp.ts"></script>
-        <!--<script src="https://greggman.github.io/webgl-lint/webgl-lint.js" crossorigin></script><!--Ignore red it's fine-->
     </body>
 </html>

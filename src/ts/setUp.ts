@@ -2,8 +2,8 @@ import * as canvasResize from "./prerequisites/canvasResize"
 import { loadSpritesheet } from "./prerequisites/loadSpritesheet";
 
 try {
-    const { device, ctx } = window.setUpGPU();
-
+    const { device, ctx } = await window.setUpGPU();
+    
     canvasResize.setUp({ device });
     loadSpritesheet({ device });
     window.setUpRender({ device, ctx });
@@ -20,7 +20,7 @@ try {
 } catch (err) {
     let message = "not parse-able";
 
-    if (err instanceof Error) message = err.message;
+    if (err instanceof Error) message = err.stack as string;
     if (typeof err == "string") message = err;
 
     if (message == "not parse-able") { console.error("failed to set up: ", message) } else
