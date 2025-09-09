@@ -7,8 +7,39 @@ declare global {
      *        01                01010           1 01010101 01010101 01010101
      * ```*/
     type worldBuffer = GPUBuffer;
+
+    /**
+     * A uniform buffer that contains transformation data about the  
+     * 
+     * The uniform buffer is a struct:
+     * ```
+     *  struct TransformStruct {
+     *      location(0) translate : vec2f,
+     *      location(1) scale : f32,
+     *      location(2) rotation : f32,
+     *  }
+     * ```
+     * The `@` is implicit; they are reserved in JSDoc.
+     */
+    type cameraBuffer = GPUBuffer;
+    
+    /** WebGPU is sometimes incompatible */
+    type trust_me = any;
     
     interface Window {
+        /**
+         * Where the game world information is set.
+         * 
+         * @default
+         * ```
+         *  window.world = {
+         *      width: 80,
+         *      height: 60,
+         *      seed: 43758.5453,
+         *      storageBuffer: null, 
+         * }
+         * ```
+         * Initialized at {@link window.world} */
         world: {
             width: number;
             height: number;
@@ -16,6 +47,25 @@ declare global {
             storageBuffer: worldBuffer | null;
         };
 
+        /**
+         * Where the camera information is set.
+         * 
+         * @default
+         * ```
+         *  window.camera = {
+         *      xPos: 0,
+         *      yPos: 0,
+         *      yVel: 0,
+         *      xVel: 0,
+         *      scale: 16,
+         *      scaleVel: 0,
+         *      rotation: (0)*Math.PI/180,
+         *      rotationVel: 0,
+         *      uniformBuffer: null,
+         *  };
+         * ```
+         * Initialized at {@link window.camera}
+         */
         camera: {
             xPos: number;
             yPos: number;
@@ -27,7 +77,7 @@ declare global {
             rotation: number;
             /** Value is interperted in radians */
             rotationVel: number;
-            uniformBuffer: GPUBuffer | null;
+            uniformBuffer: cameraBuffer | null;
         };
 
         /** Each corresponding property, in the same format as `KeyboardEvent.key`, corresponds with a boolean as to whether or not the key is currently pressed */
@@ -35,6 +85,16 @@ declare global {
 
         /** Contains the spritesheet texture and its sampler. */
         spritesheet: { texture: GPUTexture | null; sampler: GPUSampler | null; };
+
+        /** Contains the sprites to be rendered
+         * ```
+         *                                 y        x     rotation   sprite
+         *                              11111111 11111111 11111111  11111111 
+         * (16 tiles * 16 pixels) = 2**8 = 255      255      255       255
+         *                  591645
+         * ```
+         * Initialized at {@link window.sprites} */
+        sprites: Int32Array;
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;

@@ -1,14 +1,11 @@
-/*
-                                 y        x     rotation   sprite
-                              11111111 11111111 11111111  11111111 
-(16 tiles * 16 pixels) = 2**8 = 255      255      255       255
-                     591645
+let device: GPUDevice;
+let bindGroupLayout: GPUBindGroupLayout;
+let pipeline: GPURenderPipeline;
+let bindGroup: GPUBindGroup;
 
-*/
-const global = window.renderSprites = {
-    sprites: Float32Array[20 * 10**6] // max sprites
-};
-global.setUp = (device) => {
+function setUpRenderSprites (parameters: { device: GPUDevice}) {
+    device = parameters.device;
+
     const vShader = device.createShaderModule({
         label: `render sprites vertex shader`,
         code: `
@@ -20,7 +17,6 @@ global.setUp = (device) => {
 
             @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
             @group(0) @binding(1) var<uniform> uViewport : vec2f;
-            @group(0) @binding(2) var spritesheet : texture_2d<f32>;
 
             const vertexArray : array<vec2f, 3> = array(
                 vec2f(-3.0, -1.0),
@@ -28,7 +24,7 @@ global.setUp = (device) => {
                 vec2f(3.0, -3.0),
             );
 
-            @group(0) @binding(3) var<storage, read> sSprites : array<u32>;
+            @group(0) @binding(4) var<storage, read> sSprites : array<u32>;
 
             @vertex fn vertexShader(
                 @builtin(vertex_index) vertexIndex : u32,
@@ -48,7 +44,8 @@ global.setUp = (device) => {
     const fShader = device.createShaderModule({
         label: `render sprites fragment shader`,
         code: `
-            @group(0) @binding(4) var<sampler>;
+            @group(0) @binding(2) var spritesheet : texture_2d<f32>;
+            @group(0) @binding(3) var sampler : sampler;
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
 
@@ -57,30 +54,32 @@ global.setUp = (device) => {
         `
     });
 
-    const bindGroupLayout = device.createBindGroupLayout({
+    bindGroupLayout = device.createBindGroupLayout({
         label: `render sprites bind group layout`,
         entries: [{
             binding: 0,
             visibility: GPUShaderStage.VERTEX,
-            buffer: { type: "read-only-storage" }
-        }, {
+            buffer: { type: "uniform" }
+        } as GPUBindGroupLayoutEntry, {
             binding: 1,
             visibility: GPUShaderStage.VERTEX,
             buffer: { type: "uniform" }
-        }, {
-
-        }, {
-            binding: 3,
-            visibility: GPUShaderStage.VERTEX,
-            buffer: { type: "uniform" }
-        }, {
-            binding: 4,
+        } as GPUBindGroupLayoutEntry, {
+            binding: 2,
             visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "uniform" }
-        }]
+            externalTexture: {}
+        } as GPUBindGroupLayoutEntry, {
+            binding: 3,
+            visibility: GPUShaderStage.FRAGMENT,
+            sampler: { type: "non-filtering" }
+        } as GPUBindGroupLayoutEntry, {
+            binding: 4,
+            visibility: GPUShaderStage.VERTEX,
+            buffer: { type: "storage" }
+        } as GPUBindGroupLayoutEntry]
     });
     
-    const pipeline = device.createRenderPipeline({
+    pipeline = device.createRenderPipeline({
         label: `render sprites pipeline`,
         layout: device.createPipelineLayout({
             label: `render sprites pipeline layout`,
@@ -98,33 +97,29 @@ global.setUp = (device) => {
             }],
         },
     });
-
-    let bindGroup;
-    global.bindSpritesStorageBuffer = ({ width = 80, height = 60, storageBuffer}) => {
-        device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
-
-        bindGroup = device.createBindGroup({
-            label: `render sprites bind group`,
-            layout: pipeline.getBindGroupLayout(0),
-            entries: [{
-                binding: 0,
-                resource: { buffer: window.camera.transformUniform}
-            }, {
-                binding: 1,
-                resource: { buffer: window.viewportUniform }
-            }, {
-                binding: 2,
-                resource: { buffer: storageBuffer }
-            }]
-        });
-    }
-
-    global.writeViewportBuffer = ({ width = Number(canvas.width), height = Number(canvas.height) }) => device.queue.writeBuffer(viewportUniform, 0, new Float32Array([width, height]));
-    global.writeTransformUniform = ({ xPos = 0, yPos = 0, scale = 1, rotation = 0}) => device.queue.writeBuffer(cameraTransformUniform, 0, new Float32Array([xPos, yPos, scale, rotation]));
-
-    global.render = (pass) => {
-        pass.setPipeline(pipeline);
-        pass.setBindGroup(0, bindGroup);
-        pass.draw(3);
-    };
 }
+
+function bindSpritesStorageBuffer (parameters: { width, height }) {
+    const { width, height, storageBuffer} = parameters;
+
+    bindGroup = device.createBindGroup({
+        label: `render sprites bind group`,
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [{
+            binding: 0,
+            resource: { buffer: window.camera.transformUniform}
+        }, {
+            binding: 1,
+            resource: { buffer: window.viewportUniform }
+        }, {
+            binding: 2,
+            resource: { buffer: storageBuffer }
+        }]
+    });
+}
+
+function renderSprites (pass: GPURenderPassEncoder) {
+    pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
+    pass.draw(3);
+};

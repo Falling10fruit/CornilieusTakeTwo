@@ -102,15 +102,15 @@ function setUpRenderWorld (parameters: { device: GPUDevice }) {
             binding: 0,
             visibility: GPUShaderStage.FRAGMENT,
             buffer: { type: "uniform" }
-        }, {
+        } as GPUBindGroupLayoutEntry, {
             binding: 1,
             visibility: GPUShaderStage.FRAGMENT,
             buffer: { type: "uniform" }
-        }, {
+        } as GPUBindGroupLayoutEntry, {
             binding: 2,
             visibility: GPUShaderStage.FRAGMENT,
             buffer: { type: "read-only-storage" }
-        }, {
+        } as GPUBindGroupLayoutEntry, {
             binding: 3,
             visibility: GPUShaderStage.FRAGMENT,
             buffer: { type: "uniform" }
@@ -153,16 +153,16 @@ function bindWorldStorageBuffer (parameters: { width: number, height: number, wo
         entries: [{
             binding: 0,
             resource: { buffer: window.camera.uniformBuffer}
-        }, {
+        } as GPUBindGroupEntry, {
             binding: 1,
             resource: { buffer: window.viewportUniform }
-        }, {
+        } as GPUBindGroupEntry, {
             binding: 2,
             resource: { buffer: parameters.worldBuffer }
-        }, {
+        } as GPUBindGroupEntry, {
             binding: 3,
             resource: { buffer: worldSizeUniform }
-        }] as any // idfk, go have a gander at the error message
+        }]
     });
 }
 
