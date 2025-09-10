@@ -45,38 +45,23 @@ function setUpRenderSprites (parameters: { device: GPUDevice}) {
         label: `render sprites fragment shader`,
         code: `
             @group(0) @binding(2) var spritesheet : texture_2d<f32>;
-            @group(0) @binding(3) var sampler : sampler;
+            @group(0) @binding(3) var spritesheetSampler : sampler;
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
-
-                return out_color;
+                return texture(spritesheet, spritesheetSampler, v_position);
             }
         `
     });
 
     bindGroupLayout = device.createBindGroupLayout({
         label: `render sprites bind group layout`,
-        entries: [{
-            binding: 0,
-            visibility: GPUShaderStage.VERTEX,
-            buffer: { type: "uniform" }
-        } as GPUBindGroupLayoutEntry, {
-            binding: 1,
-            visibility: GPUShaderStage.VERTEX,
-            buffer: { type: "uniform" }
-        } as GPUBindGroupLayoutEntry, {
-            binding: 2,
-            visibility: GPUShaderStage.FRAGMENT,
-            externalTexture: {}
-        } as GPUBindGroupLayoutEntry, {
-            binding: 3,
-            visibility: GPUShaderStage.FRAGMENT,
-            sampler: { type: "non-filtering" }
-        } as GPUBindGroupLayoutEntry, {
-            binding: 4,
-            visibility: GPUShaderStage.VERTEX,
-            buffer: { type: "storage" }
-        } as GPUBindGroupLayoutEntry]
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.VERTEX,   buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
+            { binding: 1, visibility: GPUShaderStage.VERTEX,   buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
+            { binding: 2, visibility: GPUShaderStage.FRAGMENT, externalTexture: {} } as GPUBindGroupLayoutEntry,
+            { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" } } as GPUBindGroupLayoutEntry,
+            { binding: 4, visibility: GPUShaderStage.VERTEX,   buffer: { type: "storage" } } as GPUBindGroupLayoutEntry
+        ]
     });
     
     pipeline = device.createRenderPipeline({
@@ -97,24 +82,17 @@ function setUpRenderSprites (parameters: { device: GPUDevice}) {
             }],
         },
     });
-}
-
-function bindSpritesStorageBuffer (parameters: { width, height }) {
-    const { width, height, storageBuffer} = parameters;
 
     bindGroup = device.createBindGroup({
         label: `render sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
-        entries: [{
-            binding: 0,
-            resource: { buffer: window.camera.transformUniform}
-        }, {
-            binding: 1,
-            resource: { buffer: window.viewportUniform }
-        }, {
-            binding: 2,
-            resource: { buffer: storageBuffer }
-        }]
+        entries: [
+            { binding: 0, resource: { buffer: window.camera.uniformBuffer} } as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry,
+            { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
+            { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
+            { binding: 4, resource: { buffer: window.spritesBuffer } } as GPUBindGroupEntry
+        ]
     });
 }
 

@@ -25,8 +25,7 @@ window.spritesheet = {
     sampler: null,
 };
 
-const maxSprites: number = 20_000_000;
-window.sprites = new Int32Array(maxSprites); // max sprites & entities
+window.spritesBuffer = null;
 
 window.keyIsDown = {};
 

@@ -1,0 +1,10 @@
+
+{
+    "$schema": "spritesSchema.json",
+    "sprites": {
+        "player_looking_right": {
+            "sprite_id": "player_looking_right",
+            "splice": [16, 0, 25, 15]
+        }
+    }
+}

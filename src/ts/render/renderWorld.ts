@@ -46,8 +46,11 @@ function setUpRenderWorld (parameters: { device: GPUDevice }) {
             @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
             @group(0) @binding(1) var<uniform> uViewport : vec2f;
 
-            @group(0) @binding(2) var<storage, read> sWorldData : array<u32>;
-            @group(0) @binding(3) var<uniform> sWorldSize : vec2f;
+            @group(0) @binding(2) var spritesheet : texture_2d<f32>;
+            @group(0) @binding(3) var spritesheetSampler : sampler;
+
+            @group(0) @binding(4) var<storage, read> sWorldData : array<u32>;
+            @group(0) @binding(5) var<uniform> sWorldSize : vec2f;
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
                 var position : vec2f = (v_position.xy - uViewport/2.0) * vec2f(1.0, -1.0);
@@ -98,23 +101,13 @@ function setUpRenderWorld (parameters: { device: GPUDevice }) {
 
     bindGroupLayout = device.createBindGroupLayout({
         label: `render world bind group layout`,
-        entries: [{
-            binding: 0,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "uniform" }
-        } as GPUBindGroupLayoutEntry, {
-            binding: 1,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "uniform" }
-        } as GPUBindGroupLayoutEntry, {
-            binding: 2,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "read-only-storage" }
-        } as GPUBindGroupLayoutEntry, {
-            binding: 3,
-            visibility: GPUShaderStage.FRAGMENT,
-            buffer: { type: "uniform" }
-        }]
+        entries: [
+        { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
+        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
+        { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} } as GPUBindGroupLayoutEntry,
+        { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" }, } as GPUBindGroupLayoutEntry,
+        { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry,
+        { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } }]
     });
     
     pipeline = device.createRenderPipeline({
@@ -150,19 +143,14 @@ function bindWorldStorageBuffer (parameters: { width: number, height: number, wo
     bindGroup = device.createBindGroup({
         label: `render world bind group`,
         layout: pipeline.getBindGroupLayout(0),
-        entries: [{
-            binding: 0,
-            resource: { buffer: window.camera.uniformBuffer}
-        } as GPUBindGroupEntry, {
-            binding: 1,
-            resource: { buffer: window.viewportUniform }
-        } as GPUBindGroupEntry, {
-            binding: 2,
-            resource: { buffer: parameters.worldBuffer }
-        } as GPUBindGroupEntry, {
-            binding: 3,
-            resource: { buffer: worldSizeUniform }
-        }]
+        entries: [
+            { binding: 0, resource: { buffer: window.camera.uniformBuffer} } as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry,
+            { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
+            { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
+            { binding: 4, resource: { buffer: parameters.worldBuffer } } as GPUBindGroupEntry,
+            { binding: 5, resource: { buffer: worldSizeUniform } } as GPUBindGroupEntry
+        ]
     });
 }
 
