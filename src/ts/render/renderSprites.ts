@@ -26,17 +26,22 @@ function setUpRenderSprites (parameters: { device: GPUDevice}) {
 
             @group(0) @binding(4) var<storage, read> sSprites : array<u32>;
 
+            struct v_out {
+                @builtin(position) position;
+                @location(0) uv;
+            }
+
             @vertex fn vertexShader(
                 @builtin(vertex_index) vertexIndex : u32,
                 @builtin(instance_index)    
-            ) -> @builtin(position) vec4f {
+            ) -> v_out {
+                var out : v_out;
+
                 let spriteData = sSprites[instance_index];
                 let xPos = (sprite << 24) & 255u;
                 let yPos = (sprite << 16) & 255u;
                 let rotation = (sprite << 8) & 255u;
                 let sprite = (sprite << 0) & 255u;
-
-                return vec4f(vertexArray[vertexIndex], 0.0, 1.0);
             }
         `
     });
@@ -47,8 +52,8 @@ function setUpRenderSprites (parameters: { device: GPUDevice}) {
             @group(0) @binding(2) var spritesheet : texture_2d<f32>;
             @group(0) @binding(3) var spritesheetSampler : sampler;
 
-            @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
-                return texture(spritesheet, spritesheetSampler, v_position);
+            @fragment fn fragmentShader( v_in : v_out ) -> @location(0) vec4f {
+                return texture(spritesheet, spritesheetSampler, v_in.uv);
             }
         `
     });

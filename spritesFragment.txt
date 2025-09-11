@@ -1,8 +1,0 @@
-// let xPos = (sprite << 24) & 255u;
-// let yPos = (sprite << 16) & 255u;
-// let rotation = (sprite << 8) & 255u;
-// let sprite = (sprite << 0) & 255u;
-
-if (sprite)
-
-// return vec4f(vertexArray[vertexIndex], 0.0, 1.0);
