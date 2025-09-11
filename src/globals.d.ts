@@ -88,9 +88,9 @@ declare global {
 
         /** Contains the sprites to be rendered
          * ```
-         *                                 y        x     rotation   sprite
-         *                              11111111 11111111 11111111  11111111 
-         * (16 tiles * 16 pixels) = 2**8 = 255      255      255       255
+         *    y       x     rotation   sprite
+         * 1111111 1111111 111111111  111111111 
+         *   128     128      512       512
          *                  591645
          * ```
          * Initialized at {@link window.sprites} */
