@@ -3,60 +3,15 @@ let bindGroupLayout: GPUBindGroupLayout;
 let pipeline: GPURenderPipeline;
 let bindGroup: GPUBindGroup;
 
-function setUpRenderSprites (parameters: { device: GPUDevice}) {
+import { invoke } from "@tauri-apps/api/core";
+
+async function setUpRenderSprites (parameters: { device: GPUDevice}) {
     device = parameters.device;
 
-    const vShader = device.createShaderModule({
-        label: `render sprites vertex shader`,
-        code: `
-            struct TransformStruct {
-                @location(0) translate : vec2f,
-                @location(1) scale : f32,
-                @location(2) rotation : f32,
-            }
-
-            @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
-            @group(0) @binding(1) var<uniform> uViewport : vec2f;
-
-            const vertexArray : array<vec2f, 3> = array(
-                vec2f(-3.0, -1.0),
-                vec2f(0.0, 2.0),
-                vec2f(3.0, -3.0),
-            );
-
-            @group(0) @binding(4) var<storage, read> sSprites : array<u32>;
-
-            struct v_out {
-                @builtin(position) position;
-                @location(0) uv;
-            }
-
-            @vertex fn vertexShader(
-                @builtin(vertex_index) vertexIndex : u32,
-                @builtin(instance_index)    
-            ) -> v_out {
-                var out : v_out;
-
-                let spriteData = sSprites[instance_index];
-                let xPos = (sprite << 24) & 255u;
-                let yPos = (sprite << 16) & 255u;
-                let rotation = (sprite << 8) & 255u;
-                let sprite = (sprite << 0) & 255u;
-            }
-        `
-    });
-
-    const fShader = device.createShaderModule({
-        label: `render sprites fragment shader`,
-        code: `
-            @group(0) @binding(2) var spritesheet : texture_2d<f32>;
-            @group(0) @binding(3) var spritesheetSampler : sampler;
-
-            @fragment fn fragmentShader( v_in : v_out ) -> @location(0) vec4f {
-                return texture(spritesheet, spritesheetSampler, v_in.uv);
-            }
-        `
-    });
+    const vShaderSource: string = await invoke('get_sprite_vertex_shader');
+    const fShaderSource: string = await invoke ('get_sprite_fragment_shader');
+    const vShader: GPUShaderModule = device.createShaderModule({ label: `render sprites vertex shader`, code: vShaderSource });
+    const fShader: GPUShaderModule = device.createShaderModule({ label: `render sprites fragment shader`, code: fShaderSource });
 
     bindGroupLayout = device.createBindGroupLayout({
         label: `render sprites bind group layout`,
@@ -106,3 +61,5 @@ function renderSprites (pass: GPURenderPassEncoder) {
     pass.setBindGroup(0, bindGroup);
     pass.draw(3);
 };
+
+export { setUpRenderSprites, renderSprites }

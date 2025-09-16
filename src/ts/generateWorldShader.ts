@@ -157,15 +157,15 @@ function generateWorldToBuffer (parameters: { width: number, height: number, wor
     pass.dispatchWorkgroups(width, height);
     pass.end();
 
-    const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
-    encoder.copyBufferToBuffer(worldBuffer, 0, readBuffer, 0, readBuffer.size);
+    // const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
+    // encoder.copyBufferToBuffer(worldBuffer, 0, readBuffer, 0, readBuffer.size);
 
     device.queue.submit([encoder.finish()]);
 
-    readBuffer.mapAsync(GPUMapMode.READ).then(() => {
-        console.log(new Uint32Array(readBuffer.getMappedRange()));
-        readBuffer.unmap();
-    });
+    // readBuffer.mapAsync(GPUMapMode.READ).then(() => {
+    //     console.log(new Uint32Array(readBuffer.getMappedRange()));
+    //     readBuffer.unmap();
+    // });
 }
 
 export { setUpGenerateWorld, generateWorldStorageBuffer, generateWorldToBuffer }

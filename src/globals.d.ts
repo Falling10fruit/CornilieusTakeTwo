@@ -138,6 +138,11 @@ declare global {
             renderWorld: () => void;
         };
     }
+
+    declare module "*.wgsl?raw" {
+        const value: string;
+        export default string;
+    }
 }
 
 export {}

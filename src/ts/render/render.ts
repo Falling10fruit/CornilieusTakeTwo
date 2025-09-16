@@ -2,6 +2,7 @@ let device: GPUDevice;
 let ctx: GPUCanvasContext;
 
 import { renderWorld } from "./renderWorld.ts";
+import { renderSprites } from "./renderSprites.ts";
 
 /** Sets up the {@link render} function.
  * 
@@ -45,6 +46,7 @@ function render () {
     });
 
     renderWorld(pass);
+    renderSprites(pass);
 
     pass.end();
     device.queue.submit([commanderEncoder.finish()]);

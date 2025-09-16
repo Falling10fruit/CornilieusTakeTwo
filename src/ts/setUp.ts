@@ -3,6 +3,7 @@ import { loadSpritesheet } from "./prerequisites/loadSpritesheet";
 import { setUpGPU } from "./prerequisites/setUpGPU";
 import { setUpGenerateWorld, generateWorldStorageBuffer, generateWorldToBuffer } from "./generateWorldShader.ts";
 import { setUpRenderWorld, bindWorldStorageBuffer } from "./render/renderWorld.ts";
+import { setUpRenderSprites } from "./render/renderSprites.ts";
 import { setUpRender, render} from "./render/render.ts";
 
 try {
@@ -19,6 +20,7 @@ try {
     setUpRenderWorld({ device });
     bindWorldStorageBuffer({...window.world, worldBuffer: window.world.storageBuffer});
 
+    setUpRenderSprites({ device });
 
     render(); // render and gametick are not synced
 } catch (err) {
