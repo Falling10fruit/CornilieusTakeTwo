@@ -5,7 +5,7 @@ let pipeline: GPUComputePipeline;
 /** Initializes methods for the [generateWorld](generateWorldShader.ts) module.
  * 
  * Implementation at {@link setUpGenerateWorld} */
-function setUpGenerateWorld (parameters: { device: GPUDevice }) {
+async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
     device = parameters.device;
 
     const computeShader = device.createShaderModule({
@@ -133,7 +133,7 @@ function setUpGenerateWorld (parameters: { device: GPUDevice }) {
     });
 }
 
-function generateWorldStorageBuffer (parameters: { width: number, height: number }) {
+async function generateWorldStorageBuffer (parameters: { width: number, height: number }) {
     return device.createBuffer({
         label: `world data buffer`,
         size: parameters.width * parameters.height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
@@ -141,7 +141,7 @@ function generateWorldStorageBuffer (parameters: { width: number, height: number
     });
 }
 
-function generateWorldToBuffer (parameters: { width: number, height: number, worldBuffer: worldBuffer }) {
+async function generateWorldToBuffer (parameters: { width: number, height: number, worldBuffer: worldBuffer }) {
     const { width, height, worldBuffer} = parameters;
 
     const bindGroup = device.createBindGroup({
