@@ -1,38 +1,28 @@
 use std::fs;
-use std::path::PathBuf;
-use tauri::api::path::resource_dir;
+use tauri::Manager;
+use tauri::path::BaseDirectory;
 
 #[tauri::command]
-pub async fn get_sprite_vertex_shader() -> Result<String, &'static str> {
-    let path: PathBuf = resource_dir()
-        .expect("Resource directory is missing")
-        .join("wgsl")
-        .join("spritesVertex.wgsl");
-    
-    let shader_source: String = fs::read_to_string(path)
-        .map(|err| err.to_string())
-        .expect("Unable to read sprite vertex shader");
+pub async fn get_sprite_vertex_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let path = handle.path().resolve("wgsl/spritesVertex.wgsl", BaseDirectory::Resource)
+        .expect("Resource directory is not found");
+    let shader_source: Result<String, std::io::Error> = fs::read_to_string(path);
 
-    match shaderSource {
-        Ok(source) => return source,
-        Err(err) => return (|err| err.to_string())
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
     }
 }
 
 #[tauri::command]
-pub async fn get_sprite_fragment_shader() -> Result<String, &'static str> {
-    let path: PathBuf = resource_dir()
-        .expect("Resource directory is missing")
-        .join("wgsl")
-        .join("spritesFragment.wgsl");
-    
-    let shader_source: String = fs::read_to_string(path)
-        .map(|err| err.to_string())
-        .expect("Unable to read sprite fragment shader");
+pub async fn get_sprite_fragment_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let path = handle.path().resolve("wgsl/spritesVertex.wgsl", BaseDirectory::Resource)
+        .expect("Resource directory is not found");
+    let shader_source: Result<String, std::io::Error> = fs::read_to_string(path);
 
-    match shaderSource {
-        Ok(source) => return source,
-        Err(err) => return (|err| err.to_string())
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
     }
 }
 
