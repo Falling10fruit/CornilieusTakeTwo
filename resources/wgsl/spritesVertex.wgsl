@@ -22,6 +22,7 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
 struct v_out {
     @builtin(position) position : vec4f,
     @location(0) texCoord : vec2f,
+    @location(1) v_position : vec2f,
 }
 
 @vertex fn vertexShader(
@@ -53,6 +54,8 @@ struct v_out {
     }
     out.texCoord *= vertexArray[vertexIndex];
     out.texCoord += sprite.xw;
+    
+    out.v_position = vertexArray[vertex_index];
 
     return out;
 }
