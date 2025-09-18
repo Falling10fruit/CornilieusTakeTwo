@@ -40,7 +40,7 @@ global.setUp = () => {
         `
     });
     
-    window.renderWorld.pipeline = window.device.createRenderPipeline({
+    window.renderWorld.pipeline = window.await device.createRenderPipelineAsync({
         label: `render world pipeline`,
         layout: window.device.createPipelineLayout({
             label: `render world pipeline layout`,

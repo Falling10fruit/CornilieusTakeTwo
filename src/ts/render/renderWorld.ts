@@ -7,7 +7,7 @@ let bindGroup: GPUBindGroup;
 /** Initializes methods for the [renderWorld.ts](renderWorld.ts) module
  * 
  * Implementation at {@link setUpRenderWorld}*/
-function setUpRenderWorld (parameters: { device: GPUDevice }) {
+async function setUpRenderWorld (parameters: { device: GPUDevice }) {
     device = parameters.device;
 
     const vShader = device.createShaderModule({
@@ -110,7 +110,7 @@ function setUpRenderWorld (parameters: { device: GPUDevice }) {
         { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } }]
     });
     
-    pipeline = device.createRenderPipeline({
+    pipeline = await device.createRenderPipelineAsync({
         label: `render world pipeline`,
         layout: device.createPipelineLayout({
             label: `render world pipeline layout`,

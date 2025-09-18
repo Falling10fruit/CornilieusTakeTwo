@@ -55,7 +55,7 @@ struct v_out {
     out.texCoord *= vertexArray[vertexIndex];
     out.texCoord += sprite.xw;
     
-    out.v_position = vertexArray[vertex_index];
+    out.v_position = vertexArray[vertexIndex];
 
     return out;
 }

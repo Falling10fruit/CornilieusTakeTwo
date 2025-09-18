@@ -24,7 +24,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
         ]
     });
     
-    pipeline = device.createRenderPipeline({
+    pipeline = await device.createRenderPipelineAsync({
         label: `render sprites pipeline`,
         layout: device.createPipelineLayout({
             label: `render sprites pipeline layout`,
@@ -43,7 +43,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
         },
     });
 
-    bindGroup = device.createBindGroup({
+    bindGroup = await device.createBindGroup({
         label: `render sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [

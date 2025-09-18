@@ -120,7 +120,7 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
         }]
     });
 
-    pipeline = device.createComputePipeline({
+    pipeline = await device.createComputePipelineAsync({
         label: `generate world pipeline`,
         layout: device.createPipelineLayout({
             label: `generate world pipeline layout`,
