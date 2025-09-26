@@ -5,12 +5,16 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     device = parameters.device;
     ctx = parameters.ctx;
 
-    const IDK_ONE_SPRITE_IG_AS_TEST = new Uint32Array(2**24);
-    IDK_ONE_SPRITE_IG_AS_TEST[0] =
-        ( 64  << 25 ) + 
-        ( 64  << 18 ) +
-        ( 128 << 9  ) +
-        ( 1   << 0  )  ;
+    const sprites = new Uint32Array(2**24);
+
+    const IDK_ONE_SPRITE_IG_AS_TEST  = add32Uints(
+        ( 64  << 0 ) >>> 0,
+        ( 64  << 0 ) >>> 0,
+        ( 128 << 9 ) >>> 0,
+        ( 1   << 0 ) >>> 0
+    ) >>> 0;
+    sprites[0] = IDK_ONE_SPRITE_IG_AS_TEST;
+    console.log(IDK_ONE_SPRITE_IG_AS_TEST);
 
     window.spritesBuffer = device.createBuffer({
         label: "Sprites buffer",
@@ -19,10 +23,36 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     })
     device.queue.writeBuffer(window.spritesBuffer,
         0,
-        IDK_ONE_SPRITE_IG_AS_TEST,
+        sprites,
         0,
         2**24 // idk how env variables work
-    )
+    );
+
+    // const stagingBuffer = device.createBuffer({
+    //     label: "staging buffer for sprites",
+    //     size: IDK_ONE_SPRITE_IG_AS_TEST.byteLength,
+    //     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    // });
+
+    // const stagingEncoder = device.createCommandEncoder({ label: "staging encoder for sprites" });
+    // stagingEncoder.copyBufferToBuffer(
+    //     window.spritesBuffer, 0,
+    //     stagingBuffer, 0,
+    //     IDK_ONE_SPRITE_IG_AS_TEST.byteLength
+    // );
+    // const stagingCommands = stagingEncoder.finish();
+    // device.queue.submit([stagingCommands]);
+
+    // stagingBuffer.mapAsync(GPUMapMode.READ).then(() => {
+    //     console.log(new Uint32Array(stagingBuffer.getMappedRange()).slice(0, 10));
+    //     stagingBuffer.unmap();
+    // });
+}
+
+function add32Uints(...numbers: number[]) {
+    let sum = 0;
+    for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
+    return sum;
 }
 
 export { setUpComputeSprites }

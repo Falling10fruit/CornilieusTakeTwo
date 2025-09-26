@@ -18,9 +18,9 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
         entries: [
             { binding: 0, visibility: GPUShaderStage.VERTEX,   buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
             { binding: 1, visibility: GPUShaderStage.VERTEX,   buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
-            { binding: 2, visibility: GPUShaderStage.FRAGMENT, externalTexture: {} } as GPUBindGroupLayoutEntry,
+            { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} } as GPUBindGroupLayoutEntry,
             { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" } } as GPUBindGroupLayoutEntry,
-            { binding: 4, visibility: GPUShaderStage.VERTEX,   buffer: { type: "storage" } } as GPUBindGroupLayoutEntry
+            { binding: 4, visibility: GPUShaderStage.VERTEX,   buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry
         ]
     });
     
@@ -39,11 +39,21 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
             entryPoint: "fragmentShader",
             targets: [{
                 format: navigator.gpu.getPreferredCanvasFormat(),
+                blend: {
+                    color: {
+                        srcFactor: 'one',
+                        dstFactor: 'one-minus-src-alpha'
+                    },
+                    alpha: {
+                        srcFactor: 'one',
+                        dstFactor: 'one-minus-src-alpha'
+                    },
+                },
             }],
         },
     });
 
-    bindGroup = await device.createBindGroup({
+    bindGroup = device.createBindGroup({
         label: `render sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
@@ -59,7 +69,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
 function renderSprites (pass: GPURenderPassEncoder) {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.draw(3);
+    pass.draw(3, 1);
 };
 
 export { setUpRenderSprites, renderSprites }

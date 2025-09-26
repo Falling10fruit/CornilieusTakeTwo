@@ -131,6 +131,8 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
             entryPoint: "cShader",
         }
     });
+
+    window.world.storageBuffer = await generateWorldStorageBuffer(window.world);
 }
 
 async function generateWorldStorageBuffer (parameters: { width: number, height: number }) {

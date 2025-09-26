@@ -1,14 +1,13 @@
-// const global = window.loadSpritesheet = {}; I don't think we'll have any other methods
-const res = await fetch("./src/spritesheet.png");
-const blob = await res.blob();
-const spritesheetSource = await createImageBitmap(blob, { colorSpaceConversion: "none" });
-
 /** Fetches the spritesheet, then creates a texture and sampler to {@link window.spritesheet}
  * 
  * Implementation at
  * @see {@link loadSpritesheet}*/
 async function loadSpritesheet (parameters: { device: GPUDevice }) {
     const device = parameters.device;
+
+    const res = await fetch("./src/spritesheet.png");
+    const blob = await res.blob();
+    const spritesheetSource = await createImageBitmap(blob, { colorSpaceConversion: "none" });
 
     window.spritesheet = {
         texture: device.createTexture({
@@ -20,9 +19,10 @@ async function loadSpritesheet (parameters: { device: GPUDevice }) {
         sampler: device.createSampler(),
     };
 
+    if (window.spritesheet.texture == null) return; // I hate the red lines
     device.queue.copyExternalImageToTexture(
-        { source: spritesheetSource, flipY: true },
-        { texture: window.spritesheet.texture as GPUTexture },
+        { source: spritesheetSource, flipY: false },
+        { texture: window.spritesheet.texture },
         spritesheetSource // width, height
     );
 }
