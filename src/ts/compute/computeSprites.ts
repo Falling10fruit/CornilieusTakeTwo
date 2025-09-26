@@ -8,10 +8,10 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     const sprites = new Uint32Array(2**24);
 
     const IDK_ONE_SPRITE_IG_AS_TEST  = add32Uints(
-        ( 64  << 0 ) >>> 0,
-        ( 64  << 0 ) >>> 0,
-        ( 128 << 9 ) >>> 0,
-        ( 1   << 0 ) >>> 0
+        ( 0 << 25 ) >>> 0,
+        ( 3 << 18 ) >>> 0,
+        ( 0  << 9 ) >>> 0,
+        ( 1  << 0 ) >>> 0
     ) >>> 0;
     sprites[0] = IDK_ONE_SPRITE_IG_AS_TEST;
     console.log(IDK_ONE_SPRITE_IG_AS_TEST);

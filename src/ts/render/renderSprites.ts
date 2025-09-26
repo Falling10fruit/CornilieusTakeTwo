@@ -44,6 +44,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
                         srcFactor: 'one',
                         dstFactor: 'one-minus-src-alpha'
                     },
+                    
                     alpha: {
                         srcFactor: 'one',
                         dstFactor: 'one-minus-src-alpha'

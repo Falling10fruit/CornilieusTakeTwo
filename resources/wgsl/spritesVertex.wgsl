@@ -41,12 +41,13 @@ struct v_out {
 
     let translateMatrix : mat3x3f = createTranslateMatrix(xPos, yPos); // The bottom left of the sprite
     let rotateMatrix : mat3x3f = createRotateMatrix(rotation);
-    let scaleMatrix : mat3x3f = createScaleMatrix(sprite.zw - sprite.xy);
+    let scaleMatrix : mat3x3f = createScaleMatrix((sprite.zw - sprite.xy) / 16.0);
     let transform : mat3x3f = rotateMatrix * translateMatrix * scaleMatrix; // * rotateMatrix; just start with something basic // matricies are associative
 
     let cameraTranslate : mat3x3f = createTranslateMatrix(-uTransform.translate.x, -uTransform.translate.y);
     let cameraScale : mat3x3f = createScaleMatrix(vec2f(1.0, 1.0) * uTransform.scale);
-    let cameraTransform : mat3x3f = cameraScale * cameraTranslate;
+    let cameraRotate : mat3x3f = createRotateMatrix(-uTransform.rotation * 512.0 / 2.0 / 3.1415926535);
+    let cameraTransform : mat3x3f = cameraRotate * cameraScale * cameraTranslate;
     
     let position : vec3f = cameraTransform * transform * vec3f(vertexArray[vertexIndex], 1.0);
     out.position = vec4f((position.xy * 2.0 / uViewport), 0.0, 1.0);
@@ -64,7 +65,7 @@ struct v_out {
     out.v_position = vertexArray[vertexIndex];
     
     // out.position = vec4f(((vertexArray[vertexIndex] + vec2f(xPos, yPos) - uTransform.translate) * uTransform.scale * 2.0) / uViewport, 0.0, 1.0);
-    // out.debug = vec4f(out.texCoord, 0.0, 255.0)/255.0;
+    // out.debug = vec4f(uTransform.rotation, 0.0, 0.0, 255.0)/255.0;
     return out;
 }
 
