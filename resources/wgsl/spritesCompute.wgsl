@@ -11,8 +11,8 @@ fn round_to_u32(num : f32) -> u32 {
 ) {
     let index =
         global_invocation_id.x +
-        global_invocation_id.y * 256.0 +
-        global_invocation_id.z * 256.0 * 256.0;
+        global_invocation_id.y * 256 +
+        global_invocation_id.z * 256 * 256;
 
     let current_sprite = current_sprites_buffer[index];
     let target_sprite = target_sprites_buffer[index];
@@ -30,8 +30,8 @@ fn round_to_u32(num : f32) -> u32 {
     let new_angle = round_to_u32(mix(current_angle, target_angle, 0.5));
 
     current_sprites_buffer[index] =
-        new_x_position % 128 << 25 +
-        new_y_position % 128 << 18 +
-        new_angle      % 512 << 9  +
-        current_sprite & 511u;
+        ((new_x_position % 128) << 25) +
+        ((new_y_position % 128) << 18) +
+        ((new_angle      % 512) << 9 ) +
+        (current_sprite & 511u);
 }

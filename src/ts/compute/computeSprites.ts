@@ -43,7 +43,25 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     //     stagingBuffer.unmap();
     // });
 
-    let computeShader = await loadComputeShader(device) as GPUShaderModule;
+    const computeModule = await loadComputeShader(device) as GPUShaderModule;
+    const bindGroupLayout = device.createBindGroupLayout({
+        label: `compute sprites bind gorup layout`,
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry,
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry
+        ]
+    });
+    const pipeline = await device.createComputePipelineAsync({
+        label: `compute sprites pipeline`,
+        layout: device.createPipelineLayout({
+            label: `compute sprites pipeline layout`,
+            bindGroupLayouts: [bindGroupLayout]
+        }),
+        compute: {
+            module: computeModule,
+            entryPoint: `cShader`
+        }
+    })
     
 }
 
