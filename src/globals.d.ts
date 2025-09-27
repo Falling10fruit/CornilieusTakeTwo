@@ -94,7 +94,7 @@ declare global {
          *                  591645
          * ```
          * Initialized at {@link window.sprites} */
-        spritesBuffer: GPUBuffer | null;
+        spritesBuffer: { current: GPUBuffer | null, target: GPUBuffer | null };
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;

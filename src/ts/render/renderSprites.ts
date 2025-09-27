@@ -62,7 +62,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
             { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry,
             { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
             { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
-            { binding: 4, resource: { buffer: window.spritesBuffer } } as GPUBindGroupEntry
+            { binding: 4, resource: { buffer: window.spritesBuffer.current } } as GPUBindGroupEntry
         ]
     });
 }

@@ -52,7 +52,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
             @group(0) @binding(4) var<storage, read> sWorldData : array<u32>;
             @group(0) @binding(5) var<uniform> sWorldSize : vec2f;
 
-            fn mixClamped (start : f32, end : f32, weight : f32) -> f32 { return min(end, max(start, mix(start, end, weight))); }
+            fn mixClamped (start : f32, end : f32, weight : f32) -> f32 { return min(end + 0.01, max(start - 0.01, mix(start, end, weight))); }
             
             fn interpolateAcrossTile(tileType : TileFormat, positionInTile : vec2f) -> vec2f {
                 return vec2f(

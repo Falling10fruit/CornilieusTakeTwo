@@ -39,10 +39,10 @@ struct v_out {
     let spriteIndex = (spriteData >> 0) & 511u;
     let sprite : vec4f = vec4f(spritesArray[spriteIndex]);
 
-    let translateMatrix : mat3x3f = createTranslateMatrix(xPos, yPos); // The bottom left of the sprite
+    let translateMatrix : mat3x3f = createTranslateMatrix(xPos/16.0, yPos/16.0); // The bottom left of the sprite
     let rotateMatrix : mat3x3f = createRotateMatrix(rotation);
     let scaleMatrix : mat3x3f = createScaleMatrix((sprite.zw - sprite.xy) / 16.0);
-    let transform : mat3x3f = rotateMatrix * translateMatrix * scaleMatrix; // * rotateMatrix; just start with something basic // matricies are associative
+    let transform : mat3x3f = translateMatrix * rotateMatrix * scaleMatrix; // * rotateMatrix; just start with something basic // matricies are associative
 
     let cameraTranslate : mat3x3f = createTranslateMatrix(-uTransform.translate.x, -uTransform.translate.y);
     let cameraScale : mat3x3f = createScaleMatrix(vec2f(1.0, 1.0) * uTransform.scale);
