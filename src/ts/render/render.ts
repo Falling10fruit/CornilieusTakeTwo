@@ -1,6 +1,7 @@
 let device: GPUDevice;
 let ctx: GPUCanvasContext;
 
+import { computeSprites } from "../compute/computeSprites.ts";
 import { renderWorld } from "./renderWorld.ts";
 import { renderSprites } from "./renderSprites.ts";
 
@@ -11,14 +12,11 @@ function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
     device = parameters.device;
     ctx = parameters.ctx;
 
-    window.camera.uniformBuffer = device.createBuffer({
-        label: `camera tranform uniform`,
-        size: 2 * 4 + // vec2
-              1 * 4 + // f32
-              1 * 4 + // f32
-              0 * 4 , // + padding
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
+    const bindGroups = Object.entries(window.bindGroups)
+    for (let i = 0; i < bindGroups.length; i++) {
+        let [bindGroupName, bindGroup] = bindGroups[i];
+        if (bindGroup == null) return window.fail({ title: `Bind groups are not set`, message: `Bind group ${bindGroupName} is not set`})
+    }
 }
 
 
@@ -28,15 +26,18 @@ function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
 function render () {
     controlCamera(); // comment this out later
 
-    if (window.camera.uniformBuffer == null) {
-        return
-    }
+    if (window.camera.uniformBuffer == null) { return window.fail({ title: `camera buffer not set`, message: `uniform buffer is null` as string})}
 
     device.queue.writeBuffer(window.camera.uniformBuffer, 0, new Float32Array([window.camera.xPos, window.camera.yPos, window.camera.scale, window.camera.rotation]));
 
     const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
-    const pass = commanderEncoder.beginRenderPass({
-        label: `render pass`,
+    
+    const computePass = commanderEncoder.beginComputePass({ label: `render computePass` });
+    computeSprites(computePass);
+    computePass.end();
+
+    const renderPass = commanderEncoder.beginRenderPass({
+        label: `render renderPass`,
         colorAttachments: [{
             clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 1.0],
             loadOp: `clear`,
@@ -44,14 +45,21 @@ function render () {
             view: ctx.getCurrentTexture().createView(),
         }],
     });
+    setBindGroups(renderPass);
+    renderWorld(renderPass);
+    renderSprites(renderPass);
+    renderPass.end();
 
-    renderWorld(pass);
-    renderSprites(pass);
-
-    pass.end();
     device.queue.submit([commanderEncoder.finish()]);
 
     requestAnimationFrame(render);
+}
+
+function setBindGroups(pass: GPURenderPassEncoder) {
+    const length = window.bindGroups.render.length;
+    for (let i = 0; i < length; i++) {    
+        pass.setBindGroup(i, window.bindGroups.render[i]);
+    }
 }
 
 function controlCamera() {

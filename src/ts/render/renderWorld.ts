@@ -1,5 +1,4 @@
 let device: GPUDevice;
-let bindGroupLayout: GPUBindGroupLayout;
 let pipeline: GPURenderPipeline;
 let worldSizeUniform: GPUBuffer;
 let bindGroup: GPUBindGroup;
@@ -119,22 +118,40 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
         `
     });
 
-    bindGroupLayout = device.createBindGroupLayout({
-        label: `render world bind group layout`,
-        entries: [
-        { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
-        { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} } as GPUBindGroupLayoutEntry,
-        { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" }, } as GPUBindGroupLayoutEntry,
-        { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry,
-        { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } }]
+    const bindGroupLayout = device.createBindGroupLayout({
+        label: `render world group layout`,
+        entries: [    
+            { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry, // camera transform
+            { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry, // viewport resolutoion
+            { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} } as GPUBindGroupLayoutEntry,
+            { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" }, } as GPUBindGroupLayoutEntry,
+            { binding: 4, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry, // Tiles
+            { binding: 5, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry // world size
+        ]
     });
+
+    bindGroup = device.createBindGroup({
+        label: `render world bind group`,
+        layout: bindGroupLayout,
+        entries: [
+            { binding: 0, resource: { buffer: window.camera.uniformBuffer} } as GPUBindGroupEntry, // camera transform
+            { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry, // viewport resolutoion
+            { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
+            { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.world.storageBuffer } } as GPUBindGroupEntry, // Tiles
+            { binding: 1, resource: { buffer: window.world.dimensionsUniform } } as GPUBindGroupEntry // world size 
+        ]
+    })
     
     pipeline = await device.createRenderPipelineAsync({
         label: `render world pipeline`,
         layout: device.createPipelineLayout({
             label: `render world pipeline layout`,
-            bindGroupLayouts: [bindGroupLayout],
+            bindGroupLayouts: [
+                window.bindGroupLayouts.render[0], // camera
+                window.bindGroupLayouts.render[1], // spritesheet
+                window.bindGroupLayouts.render[2], // world data
+            ],
         }),
         vertex: {
             module: vShader,
@@ -156,28 +173,9 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
     });
 }
 
-function bindWorldStorageBuffer (parameters: { width: number, height: number, worldBuffer: worldBuffer}) {
-    const { width, height } = parameters;
-    device.queue.writeBuffer(worldSizeUniform, 0, new Float32Array([width * 16, height * 16]));
-
-    bindGroup = device.createBindGroup({
-        label: `render world bind group`,
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [
-            { binding: 0, resource: { buffer: window.camera.uniformBuffer} } as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry,
-            { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
-            { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
-            { binding: 4, resource: { buffer: parameters.worldBuffer } } as GPUBindGroupEntry,
-            { binding: 5, resource: { buffer: worldSizeUniform } } as GPUBindGroupEntry
-        ]
-    });
-}
-
 function renderWorld (pass: GPURenderPassEncoder) {
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
     pass.draw(3);
 };
 
-export { setUpRenderWorld, bindWorldStorageBuffer, renderWorld }
+export { setUpRenderWorld, renderWorld }

@@ -1,38 +1,53 @@
-const eyedropper = document.createElement("input");
-eyedropper.type = "color";
+import { createBuffers } from "./ts/prerequisites/createBuffers";
+import { loadSpritesheet } from "./ts/prerequisites/loadSpritesheet.ts";
+import { createBindGroupsAndLayouts } from "./ts/prerequisites/setUpBindGroups";
 
-window.world = {
-    width: 80,
-    height: 60,
-    seed: 43758.5453,
-    storageBuffer: null,
-};
+async function preload (parameters: { device: GPUDevice }) {
+    const eyedropper = document.createElement("input");
+    eyedropper.type = "color";
 
-window.camera = {
-    xPos: 0,
-    yPos: 0,
-    yVel: 0,
-    xVel: 0,
-    scale: 16,
-    scaleVel: 0,
-    rotation: (0)*Math.PI/180,
-    rotationVel: 0,
-    uniformBuffer: null,
-};
+    window.world = {
+        width: 80,
+        height: 60,
+        seed: 43758.5453,
+        storageBuffer: null,
+        dimensionsUniform: null,
+        NO_OF_SPRITES: 2**24
+    };
 
-window.spritesheet = {
-    texture: null,
-    sampler: null,
-};
+    window.camera = {
+        xPos: 0,
+        yPos: 0,
+        yVel: 0,
+        xVel: 0,
+        scale: 16,
+        scaleVel: 0,
+        rotation: (0)*Math.PI/180,
+        rotationVel: 0,
+        uniformBuffer: null,
+    };
 
-window.spritesBuffer = null;
+    window.spritesheet = {
+        texture: null,
+        sampler: null,
+    };
 
-window.keyIsDown = {};
+    window.bindGroupLayouts = { render: [], compute: [] }
+    window.bindGroups = { render: [], compute: [] }
 
-window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
-window.onkeydown = (event) => {
-    window.keyIsDown[event.key] = true;
-    console.log(event.key);
+    window.keyIsDown = {};
 
-    if (event.key === "F2") eyedropper.click();
-};
+    window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
+    window.onkeydown = (event) => {
+        window.keyIsDown[event.key] = true;
+        console.log(event.key);
+
+        if (event.key === "F2") eyedropper.click();
+    };
+
+    createBuffers({ ...parameters });
+    await loadSpritesheet({ ...parameters });
+    createBindGroupsAndLayouts({ ...parameters });
+}
+
+export { preload }

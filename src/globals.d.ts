@@ -26,7 +26,24 @@ declare global {
     /** WebGPU is sometimes incompatible */
     type trust_me = any;
     
-    interface Window {
+    interface Window { 
+        /** 
+         * render:
+         *      camera
+         *      spritesheet
+         *      worldData
+         *      the sprite buffer ( read only )
+         */
+        bindGroupLayouts: {
+            render: Array<GPUBindGroupLayout  | null>,
+            compute: Array<GPUBindGroupLayout  | null>,
+        }
+        /** for the list @see bindGroupLayouts */
+        bindGroups: {
+            render: Array<GPUBindGroup  | null>,
+            compute: Array<GPUBindGroup  | null>,
+        };
+
         /**
          * Where the game world information is set.
          * 
@@ -45,6 +62,8 @@ declare global {
             height: number;
             seed: number;
             storageBuffer: worldBuffer | null;
+            dimensionsUniform: GPUBuffer | null;
+            NO_OF_SPRITES: number;
         };
 
         /**
@@ -94,7 +113,7 @@ declare global {
          *                  591645
          * ```
          * Initialized at {@link window.sprites} */
-        spritesBuffer: { current: GPUBuffer | null, target: GPUBuffer | null };
+        spritesBuffer: { NO_OF_SPRITES: number, current: GPUBuffer | null, target: GPUBuffer | null };
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;
@@ -125,12 +144,6 @@ declare global {
         };
         renderWorld: {
             setUp: (device: GPUDevice) => void;
-            
-            /** Creates the API's bind group and binds the given storage buffer (worldBuffer).
-             * 
-             * Implementation at [renderWorld.js](ts/render/renderWorld.js)
-             * @see {@link worldBuffer} */
-            bindWorldStorageBuffer: (parameters: { width: number, height: number, worldBuffer: worldBuffer }) => void;
 
             /** Renders the world when called by `window.render()`
              * 

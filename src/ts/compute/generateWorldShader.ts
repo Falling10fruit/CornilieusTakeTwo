@@ -131,25 +131,16 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
             entryPoint: "cShader",
         }
     });
-
-    window.world.storageBuffer = await generateWorldStorageBuffer(window.world);
 }
 
-async function generateWorldStorageBuffer (parameters: { width: number, height: number }) {
-    return device.createBuffer({
-        label: `world data buffer`,
-        size: parameters.width * parameters.height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-    });
-}
+async function generateWorldToBuffer (parameters: { width: number, height: number }) {
+    const { width, height } = parameters;
 
-async function generateWorldToBuffer (parameters: { width: number, height: number, worldBuffer: worldBuffer }) {
-    const { width, height, worldBuffer} = parameters;
-
+    if (window.world.storageBuffer == null) return window.fail({ title: `world storage buffer is null`, message: `error generated at generateWorldShader`})
     const bindGroup = device.createBindGroup({
         label: `generate world bind group`,
         layout: pipeline.getBindGroupLayout(0),
-        entries: [{ binding: 0, resource: { buffer: worldBuffer } }]
+        entries: [{ binding: 0, resource: { buffer: window.world.storageBuffer } }]
     });
 
     const encoder = device.createCommandEncoder({ label: `generate world command encoder` });
@@ -170,4 +161,4 @@ async function generateWorldToBuffer (parameters: { width: number, height: numbe
     // });
 }
 
-export { setUpGenerateWorld, generateWorldStorageBuffer, generateWorldToBuffer }
+export { setUpGenerateWorld, generateWorldToBuffer }
