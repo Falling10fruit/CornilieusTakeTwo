@@ -175,6 +175,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
 
 function renderWorld (pass: GPURenderPassEncoder) {
     pass.setPipeline(pipeline);
+    pass.setBindGroup(0, bindGroup);
     pass.draw(3);
 };
 

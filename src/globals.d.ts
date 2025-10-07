@@ -142,14 +142,6 @@ declare global {
              * @see {@link worldBuffer}*/
             generateWorldToBuffer: (parameters: { width: number, height: number, worldBuffer: worldBuffer}) => void;
         };
-        renderWorld: {
-            setUp: (device: GPUDevice) => void;
-
-            /** Renders the world when called by `window.render()`
-             * 
-             * Implementation at [renderWorld.js](ts/render/renderWorld.js) */
-            renderWorld: () => void;
-        };
     }
 
     declare module "*.wgsl?raw" {
