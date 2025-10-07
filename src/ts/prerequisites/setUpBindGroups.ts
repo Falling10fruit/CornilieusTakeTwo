@@ -56,20 +56,6 @@ function createRenderBindGroupsAndLayouts(device: GPUDevice) {
             { binding: 1, resource: { buffer: window.world.dimensionsUniform } } as GPUBindGroupEntry
         ]
     }));
-    
-    window.bindGroupLayouts.render.push(device.createBindGroupLayout({
-        label: `sprites bind group layout`,
-        entries: [
-            { binding: 0, visibility: GPUShaderStage.VERTEX,   buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry
-        ]
-    })); if (window.bindGroupLayouts.render[3] == null) return window.fail({ title: `render bind group layout is null`, message: `bind group layout of index 3 is null`})
-    window.bindGroups.render.push(device.createBindGroup({
-        label: `sprites bind group`,
-        layout: window.bindGroupLayouts.render[3],
-        entries: [
-            { binding: 0, resource: { buffer: window.spritesBuffer.current } } as GPUBindGroupEntry,
-        ]
-    }));
 }
 
 export { createBindGroupsAndLayouts }

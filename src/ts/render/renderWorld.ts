@@ -141,7 +141,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
             { binding: 0, resource: { buffer: window.world.storageBuffer } } as GPUBindGroupEntry, // Tiles
             { binding: 1, resource: { buffer: window.world.dimensionsUniform } } as GPUBindGroupEntry // world size 
         ]
-    })
+    });
     
     pipeline = await device.createRenderPipelineAsync({
         label: `render world pipeline`,
