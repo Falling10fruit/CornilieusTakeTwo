@@ -1,11 +1,6 @@
 function createBindGroupsAndLayouts(parameters: { device: GPUDevice }) {
     const device = parameters.device;
-    createComputeBindGroupsAndLayouts(device);
     createRenderBindGroupsAndLayouts(device);
-}
-
-function createComputeBindGroupsAndLayouts(device: GPUDevice) {
-    window.bindGroupLayouts.compute.push()
 }
 
 function createRenderBindGroupsAndLayouts(device: GPUDevice) {

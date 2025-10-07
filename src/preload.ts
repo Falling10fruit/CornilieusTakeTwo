@@ -1,6 +1,5 @@
 import { createBuffers } from "./ts/prerequisites/createBuffers";
 import { loadSpritesheet } from "./ts/prerequisites/loadSpritesheet.ts";
-import { createBindGroupsAndLayouts } from "./ts/prerequisites/setUpBindGroups";
 
 async function preload (parameters: { device: GPUDevice }) {
     const eyedropper = document.createElement("input");
@@ -47,7 +46,6 @@ async function preload (parameters: { device: GPUDevice }) {
 
     createBuffers({ ...parameters });
     await loadSpritesheet({ ...parameters });
-    createBindGroupsAndLayouts({ ...parameters });
 }
 
 export { preload }

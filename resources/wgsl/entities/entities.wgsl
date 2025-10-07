@@ -22,7 +22,7 @@ struct Entity {
     mass: u32
 }
 
-const AMOUNT_OF_ENTITY_TYPES = 1;
+const AMOUNT_OF_ENTITY_TYPES : u32 = 1;
 const ENTITY_TYPES : array<Entity, AMOUNT_OF_ENTITY_TYPES> = array(
     Entity(
         array(
