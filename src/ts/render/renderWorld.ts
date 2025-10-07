@@ -138,8 +138,8 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
             { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry, // viewport resolutoion
             { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
             { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
-            { binding: 0, resource: { buffer: window.world.storageBuffer } } as GPUBindGroupEntry, // Tiles
-            { binding: 1, resource: { buffer: window.world.dimensionsUniform } } as GPUBindGroupEntry // world size 
+            { binding: 4, resource: { buffer: window.world.storageBuffer } } as GPUBindGroupEntry, // Tiles
+            { binding: 5, resource: { buffer: window.world.dimensionsUniform } } as GPUBindGroupEntry // world size 
         ]
     });
     
@@ -147,11 +147,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
         label: `render world pipeline`,
         layout: device.createPipelineLayout({
             label: `render world pipeline layout`,
-            bindGroupLayouts: [
-                window.bindGroupLayouts.render[0], // camera
-                window.bindGroupLayouts.render[1], // spritesheet
-                window.bindGroupLayouts.render[2], // world data
-            ],
+            bindGroupLayouts: [bindGroupLayout],
         }),
         vertex: {
             module: vShader,

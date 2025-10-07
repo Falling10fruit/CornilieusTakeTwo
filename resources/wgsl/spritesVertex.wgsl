@@ -13,7 +13,7 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(2.0, 0.0),
 );
 
-@group(0) @binding(4) var<storage, read> sSprites : array<u32>;
+@group(0) @binding(4) var<storage, read> sCurrentSprites : array<u32>;
 
 /*spritesArray*/const spritesArray : array<vec4u, 1> = array(
     vec4u(16, 0, 25, 15), // only one sprite so far, uh sprite key should be automaticallly be mapped to a number during compiling
@@ -32,7 +32,7 @@ struct v_out {
 ) -> v_out {
     var out : v_out;
 
-    let spriteData = sSprites[instanceIndex];
+    let spriteData = sCurrentSprites[instanceIndex];
     let xPos : f32 = f32((spriteData >> 25) & 127u);
     let yPos : f32 = f32((spriteData >> 18) & 127u);
     let rotation = f32((spriteData >> 9) & 511u);

@@ -11,12 +11,6 @@ import { renderSprites } from "./renderSprites.ts";
 function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
     device = parameters.device;
     ctx = parameters.ctx;
-
-    const bindGroups = Object.entries(window.bindGroups)
-    for (let i = 0; i < bindGroups.length; i++) {
-        let [bindGroupName, bindGroup] = bindGroups[i];
-        if (bindGroup == null) return window.fail({ title: `Bind groups are not set`, message: `Bind group ${bindGroupName} is not set`})
-    }
 }
 
 
@@ -45,7 +39,6 @@ function render () {
             view: ctx.getCurrentTexture().createView(),
         }],
     });
-    setBindGroups(renderPass);
     renderWorld(renderPass);
     renderSprites(renderPass);
     renderPass.end();
@@ -53,13 +46,6 @@ function render () {
     device.queue.submit([commanderEncoder.finish()]);
 
     requestAnimationFrame(render);
-}
-
-function setBindGroups(pass: GPURenderPassEncoder) {
-    const length = window.bindGroups.render.length;
-    for (let i = 0; i < length; i++) {    
-        pass.setBindGroup(i, window.bindGroups.render[i]);
-    }
 }
 
 function controlCamera() {

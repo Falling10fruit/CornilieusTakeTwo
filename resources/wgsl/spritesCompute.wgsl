@@ -1,5 +1,5 @@
-@group(3) @binding(0) var<storage, read_write> current_sprites_buffer : array<u32>;
-@group(3) @binding(1) var<storage, read_write> target_sprites_buffer : array<u32>;
+@group(0) @binding(0) var<storage, read_write> current_sprites_buffer : array<u32>;
+@group(0) @binding(1) var<storage, read_write> target_sprites_buffer : array<u32>;
 
 fn round_to_u32(num : f32) -> u32 {
     let rounded_f32 = select(floor(num), ceil(num), (fract(num) < 0.5));

@@ -36,8 +36,8 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     const bindGroupLayout = device.createBindGroupLayout({
         label: `compute sprites bind gorup layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry,
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // current sprites buffer
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry // target sprites buffer
         ]
     });
 

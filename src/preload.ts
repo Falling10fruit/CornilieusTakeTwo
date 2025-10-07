@@ -31,9 +31,6 @@ async function preload (parameters: { device: GPUDevice }) {
         sampler: null,
     };
 
-    window.bindGroupLayouts = { render: [], compute: [] }
-    window.bindGroups = { render: [], compute: [] }
-
     window.keyIsDown = {};
 
     window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
