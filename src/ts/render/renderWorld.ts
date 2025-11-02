@@ -111,7 +111,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                     out_color.z /= 2.0;
                 }
 
-                // out_color = vec4f(f32(dataIndex)/255.0, 0.0, 0.0, 1.0);
+                // out_color = vec4f(f32(tileData * 5)/255.0, 0.0, 0.0, 1.0);
 
                 return out_color;
             }

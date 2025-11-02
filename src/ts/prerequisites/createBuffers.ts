@@ -33,8 +33,8 @@ function createCanvasDimensionUniform() {
 }
 
 function createPlaceholderWorldDataBuffer() {
-    window.world.height = 160;
-    window.world.width = 120;
+    window.world.width = 160;
+    window.world.height = 120;
     updateWorldData({ ...window.world })
 }
 
@@ -46,12 +46,12 @@ function updateWorldData (parameters: { width: number, height: number }) {
     });
     device.queue.writeBuffer(
         window.world.dimensionsUniform,
-        0, new Float32Array([ parameters.width, parameters.height ])
+        0, new Float32Array([ parameters.width * 8, parameters.height * 8 ])
     );
 
     window.world.storageBuffer = device.createBuffer({
         label: `world data buffer`,
-        size: parameters.width * parameters.height * 256 * 4, // 16 * 16 tiles per chunk, 4 bytes each
+        size: parameters.width * parameters.height * 64 * 4, // 8 * 8 tiles per chunk, 4 bytes each
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     });
 }

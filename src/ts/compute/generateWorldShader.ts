@@ -83,7 +83,7 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
 
             @group(0) @binding(0) var<storage, read_write> sWorldData : array<u32>;
 
-            @compute @workgroup_size(16, 16, 1) fn cShader(
+            @compute @workgroup_size(8, 8, 1) fn cShader(
                 @builtin(global_invocation_id) global_invocation_id : vec3u,
                 @builtin(num_workgroups) dispatchSize : vec3u
             ) {
@@ -102,9 +102,11 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
                 let carving : f32 = abs(simplexNoise2(coord/40.0));
                 if (carving < 0.4) { tileData.hitPoints = 0u; }
 
-                let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x * 16;
+                let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x * 8;
                 sWorldData[tileIndex] = ((tileData.id        & 3u ) << 30)  +
                                         ((tileData.hitPoints & 31u) << 25);
+
+                // sWorldData[tileIndex] = global_invocation_id.x;
                 
                 // sWorldData[tileIndex] = u32(carving * 100.0 + 100.0); // Just to make sure it works
             }
@@ -150,15 +152,15 @@ async function generateWorldToBuffer (parameters: { width: number, height: numbe
     pass.dispatchWorkgroups(width, height);
     pass.end();
 
-    // const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 256 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
-    // encoder.copyBufferToBuffer(worldBuffer, 0, readBuffer, 0, readBuffer.size);
+    const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 64 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
+    encoder.copyBufferToBuffer(window.world.storageBuffer, readBuffer);
 
     device.queue.submit([encoder.finish()]);
 
-    // readBuffer.mapAsync(GPUMapMode.READ).then(() => {
-    //     console.log(new Uint32Array(readBuffer.getMappedRange()));
-    //     readBuffer.unmap();
-    // });
+    readBuffer.mapAsync(GPUMapMode.READ).then(() => {
+        console.log(new Uint32Array(readBuffer.getMappedRange().slice(0, 1600)));
+        readBuffer.unmap();
+    });
 }
 
 export { setUpGenerateWorld, generateWorldToBuffer }
