@@ -1,0 +1,16 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "parse_sprites",
+            "command": "node",
+            "type": "shell" ,
+            "args": [ "${workspaceFolder}/.vscode/spritesShader.ts" ]
+        }, {
+            "label": "combine_entities",
+            "command": "node",
+            "type": "shell" ,
+            "args": [ "${workspaceFolder}/.vscode/spritesShader.ts" ]
+        }
+    ]
+}

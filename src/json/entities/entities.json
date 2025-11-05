@@ -1,6 +1,92 @@
 [
     {
         "entity_id": "copernicus",
-        "script": "$"
+        "description": "test character",
+        "mass": 40,
+        "nodes": [
+            -2.5,  7.5,
+             2.5,  7.5,
+             3.5,  0.5,
+             4.5, -0.5,
+             2.5, -0.5,
+             2.5, -7.5,
+            -3.5, -7.5,
+            -3.5, -1.5,
+            -4.5, -1.5,
+            -4.5,  0.5,
+            -2.5,  2.5
+        ],
+        "joints": [
+            {
+                "behavior": "fn mouse",
+                "description": "the one to hold stuff"
+            }, {
+                "behavior": "default",
+                "position": [0.0, 7.5],
+                "angle": 90,
+                "description": "helmet"
+            }, {
+                "behavior": "default",
+                "position": "free", 
+                "angle": "free",
+                "description": "offhand, for like attatching yourself to rope"
+            }
+        ]
+    }, {
+        "entity_id": "block",
+        "description": "the building block of every build",
+        "mass": 100,
+        "nodes": [
+             8,  8,
+             8, -8,
+            -8, -8,
+            -8,  8
+        ],
+        "joints": [
+            { "behvaior": "default", "position": [  8.0,  0.0 ], "angle": 0   },
+            { "behvaior": "default", "position": [  0.0,  8.0 ], "angle": 90  },
+            { "behvaior": "default", "position": [ -8.0,  0.0 ], "angle": 180 },
+            { "behvaior": "default", "position": [  0.0, -8.0 ], "angle": 270 }
+        ]
+    }, {
+        "entity_id": "drill",
+        "description": "The prelimenary tool for any job",
+        "mass": 15,
+        "nodes": [
+            -2.0,  4.0,
+             1.0,  4.0,
+             1.0,  3.0,
+             2.0,  3.0,
+             2.0, -2.0,
+             1.0, -2.0,
+             1.0, -3.0,
+             0.0, -3.0,
+             0.0, -7.0,
+            -1.0, -7.0,
+            -1.0, -2.0,
+            -2.0, -2.0
+        ],
+        "joints": [
+            {
+                "behavior": "default",
+                "position": [0, 4],
+                "angle": 90,
+                "description": "Drill handle and chute"
+            }
+        ]
+    }, {
+        "entity_id": "rope",
+        "description": "It wiggles",
+        "mass": 1,
+        "nodes": [
+            -0.5,  1.0,
+             0.5,  1.0,
+             0.5, -1.0,
+            -0.5, -1.0
+        ],
+        "joints": [
+            { "behvaior": "default", "position": [ 0.0,  1.0 ], "angle": "free" },
+            { "behvaior": "default", "position": [ 0.0, -1.0 ], "angle": "free" }
+        ]
     }
 ]

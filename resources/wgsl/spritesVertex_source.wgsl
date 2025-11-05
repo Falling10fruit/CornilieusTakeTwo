@@ -13,7 +13,7 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(2.0, 0.0),
 );
 
-@group(0) @binding(4) var<storage, read> sSprites : array<u32>;
+@group(0) @binding(4) var<storage, read> sCurrentSprites : array<u32>;
 
 /*spritesArray*/const spritesArray : array<vec4u, 1> = array(
     vec4u(16, 0, 25, 15), // only one sprite so far, uh sprite key should be automaticallly be mapped to a number during compiling
@@ -32,17 +32,17 @@ struct v_out {
 ) -> v_out {
     var out : v_out;
 
-    let spriteData = sSprites[instanceIndex];
+    let spriteData = sCurrentSprites[instanceIndex];
     let xPos : f32 = f32((spriteData >> 25) & 127u);
     let yPos : f32 = f32((spriteData >> 18) & 127u);
     let rotation = f32((spriteData >> 9) & 511u);
     let spriteIndex = (spriteData >> 0) & 511u;
     let sprite : vec4f = vec4f(spritesArray[spriteIndex]);
 
-    let translateMatrix : mat3x3f = createTranslateMatrix(xPos, yPos); // The bottom left of the sprite
+    let translateMatrix : mat3x3f = createTranslateMatrix(xPos/16.0, yPos/16.0); // The bottom left of the sprite
     let rotateMatrix : mat3x3f = createRotateMatrix(rotation);
     let scaleMatrix : mat3x3f = createScaleMatrix((sprite.zw - sprite.xy) / 16.0);
-    let transform : mat3x3f = rotateMatrix * translateMatrix * scaleMatrix; // * rotateMatrix; just start with something basic // matricies are associative
+    let transform : mat3x3f = translateMatrix * rotateMatrix * scaleMatrix; // * rotateMatrix; just start with something basic // matricies are associative
 
     let cameraTranslate : mat3x3f = createTranslateMatrix(-uTransform.translate.x, -uTransform.translate.y);
     let cameraScale : mat3x3f = createScaleMatrix(vec2f(1.0, 1.0) * uTransform.scale);
