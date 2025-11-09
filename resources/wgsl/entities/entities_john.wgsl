@@ -10,12 +10,12 @@
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct JohnDataStruct {
+struct DataStruct_john {
     nodes: array<vec2f, 11>,
     mass: u32
 }
 
-const JohnData = JohnDataStruct(
+const EntityData_john = DataStruct_john(
     array(
         vec2f(-2.5, 7.5),
         vec2f(2.5, 7.5),
@@ -74,7 +74,5 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let current_y_position = current_y_position_first_part << 3 + current_y_position_second_part;
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
-
-    *first_int
     
 }

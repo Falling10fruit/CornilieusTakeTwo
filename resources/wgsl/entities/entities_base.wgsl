@@ -49,6 +49,7 @@ var<private> chunk_y : u32;
 var<private> sub_chunk_index : u32;
 var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
+var<private> entity_type : u32;
 
 fn get_entity_integer (integer_offset: u32) -> u32 {
     if (current_entity_texture_is == 0) { return &textureSample(entities_texture_0, entities_sampler, entity_index_position + vec3u(0, 0, integer_offset)); }

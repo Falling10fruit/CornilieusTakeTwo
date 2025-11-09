@@ -5,12 +5,12 @@
             "label": "parse_sprites",
             "command": "node",
             "type": "shell" ,
-            "args": [ "${workspaceFolder}/.vscode/spritesShader.ts" ]
+            "args": [ "${workspaceFolder}/utils/spritesShader.ts" ]
         }, {
             "label": "combine_entities",
             "command": "node",
             "type": "shell" ,
-            "args": [ "${workspaceFolder}/.vscode/spritesShader.ts" ]
+            "args": [ "${workspaceFolder}/utils/spritesShader.ts" ]
         }
     ]
 }

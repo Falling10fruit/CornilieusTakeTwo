@@ -1,6 +1,6 @@
 [
     {
-        "entity_id": "copernicus",
+        "entity_id": "john",
         "description": "test character",
         "mass": 40,
         "nodes": [
@@ -31,6 +31,16 @@
                 "angle": "free",
                 "description": "offhand, for like attatching yourself to rope"
             }
+        ],
+        "sprites": [
+            {
+                "name": "copernicus_look_left",
+                "splice": [16, 0, 9, 15]
+            },
+            {
+                "name": "copernicus_look_right",
+                "splice": [16, 15, 9, 15]
+            }
         ]
     }, {
         "entity_id": "block",
@@ -47,6 +57,12 @@
             { "behvaior": "default", "position": [  0.0,  8.0 ], "angle": 90  },
             { "behvaior": "default", "position": [ -8.0,  0.0 ], "angle": 180 },
             { "behvaior": "default", "position": [  0.0, -8.0 ], "angle": 270 }
+        ],
+        "sprites":[
+            {
+                "name": "block",
+                "splice": [0, 8, 16, 16]
+            }
         ]
     }, {
         "entity_id": "drill",
@@ -73,6 +89,12 @@
                 "angle": 90,
                 "description": "Drill handle and chute"
             }
+        ],
+        "sprites":[
+            {
+                "name": "drill",
+                "splice": [25, 0, 4, 11]
+            }
         ]
     }, {
         "entity_id": "rope",
@@ -87,6 +109,12 @@
         "joints": [
             { "behvaior": "default", "position": [ 0.0,  1.0 ], "angle": "free" },
             { "behvaior": "default", "position": [ 0.0, -1.0 ], "angle": "free" }
+        ],
+        "sprites":[
+            {
+                "name": "rope",
+                "splice": [25, 11, 1, 2]
+            }
         ]
     }
 ]
