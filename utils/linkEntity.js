@@ -25,21 +25,8 @@ async function linkEntity(entities
     const string = "012345678901234567890"
     console.log(string.slice(0, 18));
 
-    let top_main = "";
-    let mid_index = 0;
-    let mid_main = "";
-    let bot_index = 0;
-    let bot_main = "";
-
-    for (const match of main_wgsl.matchAll(regex)) {
-        const check = main_wgsl.slice(match.index, match.index + 14 + 2).slice(2, 16); // plus \n and \r
-        
-        if (check == "// insert here") {
-            if (top_main == "") { top_main = main_wgsl.slice(0,         match.index); mid_index = match.index }
-            if (top_main == "") { mid_main = main_wgsl.slice(mid_index, match.index); bot_index = match.index }
-            if (top_main == "") { bot_main = main_wgsl.slice(bot_index, match.index);                         }
-        }
-    }
+    let insert_sections = main_wgsl.split("// insert here")
+    console.log(insert_sections);
 }
 
 function update_mains_and_handlers(entities) {
@@ -48,7 +35,9 @@ function update_mains_and_handlers(entities) {
 
     const linked_entities = JSON.parse(await fs.readFile('entities_linked.json', { encoding: 'utf-8'}));
     for (const entity in entities) {
-        if (linked_entities.has())
+        if (linked_entities.hasOwnProperty(entity.entity_id)) {
+            
+        }
     }
 }
 
