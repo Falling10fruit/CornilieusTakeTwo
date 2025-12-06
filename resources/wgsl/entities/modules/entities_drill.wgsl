@@ -11,11 +11,13 @@
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
 struct DataStruct_john {
+    node_count: u32,
     nodes: array<vec2f, 11>,
     mass: u32
 }
 
 const EntityData_john = DataStruct_john(
+    11, // for the for loops to know how many times to loop automatically in the physics function
     array(
         vec2f(-2.5, 7.5),
         vec2f(2.5, 7.5),
@@ -75,4 +77,8 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
     
+}
+
+fn handle_collision_john(collider : u32) {
+    // john dies
 }

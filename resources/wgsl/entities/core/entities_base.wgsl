@@ -31,8 +31,6 @@ const base_integer_sub_divisions = BaseIntegerSubDivisions(
 
 // chunk indicies descriptor
 // index of access is index of chunk, returned u32 is index of first entity in chunk
-// Bokura no Libido
-// 601310 different
 
 const NO_OF_INTEGERS_PER_ENTITY : u32 = 7;
 alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
