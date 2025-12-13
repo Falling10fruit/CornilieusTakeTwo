@@ -6,12 +6,13 @@ async function preload (parameters: { device: GPUDevice }) {
     eyedropper.type = "color";
 
     window.world = {
-        width: 80,
+        width: 80, // These
         height: 60,
         seed: 43758.5453,
         storageBuffer: null,
         dimensionsUniform: null,
-        NO_OF_SPRITES: 2**24
+        NO_OF_SPRITES: 2**24,
+        NO_OF_ENTITIES: 2**23
     };
 
     window.camera = {

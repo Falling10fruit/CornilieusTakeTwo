@@ -6,7 +6,7 @@ fn round_to_u32(num : f32) -> u32 {
     return u32(rounded_f32);
 }
 
-@compute @workgroup_size(256, 1, 1) fn cShader( // alter this manually, currently 2^22
+@compute @workgroup_size(256, 1, 1) fn cShader( // alter this manually, currently 2^22. we all love hardcoded values, and no I don't know what 2^22 means
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
     let index = global_invocation_id.x;

@@ -4,6 +4,11 @@ function createBuffers(parameters: { device: GPUDevice }) {
     device = parameters.device;
 
     createRenderBuffers();
+    createComputeBuffers();
+}
+
+function createComputeBuffers() {
+    updateEntitiesData();
 }
 
 function createRenderBuffers() {
@@ -88,6 +93,43 @@ function updateSpriteData() {
         let sum = 0;
         for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
         return sum;
+    }
+}
+
+function updateEntitiesData() {
+    const entities_indicies = device.createBuffer({
+        label: `entities indicies buffer`,
+        size: window.world.NO_OF_ENTITIES * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+
+    const chunk_indicies = device.createBuffer({
+        label: `chunk indicies buffer`,
+        size: window.world.NO_OF_ENTITIES * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+
+    const texture_0 = device.createTexture({
+        label: `entities texture 0`,
+        size: [window.world.width, window.world.height, 128],
+        format: `r32uint`,
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+
+    const texture_1 = device.createTexture({
+        label: `entities texture 0`,
+        size: [window.world.width, window.world.height, 128],
+        format: `r32uint`,
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+
+    window.entitiesBuffer = {
+        entities_indicies: entities_indicies,
+        chunk_indicies: chunk_indicies,
+        current_entity_texture_is: 0,
+        entities_texture_0: texture_0,
+        entities_texture_1: texture_1,
+        entities_sampler: device.createSampler()
     }
 }
 

@@ -2,7 +2,9 @@ import { invoke } from "@tauri-apps/api/core";
 
 let device: GPUDevice;
 let pipeline: GPUComputePipeline;
-let bindGroup: GPUBindGroup;
+let bindGroup_entities: GPUBindGroup;
+let bindGroup_targetSprites: GPUBindGroup;
+let bindGroup_playerInput: GPUBindGroup;
 
 let DISPATCH_PER_DIMENSION: number;
 
@@ -11,7 +13,7 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     DISPATCH_PER_DIMENSION = Math.sqrt(window.world.NO_OF_SPRITES / 256);
 
     const computeModule = await loadComputeShader(device) as GPUShaderModule;
-    const bindGroupLayout = device.createBindGroupLayout({
+    const bindGroupLayout_entities = device.createBindGroupLayout({
         label: `compute sprites bind gorup layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entities indicies (creation order -> index in buffer)
@@ -19,8 +21,20 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
             { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // current entity buffer
             { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 0
             { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 1
-            { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // target sprites buffer
-            { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
+        ]
+    });
+    
+    const bindGroupLayout_targetSprites = device.createBindGroupLayout({
+        label: `compute sprites bind gorup layout`,
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // target sprites buffer
+        ]
+    });
+    
+    const bindGroupLayout_playerInput = device.createBindGroupLayout({
+        label: `compute sprites bind gorup layout`,
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
         ]
     });
 
@@ -28,7 +42,11 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         label: `compute sprites pipeline`,
         layout: device.createPipelineLayout({
             label: `compute sprites pipeline layout`,
-            bindGroupLayouts: [bindGroupLayout]
+            bindGroupLayouts: [
+                bindGroupLayout_entities,
+                bindGroupLayout_targetSprites,
+                bindGroupLayout_playerInput
+            ]
         }),
         compute: {
             module: computeModule,
@@ -36,7 +54,7 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         }
     });
   
-    bindGroup = device.createBindGroup({
+    bindGroup_entities = device.createBindGroup({
         label: `compute sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
@@ -46,9 +64,24 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
             { binding: 3, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
             { binding: 4, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
             { binding: 5, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
-            { binding: 6, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
         ]
     });
+
+    bindGroup_targetSprites = device.createBindGroup({
+        label: `compute entities target sprites bind group`,
+        layout: pipeline.getBindGroupLayout(1),
+        entries: [
+            { binding: 0, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
+        ]
+    });
+
+    bindGroup_playerInput = device.createBindGroup({
+        label: `compute entities player input bind group`,
+        layout: pipeline.getBindGroupLayout(2),
+        entries: [
+            { binding: 6, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
+        ]
+    })
 
     createPlaceholderSprites();
 }
@@ -63,26 +96,6 @@ function createPlaceholderSprites() {
     if (window.spritesBuffer.current == null) return window.fail({ title: `"current" sprites buffer are null`,  message: `window.spritesBuffer.current is null`});
     if (window.spritesBuffer.target == null) return window.fail({ title: `"target" sprites buffer are null`,  message: `window.spritesBuffer.target is null`});
 
-    const current = new Int32Array(window.spritesBuffer.NO_OF_SPRITES);
-    const currentEntityPlaceholder = add32Uints(
-        ( 0 << 25 ) >>> 0,
-        ( 0 << 18 ) >>> 0,
-        ( 0  << 9 ) >>> 0,
-        ( 1  << 0 ) >>> 0
-    ) >>> 0;
-    current[0] = currentEntityPlaceholder;
-
-    const target = new Int32Array(window.spritesBuffer.NO_OF_SPRITES);
-    const targetEntityPlaceholder = add32Uints(
-        ( 0 << 25 ) >>> 0,
-        ( 0 << 18 ) >>> 0,
-        ( 0  << 9 ) >>> 0,
-        ( 1  << 0 ) >>> 0
-    ) >>> 0;
-    target[0] = targetEntityPlaceholder;
-
-    device.queue.writeBuffer(window.spritesBuffer.current, 0, current);
-    device.queue.writeBuffer(window.spritesBuffer.target, 0, target);
 }
 
 function add32Uints(...numbers: number[]) {
@@ -93,8 +106,10 @@ function add32Uints(...numbers: number[]) {
 
 function computeSprites(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
-    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION); //
+    pass.setBindGroup(0, bindGroup_entities);
+    pass.setBindGroup(1, bindGroup_targetSprites);
+    pass.setBindGroup(2, bindGroup_playerInput);
+    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);
 }
 
 export { setUpComputeSprites, computeSprites }

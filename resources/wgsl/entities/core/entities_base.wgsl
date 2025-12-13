@@ -83,6 +83,7 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
 
 // First index is player count    qwe asd zxc rfv 1234  mouse_left mouse_middle mouse_left mouse rotation = 2^13 = ?? degrees
 //                                010 101 010 101 0101  0          1            0          10101 01010101
+// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read> players_input : array<u32>;
 
 fn get_x_vel (integers : EntityIntegers) {
@@ -100,13 +101,4 @@ fn get_y_vel (integers : EntityIntegers) {
 
 fn get_rotation_vel (integers : EntityIntegers) {
     return get_sub_integer(base_integer_sub_divisions.rotation_velocity, integers);
-}
-
-fn do_the_physics() {
-    // dx*y - dy*x = dx*y0 - dy*x0
-    let dx = get_x_vel(entity_integers);
-    let dy = get_y_vel(entity_integers);
-
-    let 
-    for (var node_index = 0; node_index < )
 }

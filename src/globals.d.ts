@@ -58,12 +58,15 @@ declare global {
          * ```
          * Initialized at {@link window.world} */
         world: {
+            /** In terms of chunks (as of 2025, a chunk is 8 by 8) */
             width: number;
+            /** In terms of chunks (as of 2025, a chunk is 8 by 8) */
             height: number;
             seed: number;
             storageBuffer: worldBuffer | null;
             dimensionsUniform: GPUBuffer | null;
             NO_OF_SPRITES: number;
+            NO_OF_ENTITIES: number;
         };
 
         /**
@@ -112,8 +115,30 @@ declare global {
          *   128     128      512       512
          *                  591645
          * ```
-         * Initialized at {@link window.sprites} */
+         * Initialised at [createBuffers.js](ts/prerequisites/createBuffers.ts)*/
         spritesBuffer: { NO_OF_SPRITES: number, current: GPUBuffer | null, target: GPUBuffer | null };
+
+        /** All 6 buffers a healthy growing entity system needs
+         * 
+         * Initialised at [createBuffers.js](ts/prerequisites/createBuffers.ts)*/
+        entitiesBuffer: {
+            /** I don't know what this is for */
+            entities_indicies: GPUBuffer | null,
+            /** Holds the index of the chunk the entity is currently in */
+            chunk_indicies: GPUBuffer | null,
+            /** Decides which entity texture is going to be used */
+            current_entity_texture_is: number,
+            /** The first 3D texture that holds entity data, alternates with the second based on `current_entity_texture_is`
+             * 
+             * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
+            entities_texture_0: GPUTexture | null,
+            /** The second 3D texture that holds entity data, alternates with the first based on `current_entity_texture_is`
+             * 
+             * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
+            entities_texture_1: GPUTexture | null,
+            /** Sampler for the 3d textures that hold the entity data */
+            entities_sampler: GPUSampler | null
+        }
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;
