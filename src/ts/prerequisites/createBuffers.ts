@@ -109,26 +109,24 @@ function updateEntitiesData() {
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
 
-    const texture_0 = device.createTexture({
+    const buffer_0 = device.createBuffer({
         label: `entities texture 0`,
-        size: [window.world.width, window.world.height, 128],
-        format: `r32uint`,
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
+        size: window.world.NO_OF_ENTITIES * 4 * 7,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
 
-    const texture_1 = device.createTexture({
+    const buffer_1 = device.createBuffer({
         label: `entities texture 0`,
-        size: [window.world.width, window.world.height, 128],
-        format: `r32uint`,
-        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST | GPUTextureUsage.COPY_SRC | GPUTextureUsage.RENDER_ATTACHMENT,
+        size: window.world.NO_OF_ENTITIES * 4 * 7,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
 
     window.entitiesBuffer = {
         entities_indicies: entities_indicies,
         chunk_indicies: chunk_indicies,
-        current_entity_texture_is: 0,
-        entities_texture_0: texture_0,
-        entities_texture_1: texture_1,
+        current_entity_buffer_is: 0,
+        entities_buffer_0: buffer_0,
+        entities_buffer_1: buffer_1,
         entities_sampler: device.createSampler()
     }
 }

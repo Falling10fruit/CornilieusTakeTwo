@@ -127,15 +127,15 @@ declare global {
             /** Holds the index of the chunk the entity is currently in */
             chunk_indicies: GPUBuffer | null,
             /** Decides which entity texture is going to be used */
-            current_entity_texture_is: number,
+            current_entity_buffer_is: number,
             /** The first 3D texture that holds entity data, alternates with the second based on `current_entity_texture_is`
              * 
              * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
-            entities_texture_0: GPUTexture | null,
+            entities_buffer_0: GPUBuffer | null,
             /** The second 3D texture that holds entity data, alternates with the first based on `current_entity_texture_is`
              * 
              * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
-            entities_texture_1: GPUTexture | null,
+            entities_buffer_1: GPUBuffer | null,
             /** Sampler for the 3d textures that hold the entity data */
             entities_sampler: GPUSampler | null
         }

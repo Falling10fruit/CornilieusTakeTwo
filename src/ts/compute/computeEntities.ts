@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 let device: GPUDevice;
 let pipeline: GPUComputePipeline;
-let bindGroup_entities: GPUBindGroup;
+let bindGroup_entities_0: GPUBindGroup;
+let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
 let bindGroup_playerInput: GPUBindGroup;
 
@@ -54,16 +55,25 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         }
     });
   
-    bindGroup_entities = device.createBindGroup({
+    bindGroup_entities_0 = device.createBindGroup({
         label: `compute sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.spritesBuffer.current }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
-            { binding: 3, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
-            { binding: 4, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
-            { binding: 5, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.entitiesBuffer.entities_indicies }} as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.entitiesBuffer.chunk_indicies }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.entitiesBuffer.entities_buffer_0 }} as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.entitiesBuffer.entities_buffer_1 }} as GPUBindGroupEntry,
+        ]
+    });
+    
+    bindGroup_entities_1 = device.createBindGroup({
+        label: `compute sprites bind group`,
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+            { binding: 0, resource: { buffer: window.entitiesBuffer.entities_indicies }} as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.entitiesBuffer.chunk_indicies }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.entitiesBuffer.entities_buffer_1 }} as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.entitiesBuffer.entities_buffer_0 }} as GPUBindGroupEntry,
         ]
     });
 
@@ -106,7 +116,14 @@ function add32Uints(...numbers: number[]) {
 
 function computeSprites(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup_entities);
+    
+    if (window.entitiesBuffer.current_entity_buffer_is == 0) {
+        pass.setBindGroup(0, bindGroup_entities_0);
+    } else {
+        pass.setBindGroup(0, bindGroup_entities_1);
+    }
+
+
     pass.setBindGroup(1, bindGroup_targetSprites);
     pass.setBindGroup(2, bindGroup_playerInput);
     pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);

@@ -37,10 +37,8 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> current_entity_texture_is : u32;
-@group(0) @binding(3) var<storage, read_write> entities_texture_0 : texture_storage_3d<32uint, read_write>;
-@group(0) @binding(4) var<storage, read_write> entities_texture_1 : texture_storage_3d<32uint, read_write>;
-@group(0) @binding(5) var<uniform> entities_sampler : sampler;
+@group(0) @binding(2) var<storage, read_write> entities_texture_0 : array<u32>;
+@group(0) @binding(3) var<storage, read_write> entities_texture_1 : array<u32>;
 
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -101,4 +99,32 @@ fn get_y_vel (integers : EntityIntegers) {
 
 fn get_rotation_vel (integers : EntityIntegers) {
     return get_sub_integer(base_integer_sub_divisions.rotation_velocity, integers);
+}
+
+@compute @workgroup_size(64, 1, 1) fn cShader(
+    @builtin(global_invocation_id) global_invocation_id : vec3u,
+) {
+    if (global_invocation_id >=)
+
+    chunk_x = workgroup_id.x;
+    chunk_y = workgroup_id.y;
+    sub_chunk_index = workgroup_id.z;
+    entity_index_position = workgroup_id * vec3u(1, 1, 14);
+    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_texture_0[global_invocation_id.x * 7]; }
+    entity_type = (integers[1] >> 23) & 511;
+
+// insert here
+
+    do_the_physics();
+} 
+
+fn do_the_physics(index : u32, index_in_buffer : u32, integers : array<u32, 8>) {
+    // if (entity_type == 1) {
+    //     // main_john(index, index_in_buffer);
+    // }
+}
+
+
+fn handle_collision(entity_type : u32, collider: u32) {
+// insert here
 }
