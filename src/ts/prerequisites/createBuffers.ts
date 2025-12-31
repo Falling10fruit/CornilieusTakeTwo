@@ -9,6 +9,7 @@ function createBuffers(parameters: { device: GPUDevice }) {
 
 function createComputeBuffers() {
     updateEntitiesData();
+    createPlayerInputBuffer();
 }
 
 function createRenderBuffers() {
@@ -127,8 +128,16 @@ function updateEntitiesData() {
         current_entity_buffer_is: 0,
         entities_buffer_0: buffer_0,
         entities_buffer_1: buffer_1,
-        entities_sampler: device.createSampler()
     }
+}
+function createPlayerInputBuffer () {
+    const playerInputBuffer = device.createBuffer({
+        label: `player`,
+        size: window.world.NO_OF_PLAYERS * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    });
+
+    window.world.playerInputBuffer = playerInputBuffer;
 }
 
 export { createBuffers, updateWorldData }

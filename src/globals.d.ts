@@ -67,6 +67,9 @@ declare global {
             dimensionsUniform: GPUBuffer | null;
             NO_OF_SPRITES: number;
             NO_OF_ENTITIES: number;
+
+            NO_OF_PLAYERS: number; // Maybe allow the host to change it mid stage AFTER I actually make the game
+            playerInput: GPUBuffer | null;
         };
 
         /**
@@ -135,9 +138,7 @@ declare global {
             /** The second 3D texture that holds entity data, alternates with the first based on `current_entity_texture_is`
              * 
              * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
-            entities_buffer_1: GPUBuffer | null,
-            /** Sampler for the 3d textures that hold the entity data */
-            entities_sampler: GPUSampler | null
+            entities_buffer_1: GPUBuffer | null
         }
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */

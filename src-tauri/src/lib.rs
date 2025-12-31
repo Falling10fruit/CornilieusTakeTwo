@@ -16,7 +16,8 @@ pub fn run() {
     .invoke_handler(tauri::generate_handler![
       get_shaders::get_sprite_vertex_shader,
       get_shaders::get_sprite_fragment_shader,
-      get_shaders::get_sprite_compute_shader
+      get_shaders::get_sprite_compute_shader,
+      get_shaders::get_entity_compute_shader
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

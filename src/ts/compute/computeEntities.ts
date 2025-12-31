@@ -89,11 +89,11 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         label: `compute entities player input bind group`,
         layout: pipeline.getBindGroupLayout(2),
         entries: [
-            { binding: 6, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.world.playerInputBuffer }} as GPUBindGroupEntry,
         ]
     })
 
-    createPlaceholderSprites();
+    createPlaceholderEntities();
 }
 
 async function loadComputeShader(device: GPUDevice) {
@@ -102,7 +102,7 @@ async function loadComputeShader(device: GPUDevice) {
     return device.createShaderModule({ label: "compute sprites shader", code: computeShaderSource });
 }
 
-function createPlaceholderSprites() {
+function createPlaceholderEntities() {
     if (window.spritesBuffer.current == null) return window.fail({ title: `"current" sprites buffer are null`,  message: `window.spritesBuffer.current is null`});
     if (window.spritesBuffer.target == null) return window.fail({ title: `"target" sprites buffer are null`,  message: `window.spritesBuffer.target is null`});
 
@@ -119,10 +119,11 @@ function computeSprites(pass: GPUComputePassEncoder) {
     
     if (window.entitiesBuffer.current_entity_buffer_is == 0) {
         pass.setBindGroup(0, bindGroup_entities_0);
+        window.entitiesBuffer.current_entity_buffer_is = 1;
     } else {
         pass.setBindGroup(0, bindGroup_entities_1);
+        window.entitiesBuffer.current_entity_buffer_is = 0;
     }
-
 
     pass.setBindGroup(1, bindGroup_targetSprites);
     pass.setBindGroup(2, bindGroup_playerInput);
