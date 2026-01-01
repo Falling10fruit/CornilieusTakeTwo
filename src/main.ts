@@ -5,6 +5,7 @@ import { setUpRenderPipelines } from "./ts/setUpRenderPipelines";
 import { generateWorldToBuffer } from "./ts/compute/generateWorldShader";
 
 import { render } from "./ts/render/render";
+import { bufferInput } from "./ts/compute/playerInput";
 
 const { device, ctx } = await setUpGPU();
 
@@ -22,5 +23,7 @@ async function createPrerequisiteVariables() {
 }
 
 function start() {
+    bufferInput(device);
+
     render(); // Also kickstart the simulation here eventually idk when, hopefully soon
 }

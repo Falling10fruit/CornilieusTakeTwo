@@ -15,7 +15,8 @@ async function preload (parameters: { device: GPUDevice }) {
         NO_OF_ENTITIES: 2**23,
 
         NO_OF_PLAYERS: 1, // aka singleplayer
-        playerInputBuffer: null
+        playerInputBuffer: null,
+        playerInputBufferMapped: null
     };
 
     window.camera = {

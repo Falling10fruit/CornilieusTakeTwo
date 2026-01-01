@@ -132,12 +132,20 @@ function updateEntitiesData() {
 }
 function createPlayerInputBuffer () {
     const playerInputBuffer = device.createBuffer({
-        label: `player`,
+        label: `players inputs`,
         size: window.world.NO_OF_PLAYERS * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     });
 
     window.world.playerInputBuffer = playerInputBuffer;
+
+    const playerInputBufferMapped = device.createBuffer({
+        label: `mapped player inputs`,
+        size: window.world.NO_OF_PLAYERS * 4,
+        usage: GPUBufferUsage.MAP_WRITE
+    });
+
+    window.world.playerInputBufferMapped = playerInputBufferMapped;
 }
 
 export { createBuffers, updateWorldData }

@@ -69,7 +69,8 @@ declare global {
             NO_OF_ENTITIES: number;
 
             NO_OF_PLAYERS: number; // Maybe allow the host to change it mid stage AFTER I actually make the game
-            playerInput: GPUBuffer | null;
+            playerInputBuffer: GPUBuffer | null;
+            playerInputBufferMapped : GPUBuffer | null;
         };
 
         /**
