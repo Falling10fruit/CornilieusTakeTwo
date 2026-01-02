@@ -9,7 +9,7 @@ let bindGroup_playerInput: GPUBindGroup;
 
 let DISPATCH_PER_DIMENSION: number;
 
-async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
+async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
     device = parameters.device;
     DISPATCH_PER_DIMENSION = Math.sqrt(window.world.NO_OF_SPRITES / 256);
 
@@ -103,8 +103,8 @@ async function loadComputeShader(device: GPUDevice) {
 }
 
 function createPlaceholderEntities() {
-    if (window.spritesBuffer.current == null) return window.fail({ title: `"current" sprites buffer are null`,  message: `window.spritesBuffer.current is null`});
-    if (window.spritesBuffer.target == null) return window.fail({ title: `"target" sprites buffer are null`,  message: `window.spritesBuffer.target is null`});
+    if (window.entitiesBuffer.entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts`});
+    if (window.entitiesBuffer.entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts`});
 
 }
 
@@ -114,7 +114,7 @@ function add32Uints(...numbers: number[]) {
     return sum;
 }
 
-function computeSprites(pass: GPUComputePassEncoder) {
+function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     
     if (window.entitiesBuffer.current_entity_buffer_is == 0) {
@@ -130,4 +130,4 @@ function computeSprites(pass: GPUComputePassEncoder) {
     pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);
 }
 
-export { setUpComputeSprites, computeSprites }
+export { setUpComputeEntities, computeEntities }

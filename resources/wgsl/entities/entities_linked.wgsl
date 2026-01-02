@@ -37,10 +37,7 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> current_entity_texture_is : u32;
-@group(0) @binding(3) var<storage, read_write> entities_texture_0 : texture_storage_3d<32uint, read_write>;
-@group(0) @binding(4) var<storage, read_write> entities_texture_1 : texture_storage_3d<32uint, read_write>;
-@group(0) @binding(5) var<uniform> entities_sampler : sampler;
+@group(0) @binding(2) var<storage, read_write> entities_buffer : array<u32>;
 
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -48,11 +45,6 @@ var<private> sub_chunk_index : u32;
 var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
-
-fn get_entity_integer (integer_offset: u32) -> u32 {
-    if (current_entity_texture_is == 0) { return &textureSample(entities_texture_0, entities_sampler, entity_index_position + vec3u(0, 0, integer_offset)); }
-    if (current_entity_texture_is == 1) { return &textureSample(entities_texture_1, entities_sampler, entity_index_position + vec3u(0, 0, integer_offset)); }
-}
 
 fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
     let lower_sector = range.x / 32;
@@ -83,6 +75,7 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
 
 // First index is player count    qwe asd zxc rfv 1234  mouse_left mouse_middle mouse_left mouse rotation = 2^13 = ?? degrees
 //                                010 101 010 101 0101  0          1            0          10101 01010101
+// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read> players_input : array<u32>;
 
 fn get_x_vel (integers : EntityIntegers) {
@@ -102,13 +95,40 @@ fn get_rotation_vel (integers : EntityIntegers) {
     return get_sub_integer(base_integer_sub_divisions.rotation_velocity, integers);
 }
 
-fn do_the_physics() {
-    // dx*y - dy*x = dx*y0 - dy*x0
-    let dx = get_x_vel(entity_integers);
-    let dy = get_y_vel(entity_integers);
+@compute @workgroup_size(64, 1, 1) fn cShader(
+    @builtin(global_invocation_id) global_invocation_id : vec3u,
+) {
+    if (global_invocation_id >= arrayLength(entities_buffer)) { return; }
 
-    let 
-    for (var node_index = 0; node_index < )
+    chunk_x = workgroup_id.x;
+    chunk_y = workgroup_id.y;
+    sub_chunk_index = workgroup_id.z;
+    entity_index_position = workgroup_id * vec3u(1, 1, 14);
+    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer[global_invocation_id.x * 7]; }
+    entity_type = (integers[1] >> 23) & 511;
+
+// else
+    if (entity_type == 0) { main_john(); } else
+    if (entity_type == 1) { main_block(); } else
+    if (entity_type == 2) { main_drill(); } else
+    if (entity_type == 3) { main_rope(); }
+
+    do_the_physics();
+} 
+
+fn do_the_physics(index : u32, index_in_buffer : u32, integers : array<u32, 8>) {
+    // if (entity_type == 1) {
+    //     // main_john(index, index_in_buffer);
+    // }
+}
+
+
+fn handle_collision(entity_type : u32, collider: u32) {
+// else
+    if (entity_type == 0) { handle_collision_john(collider); } else
+    if (entity_type == 1) { handle_collision_block(collider); } else
+    if (entity_type == 2) { handle_collision_drill(collider); } else
+    if (entity_type == 3) { handle_collision_rope(collider); }
 }// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 // @group(0) @binding(2) var<storage, read_write> current_entity_buffer_is : u32;
@@ -434,38 +454,4 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
 
 fn handle_collision_john(collider : u32) {
     // john dies
-}@compute @workgroup_size(8, 8, 1) fn cShader(
-    @builtin(global_invocation_id) index_vec_3 : vec3u,
-    @builtin(workgroup_id) chunk_index : vec3u,
-    @builtin(num_workgroups) dispatch_size : vec3u,
-) {
-    chunk_x = workgroup_id.x;
-    chunk_y = workgroup_id.y;
-    sub_chunk_index = workgroup_id.z;
-    entity_index_position = workgroup_id * vec3u(1, 1, 14);
-    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = get_entity_integer(index_in_buffer + i); }
-    entity_type = (integers[1] >> 23) & 511;
-
-// else
-    if (entity_type == 0) { main_john(); } else
-    if (entity_type == 1) { main_block(); } else
-    if (entity_type == 2) { main_drill(); } else
-    if (entity_type == 3) { main_rope(); }
-
-    do_the_physics();
-} 
-
-fn do_the_physics(index : u32, index_in_buffer : u32, integers : array<u32, 8>) {
-    // if (entity_type == 1) {
-    //     // main_john(index, index_in_buffer);
-    // }
-}
-
-
-fn handle_collision(entity_type : u32, collider: u32) {
-// else
-    if (entity_type == 0) { handle_collision_john(collider); } else
-    if (entity_type == 1) { handle_collision_block(collider); } else
-    if (entity_type == 2) { handle_collision_drill(collider); } else
-    if (entity_type == 3) { handle_collision_rope(collider); }
 }

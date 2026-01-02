@@ -37,8 +37,7 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> entities_texture_0 : array<u32>;
-@group(0) @binding(3) var<storage, read_write> entities_texture_1 : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer : array<u32>;
 
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -46,11 +45,6 @@ var<private> sub_chunk_index : u32;
 var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
-
-fn get_entity_integer (integer_offset: u32) -> u32 {
-    if (current_entity_texture_is == 0) { return &textureSample(entities_texture_0, entities_sampler, entity_index_position + vec3u(0, 0, integer_offset)); }
-    if (current_entity_texture_is == 1) { return &textureSample(entities_texture_1, entities_sampler, entity_index_position + vec3u(0, 0, integer_offset)); }
-}
 
 fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
     let lower_sector = range.x / 32;
@@ -104,13 +98,13 @@ fn get_rotation_vel (integers : EntityIntegers) {
 @compute @workgroup_size(64, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    if (global_invocation_id >=)
+    if (global_invocation_id >= arrayLength(entities_buffer)) { return; }
 
     chunk_x = workgroup_id.x;
     chunk_y = workgroup_id.y;
     sub_chunk_index = workgroup_id.z;
     entity_index_position = workgroup_id * vec3u(1, 1, 14);
-    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_texture_0[global_invocation_id.x * 7]; }
+    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer[global_invocation_id.x * 7]; }
     entity_type = (integers[1] >> 23) & 511;
 
 // insert here
