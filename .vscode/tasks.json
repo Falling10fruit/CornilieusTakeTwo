@@ -11,6 +11,11 @@
             "command": "node",
             "type": "shell" ,
             "args": [ "${workspaceFolder}/utils/spritesShader.ts" ]
+        }, {
+            "label": "link_entities_shader",
+            "command": "node",
+            "type": "shell" ,
+            "args": [ "${workspaceFolder}/utils/updateEntityShaders.js" ]
         }
     ]
 }

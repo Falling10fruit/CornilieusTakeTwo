@@ -1,7 +1,7 @@
 {
     "triggerTaskOnSave.tasks": {
-        "parse_sprites": [
-            "resources"
+        "link_entities_shader": [
+            "resources/entities/*"
         ]
     }
 }

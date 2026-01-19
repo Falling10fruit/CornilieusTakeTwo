@@ -54,10 +54,10 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
     let lower_mask_offset = lower_sub_position;
     let upper_mask_offset = (32 - upper_sub_position);
 
-    var sub_integer = 0;
+    var sub_integer : u32 = 0;
 
     let stride = upper_sector - lower_sector;
-    for (var i = 0; i < stride; i++) {
+    for (var i : u32 = 0; i < stride; i++) {
         var lower_bit_mask : u32 = 0xFFFFFFFF;
         var upper_bit_mask : u32 = 0xFFFFFFFF;
         if (i == 0         ) { lower_bit_mask = lower_bit_mask >> lower_mask_offset; }
@@ -78,17 +78,24 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read> players_input : array<u32>;
 
+// sign exponent mantissa
+//  0      10     1010101
 fn get_x_vel (integers : EntityIntegers) {
     let raw_int = get_sub_integer(base_integer_sub_divisions.x_velocity, integers);
-    let sign_bit = raw_int >> 9;
-    let sign = i32(sign_bit * 2) - 1;
     
+    let sign_bit = raw_int >> 9;
+    let sign : f32 = f32(sign_bit * 2) - 1.0; // 0 - 1 -> -1 - 1
+
+    let exponent_int = (raw_int >> 7) & 3;
+    let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
+    
+    return sign * exponent_multiplier * f32(raw_int & 127);
 }
 fn get_y_vel (integers : EntityIntegers) {
     let raw_int = get_sub_integer(base_integer_sub_divisions.y_velocity, integers);
     let sign_bit = raw_int >> 9;
     let sign = i32(sign_bit * 2) - 1;
-    
+     
 }
 
 fn get_rotation_vel (integers : EntityIntegers) {

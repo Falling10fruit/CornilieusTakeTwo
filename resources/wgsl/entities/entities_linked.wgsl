@@ -54,10 +54,10 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
     let lower_mask_offset = lower_sub_position;
     let upper_mask_offset = (32 - upper_sub_position);
 
-    var sub_integer = 0;
+    var sub_integer : u32 = 0;
 
     let stride = upper_sector - lower_sector;
-    for (var i = 0; i < stride; i++) {
+    for (var i : u32 = 0; i < stride; i++) {
         var lower_bit_mask : u32 = 0xFFFFFFFF;
         var upper_bit_mask : u32 = 0xFFFFFFFF;
         if (i == 0         ) { lower_bit_mask = lower_bit_mask >> lower_mask_offset; }
@@ -129,7 +129,9 @@ fn handle_collision(entity_type : u32, collider: u32) {
     if (entity_type == 1) { handle_collision_block(collider); } else
     if (entity_type == 2) { handle_collision_drill(collider); } else
     if (entity_type == 3) { handle_collision_rope(collider); }
-}// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+}// entity john
+
+// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 // @group(0) @binding(2) var<storage, read_write> current_entity_buffer_is : u32;
 // @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<u32>;
@@ -204,7 +206,7 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let current_x_position = (*first_int >> 11) & 16383;
     let current_y_position_first_part = *first_int & 2047;
     let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = current_y_position_first_part << 3 + current_y_position_second_part;
+    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
     
@@ -212,7 +214,10 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
 
 fn handle_collision_john(collider : u32) {
     // john dies
-}// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+}
+// entity block
+
+// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 // @group(0) @binding(2) var<storage, read_write> current_entity_buffer_is : u32;
 // @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<u32>;
@@ -226,7 +231,7 @@ fn handle_collision_john(collider : u32) {
 
 struct DataStruct_block {
     node_count: u32,
-    nodes: array<vec2f, 11>,
+    nodes: array<vec2f, 4>,
     mass: u32
 }
 
@@ -280,7 +285,7 @@ fn control_block(index_in_buffer : u32, player_index : u32) {
     let current_x_position = (*first_int >> 11) & 16383;
     let current_y_position_first_part = *first_int & 2047;
     let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = current_y_position_first_part << 3 + current_y_position_second_part;
+    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
     
@@ -288,7 +293,9 @@ fn control_block(index_in_buffer : u32, player_index : u32) {
 
 fn handle_collision_block(collider : u32) {
     // john dies
-}// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+}// entity drill
+
+// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 // @group(0) @binding(2) var<storage, read_write> current_entity_buffer_is : u32;
 // @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<u32>;
@@ -300,13 +307,13 @@ fn handle_collision_block(collider : u32) {
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_john {
+struct DataStruct_drill {
     node_count: u32,
     nodes: array<vec2f, 11>,
     mass: u32
 }
 
-const EntityData_john = DataStruct_john(
+const EntityData_drill = DataStruct_drill(
     11, // for the for loops to know how many times to loop automatically in the physics function
     array(
         vec2f(-2.5, 7.5),
@@ -324,7 +331,7 @@ const EntityData_john = DataStruct_john(
     60 // in kilograms
 );
 
-fn main_john(index : u32, index_in_buffer : u32) {
+fn main_drill(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
@@ -338,11 +345,11 @@ fn main_john(index : u32, index_in_buffer : u32) {
     }
 
     if (player_index != -1) {
-        control_john(player_index);
+        control_drill(player_index);
     }
 }
 
-fn control_john(index_in_buffer : u32, player_index : u32) {
+fn control_drill(index_in_buffer : u32, player_index : u32) {
     let input_u32 = players_input[player_index * 2 + 2];
     let w_pressed = (input_u32 >> (16 + 13)) & 4;
     let a_pressed = (input_u32 >> (16 + 10)) & 4;
@@ -363,15 +370,17 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let current_x_position = (*first_int >> 11) & 16383;
     let current_y_position_first_part = *first_int & 2047;
     let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = current_y_position_first_part << 3 + current_y_position_second_part;
+    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
     
 }
 
-fn handle_collision_john(collider : u32) {
-    // john dies
-}// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+fn handle_collision_drill(collider : u32) {
+    // drill dies
+}// entity rope
+
+// @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 // @group(0) @binding(2) var<storage, read_write> current_entity_buffer_is : u32;
 // @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<u32>;
@@ -383,31 +392,24 @@ fn handle_collision_john(collider : u32) {
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_john {
+struct DataStruct_rope {
     node_count: u32,
-    nodes: array<vec2f, 11>,
+    nodes: array<vec2f, 4>,
     mass: u32
 }
 
-const EntityData_john = DataStruct_john(
+const EntityData_rope = DataStruct_rope(
     11, // for the for loops to know how many times to loop automatically in the physics function
     array(
         vec2f(-2.5, 7.5),
         vec2f(2.5, 7.5),
         vec2f(3.5, 0.5),
         vec2f(4.5, -0.5),
-        vec2f(2.5, -0.5),
-        vec2f(2.5, -7.5),
-        vec2f(-3.5, -7.5),
-        vec2f(-3.5, -1.5),
-        vec2f(-4.5, -1.5),
-        vec2f(-4.5, 0.5),
-        vec2f(-2.5, 2.5),
     ),
     60 // in kilograms
 );
 
-fn main_john(index : u32, index_in_buffer : u32) {
+fn main_rope(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
@@ -421,11 +423,11 @@ fn main_john(index : u32, index_in_buffer : u32) {
     }
 
     if (player_index != -1) {
-        control_john(player_index);
+        control_rope(player_index);
     }
 }
 
-fn control_john(index_in_buffer : u32, player_index : u32) {
+fn control_rope(index_in_buffer : u32, player_index : u32) {
     let input_u32 = players_input[player_index * 2 + 2];
     let w_pressed = (input_u32 >> (16 + 13)) & 4;
     let a_pressed = (input_u32 >> (16 + 10)) & 4;
@@ -446,12 +448,12 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let current_x_position = (*first_int >> 11) & 16383;
     let current_y_position_first_part = *first_int & 2047;
     let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = current_y_position_first_part << 3 + current_y_position_second_part;
+    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
     
 }
 
-fn handle_collision_john(collider : u32) {
-    // john dies
+fn handle_collision_rope(collider : u32) {
+    // rope dies
 }

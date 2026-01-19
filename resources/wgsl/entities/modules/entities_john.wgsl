@@ -1,3 +1,5 @@
+// entity john
+
 // @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 // @group(0) @binding(2) var<storage, read_write> current_entity_buffer_is : u32;
@@ -73,7 +75,7 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let current_x_position = (*first_int >> 11) & 16383;
     let current_y_position_first_part = *first_int & 2047;
     let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = current_y_position_first_part << 3 + current_y_position_second_part;
+    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
     let current_position = vec2i(current_x_position, current_y_position);
     let new_position = current_position + dir_vec;
     
