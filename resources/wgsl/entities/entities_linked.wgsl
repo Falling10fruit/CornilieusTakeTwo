@@ -28,6 +28,7 @@ const base_integer_sub_divisions = BaseIntegerSubDivisions(
     vec2u(84, 95),
 );
 
+const pow2 : array<u32, 32> = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216];
 
 // chunk indicies descriptor
 // index of access is index of chunk, returned u32 is index of first entity in chunk
@@ -46,7 +47,7 @@ var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
-fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
+fn get_sub_integer (range : vec2u) -> u32 {
     let lower_sector = range.x / 32;
     let upper_sector = range.y / 32;
     let lower_sub_position = range.x % 32;
@@ -64,10 +65,21 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
         if (i == stride - 1) { upper_bit_mask = upper_bit_mask << upper_mask_offset; }
         var bit_mask : u32 = 0xFFFFFFFF & lower_bit_mask & upper_bit_mask;
 
-        sub_integer += integers[lower_sector + i] & bit_mask;
+        sub_integer += entity_integers[lower_sector + i] & bit_mask;
     }
 
     return sub_integer;
+}
+
+fn set_sub_integer(range : vec2u, new_value : u32) {
+    let clamped_value = new_value % (pow2[range.y - range.x + 1] - 1);
+
+    for (let i = 0; i < range.y; i += 32) {
+        let bit_mask_start = clamp(0, 32, range.x - i);
+        let bit_mask_end = clamp(0, 32, range.y - i);
+
+        let mask = pow2[32] - 1 - pow[32 - bit_mask_start] + pow[32 - bit_mask_end];
+    }
 }
 
 // Using groups because I'm too lazy to offset everything when i insert something new
@@ -78,21 +90,44 @@ fn get_sub_integer (range : vec2u, integers : EntityIntegers) -> u32 {
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read> players_input : array<u32>;
 
-fn get_x_vel (integers : EntityIntegers) {
-    let raw_int = get_sub_integer(base_integer_sub_divisions.x_velocity, integers);
+// sign exponent mantissa
+//  0      10     1010101
+fn get_x_vel () -> f32 {
+    let raw_int = get_sub_integer(base_integer_sub_divisions.x_velocity);
     let sign_bit = raw_int >> 9;
-    let sign = i32(sign_bit * 2) - 1;
+    let sign : f32 = f32(sign_bit * 2) - 1.0; // 0 - 1 -> -1 - 1
+
+    let exponent_int = (raw_int >> 7) & 3;
+    let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
     
-}
-fn get_y_vel (integers : EntityIntegers) {
-    let raw_int = get_sub_integer(base_integer_sub_divisions.y_velocity, integers);
-    let sign_bit = raw_int >> 9;
-    let sign = i32(sign_bit * 2) - 1;
-    
+    return sign * exponent_multiplier * f32(raw_int & 127);
 }
 
-fn get_rotation_vel (integers : EntityIntegers) {
-    return get_sub_integer(base_integer_sub_divisions.rotation_velocity, integers);
+fn set_x_vel ()
+
+fn get_y_vel () -> f32 {
+    let raw_int = get_sub_integer(base_integer_sub_divisions.y_velocity);
+ 
+    let sign_bit = raw_int >> 9;
+    let sign : f32 = f32(sign_bit * 2) - 1.0;
+
+    let exponent_int = (raw_int >> 7) & 3;
+    let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
+    
+    return sign * exponent_multiplier * f32(raw_int & 127);
+}
+
+// 0 10 101010101
+fn get_rotation_vel () -> f32 {
+    let raw_int = get_sub_integer(base_integer_sub_divisions.rotation_velocity);
+
+    let sign_bit = raw_int >> 11;
+    let sign : f32 = f32(sign_bit * 2) - 1.0;
+
+    let exponent_int = (raw_int >> 9) & 3;
+    let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
+    
+    return sign * exponent_multiplier * f32(raw_int & 511);
 }
 
 @compute @workgroup_size(64, 1, 1) fn cShader(
@@ -116,7 +151,7 @@ fn get_rotation_vel (integers : EntityIntegers) {
     do_the_physics();
 } 
 
-fn do_the_physics(index : u32, index_in_buffer : u32, integers : array<u32, 8>) {
+fn do_the_physics(index : u32, index_in_buffer : u32) {
     // if (entity_type == 1) {
     //     // main_john(index, index_in_buffer);
     // }
@@ -193,23 +228,12 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
     let d_pressed = (input_u32 >> (16 + 10)) & 1;
 
     let dir_vec = vec2i(
-        d_pressed - a_pressed,
-        w_pressed - s_pressed,
+        i32(d_pressed) - i32(a_pressed),
+        i32(w_pressed) - i32(s_pressed),
     );
 
-    // let current_xVel = get_index_from_entity_buffer[index_in_buffer * 8 + 0] >> ; Man everytime I need the book I don't have it
-
-    let first_int = get_index_from_entity_buffer(index_in_buffer * 8 + 0);
-    let second_int = get_index_from_entity_buffer(index_in_buffer * 8 + 1);
-    let third_int = get_index_from_entity_buffer(index_in_buffer * 8 + 2);
-
-    let current_x_position = (*first_int >> 11) & 16383;
-    let current_y_position_first_part = *first_int & 2047;
-    let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
-    let current_position = vec2i(current_x_position, current_y_position);
-    let new_position = current_position + dir_vec;
-    
+    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
+    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
 }
 
 fn handle_collision_john(collider : u32) {
@@ -272,23 +296,12 @@ fn control_block(index_in_buffer : u32, player_index : u32) {
     let d_pressed = (input_u32 >> (16 + 10)) & 1;
 
     let dir_vec = vec2i(
-        d_pressed - a_pressed,
-        w_pressed - s_pressed,
+        i32(d_pressed) - i32(a_pressed),
+        i32(w_pressed) - i32(s_pressed),
     );
 
-    // let current_xVel = get_index_from_entity_buffer[index_in_buffer * 8 + 0] >> ; Man everytime I need the book I don't have it
-
-    let first_int = get_index_from_entity_buffer(index_in_buffer * 8 + 0);
-    let second_int = get_index_from_entity_buffer(index_in_buffer * 8 + 1);
-    let third_int = get_index_from_entity_buffer(index_in_buffer * 8 + 2);
-
-    let current_x_position = (*first_int >> 11) & 16383;
-    let current_y_position_first_part = *first_int & 2047;
-    let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
-    let current_position = vec2i(current_x_position, current_y_position);
-    let new_position = current_position + dir_vec;
-    
+    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
+    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
 }
 
 fn handle_collision_block(collider : u32) {
@@ -357,23 +370,12 @@ fn control_drill(index_in_buffer : u32, player_index : u32) {
     let d_pressed = (input_u32 >> (16 + 10)) & 1;
 
     let dir_vec = vec2i(
-        d_pressed - a_pressed,
-        w_pressed - s_pressed,
+        i32(d_pressed) - i32(a_pressed),
+        i32(w_pressed) - i32(s_pressed),
     );
-
-    // let current_xVel = get_index_from_entity_buffer[index_in_buffer * 8 + 0] >> ; Man everytime I need the book I don't have it
-
-    let first_int = get_index_from_entity_buffer(index_in_buffer * 8 + 0);
-    let second_int = get_index_from_entity_buffer(index_in_buffer * 8 + 1);
-    let third_int = get_index_from_entity_buffer(index_in_buffer * 8 + 2);
-
-    let current_x_position = (*first_int >> 11) & 16383;
-    let current_y_position_first_part = *first_int & 2047;
-    let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
-    let current_position = vec2i(current_x_position, current_y_position);
-    let new_position = current_position + dir_vec;
     
+    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
+    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
 }
 
 fn handle_collision_drill(collider : u32) {
@@ -435,23 +437,12 @@ fn control_rope(index_in_buffer : u32, player_index : u32) {
     let d_pressed = (input_u32 >> (16 + 10)) & 1;
 
     let dir_vec = vec2i(
-        d_pressed - a_pressed,
-        w_pressed - s_pressed,
+        i32(d_pressed) - i32(a_pressed),
+        i32(w_pressed) - i32(s_pressed),
     );
 
-    // let current_xVel = get_index_from_entity_buffer[index_in_buffer * 8 + 0] >> ; Man everytime I need the book I don't have it
-
-    let first_int = get_index_from_entity_buffer(index_in_buffer * 8 + 0);
-    let second_int = get_index_from_entity_buffer(index_in_buffer * 8 + 1);
-    let third_int = get_index_from_entity_buffer(index_in_buffer * 8 + 2);
-
-    let current_x_position = (*first_int >> 11) & 16383;
-    let current_y_position_first_part = *first_int & 2047;
-    let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
-    let current_position = vec2i(current_x_position, current_y_position);
-    let new_position = current_position + dir_vec;
-    
+    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
+    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
 }
 
 fn handle_collision_rope(collider : u32) {

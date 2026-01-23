@@ -55,23 +55,12 @@ fn control_rope(index_in_buffer : u32, player_index : u32) {
     let d_pressed = (input_u32 >> (16 + 10)) & 1;
 
     let dir_vec = vec2i(
-        d_pressed - a_pressed,
-        w_pressed - s_pressed,
+        i32(d_pressed) - i32(a_pressed),
+        i32(w_pressed) - i32(s_pressed),
     );
 
-    // let current_xVel = get_index_from_entity_buffer[index_in_buffer * 8 + 0] >> ; Man everytime I need the book I don't have it
-
-    let first_int = get_index_from_entity_buffer(index_in_buffer * 8 + 0);
-    let second_int = get_index_from_entity_buffer(index_in_buffer * 8 + 1);
-    let third_int = get_index_from_entity_buffer(index_in_buffer * 8 + 2);
-
-    let current_x_position = (*first_int >> 11) & 16383;
-    let current_y_position_first_part = *first_int & 2047;
-    let current_y_position_second_part = (second_int >> 29) & 7;
-    let current_y_position = (current_y_position_first_part << 3) + current_y_position_second_part;
-    let current_position = vec2i(current_x_position, current_y_position);
-    let new_position = current_position + dir_vec;
-    
+    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
+    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
 }
 
 fn handle_collision_rope(collider : u32) {

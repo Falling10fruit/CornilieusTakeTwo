@@ -1,7 +1,7 @@
 {
     "triggerTaskOnSave.tasks": {
         "link_entities_shader": [
-            "resources/entities/*"
+            "resources/wgsl/entities/**"
         ]
     }
 }
