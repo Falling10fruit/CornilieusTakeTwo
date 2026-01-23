@@ -48,24 +48,20 @@ var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
 fn get_sub_integer (range : vec2u) -> u32 {
-    let lower_sector = range.x / 32;
-    let upper_sector = range.y / 32;
-    let lower_sub_position = range.x % 32;
-    let upper_sub_position = range.y % 32;
-    let lower_mask_offset = lower_sub_position;
-    let upper_mask_offset = (32 - upper_sub_position);
+    var sub_integer = 0;
+    for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
+        let offset = i * 32;
+        let mask_start : u32 = clamp(0, 32, range.x - offset);
+        let mask_end : i32 = 31 - clamp(0, 32, range.x - offset);
+        let bit_mask_start = 0xFFFFFFFF  >> mask_start;
+        let bit_mask_end = 0xFFFFFFFF << u32(clamp(0, 32, mask_end));
+        let masked_integer = entity_integers[i] & bit_mask_start & bit_mask_end;
 
-    var sub_integer : u32 = 0;
-
-    let stride = upper_sector - lower_sector;
-    for (var i : u32 = 0; i < stride; i++) {
-        var lower_bit_mask : u32 = 0xFFFFFFFF;
-        var upper_bit_mask : u32 = 0xFFFFFFFF;
-        if (i == 0         ) { lower_bit_mask = lower_bit_mask >> lower_mask_offset; }
-        if (i == stride - 1) { upper_bit_mask = upper_bit_mask << upper_mask_offset; }
-        var bit_mask : u32 = 0xFFFFFFFF & lower_bit_mask & upper_bit_mask;
-
-        sub_integer += entity_integers[lower_sector + i] & bit_mask;
+        if (mask_end < 0) {
+            sub_integer += masked_integer << u32(-mask_end);
+        } else {
+            sub_integer += masked_integer >> u32(mask_end);
+        }
     }
 
     return sub_integer;
