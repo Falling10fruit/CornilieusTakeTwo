@@ -79,13 +79,17 @@ fn get_sub_integer (range : vec2u) -> u32 {
 fn set_sub_integer(range : vec2u, new_value : u32) {
     for (let i = 0; i < range.y; i += 32) {
         let offset : u32 = i * 32;
+
         let mask_start : i32 = 32 - i32(range.x) + i32(offset);
         let mask_end = 1 + (range.x - offset);
-        let bit_mask_start = 0xFFFFFFFF
-        let bit_mask_start = clamp(0, 32, range.x - i);
-        let bit_mask_end = clamp(0, 32, range.y - i);
+        
+        let bit_mask_start = shift_left(0xFFFFFFFF, u32(clamp(0, 32, mask_start)));
+        let bit_mask_end = shift_right(0xFFFFFFFF, clamp(0, 32, mask_end));
+        
+        let masked_int = entity_integers[i] & (bit_mask_start | bit_mask_end);
+        let value_shift = i32(mask_end) - 32;
 
-        let mask = pow2[32] - 1 - pow[32 - bit_mask_start] + pow[32 - bit_mask_end];
+        entity_integers[i] = masked_int + select(shift_left(new_value, u32(-value_shift)), shift_right(new_value, u32(value_shift)), value_shift > 0);
     }
 }
 
