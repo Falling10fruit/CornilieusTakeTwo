@@ -38,7 +38,8 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<u32>;
 
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -47,34 +48,40 @@ var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
+fn shift_left (value : u32, shift: u32) -> u32 {
+    return select(value << shift, 0, shift >= 32);
+}
+
+fn shift_right (value : u32, shift: u32) -> u32 {
+    return  select(value >> shift, 0, shift >= 32);
+}
+
 fn get_sub_integer (range : vec2u) -> u32 {
-    let lower_sector = range.x / 32;
-    let upper_sector = range.y / 32;
-    let lower_sub_position = range.x % 32;
-    let upper_sub_position = range.y % 32;
-    let lower_mask_offset = lower_sub_position;
-    let upper_mask_offset = (32 - upper_sub_position);
+    var sub_integer = 0;
+    for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
+        let offset : u32 = i * 32;
+        let mask_start : u32 = clamp(0, 32, range.x - offset);
+        let mask_end : i32 = 31 - i32(range.x) + i32(offset);
+        let bit_mask_start = shift_right(0xFFFFFFFF, clamp(0, 32, mask_start));
+        let bit_mask_end = shift_left(0xFFFFFFFF, u32(clamp(0, 32, mask_end)));
+        let masked_integer = entity_integers[i] & bit_mask_start & bit_mask_end;
 
-    var sub_integer : u32 = 0;
-
-    let stride = upper_sector - lower_sector;
-    for (var i : u32 = 0; i < stride; i++) {
-        var lower_bit_mask : u32 = 0xFFFFFFFF;
-        var upper_bit_mask : u32 = 0xFFFFFFFF;
-        if (i == 0         ) { lower_bit_mask = lower_bit_mask >> lower_mask_offset; }
-        if (i == stride - 1) { upper_bit_mask = upper_bit_mask << upper_mask_offset; }
-        var bit_mask : u32 = 0xFFFFFFFF & lower_bit_mask & upper_bit_mask;
-
-        sub_integer += entity_integers[lower_sector + i] & bit_mask;
+        if (mask_end < 0) {
+            sub_integer += masked_integer << u32(-mask_end);
+        } else {
+            sub_integer += masked_integer >> u32(mask_end);
+        }
     }
 
     return sub_integer;
 }
 
 fn set_sub_integer(range : vec2u, new_value : u32) {
-    let clamped_value = new_value % (pow2[range.y - range.x + 1] - 1);
-
     for (let i = 0; i < range.y; i += 32) {
+        let offset : u32 = i * 32;
+        let mask_start : i32 = 32 - i32(range.x) + i32(offset);
+        let mask_end = 1 + (range.x - offset);
+        let bit_mask_start = 0xFFFFFFFF
         let bit_mask_start = clamp(0, 32, range.x - i);
         let bit_mask_end = clamp(0, 32, range.y - i);
 
@@ -103,7 +110,16 @@ fn get_x_vel () -> f32 {
     return sign * exponent_multiplier * f32(raw_int & 127);
 }
 
-fn set_x_vel ()
+fn set_x_vel (vel : f32) {
+    let power = floor(log2(vel/128) * 0.69314718) + 1; // log2(x) / log2(10)
+    var mantissa : u32 = round(vel / (pow(10, power) as f16)) as u32;
+    while (mantissa > 0.5) {
+        if (mantissa % 2) {
+            
+        }
+        mantissa /= 2
+    }
+}
 
 fn get_y_vel () -> f32 {
     let raw_int = get_sub_integer(base_integer_sub_divisions.y_velocity);

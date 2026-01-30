@@ -38,7 +38,8 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<u32>;
 
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -47,14 +48,22 @@ var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
+fn shift_left (value : u32, shift: u32) -> u32 {
+    return select(value << shift, 0, shift >= 32);
+}
+
+fn shift_right (value : u32, shift: u32) -> u32 {
+    return  select(value >> shift, 0, shift >= 32);
+}
+
 fn get_sub_integer (range : vec2u) -> u32 {
     var sub_integer = 0;
     for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
-        let offset = i * 32;
+        let offset : u32 = i * 32;
         let mask_start : u32 = clamp(0, 32, range.x - offset);
-        let mask_end : i32 = 31 - clamp(0, 32, range.x - offset);
-        let bit_mask_start = 0xFFFFFFFF  >> mask_start;
-        let bit_mask_end = 0xFFFFFFFF << u32(clamp(0, 32, mask_end));
+        let mask_end : i32 = 31 - i32(range.x) + i32(offset);
+        let bit_mask_start = shift_right(0xFFFFFFFF, clamp(0, 32, mask_start));
+        let bit_mask_end = shift_left(0xFFFFFFFF, u32(clamp(0, 32, mask_end)));
         let masked_integer = entity_integers[i] & bit_mask_start & bit_mask_end;
 
         if (mask_end < 0) {
@@ -68,9 +77,11 @@ fn get_sub_integer (range : vec2u) -> u32 {
 }
 
 fn set_sub_integer(range : vec2u, new_value : u32) {
-    let clamped_value = new_value % (pow2[range.y - range.x + 1] - 1);
-
     for (let i = 0; i < range.y; i += 32) {
+        let offset : u32 = i * 32;
+        let mask_start : i32 = 32 - i32(range.x) + i32(offset);
+        let mask_end = 1 + (range.x - offset);
+        let bit_mask_start = 0xFFFFFFFF
         let bit_mask_start = clamp(0, 32, range.x - i);
         let bit_mask_end = clamp(0, 32, range.y - i);
 
@@ -99,7 +110,16 @@ fn get_x_vel () -> f32 {
     return sign * exponent_multiplier * f32(raw_int & 127);
 }
 
-fn set_x_vel ()
+fn set_x_vel (vel : f32) {
+    let power = floor(log2(vel/128) * 0.69314718) + 1; // log2(x) / log2(10)
+    var mantissa : u32 = round(vel / (pow(10, power) as f16)) as u32;
+    while (mantissa > 0.5) {
+        if (mantissa % 2) {
+            
+        }
+        mantissa /= 2
+    }
+}
 
 fn get_y_vel () -> f32 {
     let raw_int = get_sub_integer(base_integer_sub_divisions.y_velocity);
