@@ -28,8 +28,6 @@ const base_integer_sub_divisions = BaseIntegerSubDivisions(
     vec2u(84, 95),
 );
 
-const pow2 = array<u32, 32>(1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216);
-
 // chunk indicies descriptor
 // index of access is index of chunk, returned u32 is index of first entity in chunk
 
@@ -57,7 +55,7 @@ fn shift_right (value : u32, shift: u32) -> u32 {
 }
 
 fn get_sub_integer (range : vec2u) -> u32 {
-    var sub_integer = 0;
+    var sub_integer : u32 = 0;
     for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
         let offset : u32 = i * 32;
         let mask_start : u32 = clamp(0, 32, range.x - offset);
@@ -77,7 +75,7 @@ fn get_sub_integer (range : vec2u) -> u32 {
 }
 
 fn set_sub_integer(range : vec2u, new_value : u32) {
-    for (let i = 0; i < range.y; i += 32) {
+    for (var i : u32 = 0; i < range.y; i += 32) {
         let offset : u32 = i * 32;
 
         let mask_start : i32 = 32 - i32(range.x) + i32(offset);
@@ -115,13 +113,13 @@ fn get_x_vel () -> f32 {
 }
 
 fn set_x_vel (vel : f32) {
-    let sign = select(1, 0, vel < 0);
+    let sign = u32(select(1, 0, vel < 0));
     let abs_vel = abs(vel);
     let power = floor(log2(abs_vel/128) * 0.69314718) + 1.0; // log2(x) / log2(10)
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
-    let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, power) << 7) + clamp(0, 127, mantissa);
-    set_sub_integer(base_integer_sub_divisions.x_velocity, sub_integer)
+    let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
+    set_sub_integer(base_integer_sub_divisions.x_velocity, sub_integer);
 }
 
 fn get_y_vel () -> f32 {
@@ -134,6 +132,16 @@ fn get_y_vel () -> f32 {
     let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
     
     return sign * exponent_multiplier * f32(raw_int & 127);
+}
+
+fn set_y_vel (vel : f32) {
+    let sign = u32(select(1, 0, vel < 0));
+    let abs_vel = abs(vel);
+    let power = floor(log2(abs_vel/128) * 0.69314718) + 1.0; // log2(x) / log2(10)
+    let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
+    
+    let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
+    set_sub_integer(base_integer_sub_divisions.y_velocity, sub_integer);
 }
 
 // 0 10 101010101
@@ -152,14 +160,10 @@ fn get_rotation_vel () -> f32 {
 @compute @workgroup_size(64, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    if (global_invocation_id >= arrayLength(entities_buffer)) { return; }
+    if (global_invocation_id >= arrayLength(entities_buffer_0)) { return; }
 
-    chunk_x = workgroup_id.x;
-    chunk_y = workgroup_id.y;
-    sub_chunk_index = workgroup_id.z;
-    entity_index_position = workgroup_id * vec3u(1, 1, 14);
-    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer[global_invocation_id.x * 7]; }
-    entity_type = (integers[1] >> 23) & 511;
+    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7]; }
+    entity_type = (entity_integers[1] >> 23) & 511;
 
 // insert here
 
