@@ -6,7 +6,7 @@
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 // 2^10 -> 1023          2^12 -> 4095
-struct BaseIntegerSubDivisions {
+struct BaseEntityIntegerSubDivisions {
     entity_type: vec2u,
     chunk: vec2u,
     x_position: vec2u,
@@ -17,7 +17,7 @@ struct BaseIntegerSubDivisions {
     rotation_velocity: vec2u,
 }
 
-const base_integer_sub_divisions = BaseIntegerSubDivisions(
+const base_entity_integer_sub_divisions = BaseEntityIntegerSubDivisions(
     vec2u(0, 8),
     vec2u(9, 24),
     vec2u(25, 37),
@@ -94,7 +94,7 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 // sign exponent mantissa
 //  0      10     1010101
 fn get_x_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(base_integer_sub_divisions.x_velocity);
+    let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity);
     let sign_bit = raw_int >> 9;
     let sign : f32 = f32(sign_bit * 2) - 1.0; // 0 - 1 -> -1 - 1
 
@@ -111,11 +111,11 @@ fn set_x_vel (vel : f32) {
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
     let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
-    set_sub_integer_entity(base_integer_sub_divisions.x_velocity, sub_integer);
+    set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, sub_integer);
 }
 
 fn get_y_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(base_integer_sub_divisions.y_velocity);
+    let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity);
  
     let sign_bit = raw_int >> 9;
     let sign : f32 = f32(sign_bit * 2) - 1.0;
@@ -133,12 +133,12 @@ fn set_y_vel (vel : f32) {
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
     let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
-    set_sub_integer_entity(base_integer_sub_divisions.y_velocity, sub_integer);
+    set_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity, sub_integer);
 }
 
 // 0 10 101010101
 fn get_rotation_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(base_integer_sub_divisions.rotation_velocity);
+    let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.rotation_velocity);
 
     let sign_bit = raw_int >> 11;
     let sign : f32 = f32(sign_bit * 2) - 1.0;
@@ -152,14 +152,41 @@ fn get_rotation_vel () -> f32 {
 // Using groups because I'm too lazy to offset everything when i insert something new
 @group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
 
-// First index is player count    qwe asd zxc rfv 1234  mouse_left mouse_middle mouse_left mouse rotation = 2^13 = ?? degrees
-//                                010 101 010 101 0101  0          1            0          10101 01010101
+// First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
+//                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read> players_input : array<u32>;
 
 const NO_OF_INTEGERS_PER_INPUT : u32 = 2;
 alias InputIntegers = array<u32, NO_OF_INTEGERS_PER_INPUT>;
+struct BaseInputIntegerSubDivisions {
+    entity_id : vec2u,
+    q : vec2u,
+    w : vec2u,
+    e : vec2u,
+    a : vec2u,
+    s : vec2u,
+    d : vec2u,
+    z : vec2u,
+    x : vec2u,
+    c : vec2u,
+    r : vec2u,
+    f : vec2u,
+    v : vec2u,
+    one : vec2u,
+    two : vec2u,
+    three : vec2u,
+    four : vec2u,
+    mouse_left : vec2u,
+    mouse_middle : vec2u,
+    mouse_right : vec2u,
+    mouse_rotation : vec2u
+}
+const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
+    vec2u(0, 23)
+);
 var<private> input_integers : InputIntegers;
+
 
 fn get_sub_integer_input(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
@@ -179,6 +206,11 @@ fn get_sub_integer_input(range : vec2u) -> u32 {
     }
 
     return sub_integer;
+}
+
+fn get_bit_from_input(index : u32) -> u32 {
+    let integer : u32 = 
+    return 
 }
 
 fn set_sub_integer_input(range : vec2u, new_value : u32) {
@@ -203,7 +235,7 @@ fn set_sub_integer_input(range : vec2u, new_value : u32) {
 ) {
     if (global_invocation_id >= arrayLength(entities_buffer_0)) { return; }
 
-    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7]; }
+    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7 + i]; }
     entity_type = (entity_integers[1] >> 23) & 511;
 
 // else
