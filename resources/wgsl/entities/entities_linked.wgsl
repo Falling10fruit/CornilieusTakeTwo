@@ -54,7 +54,7 @@ fn shift_right (value : u32, shift: u32) -> u32 {
     return  select(value >> shift, 0, shift >= 32);
 }
 
-fn get_sub_integer (range : vec2u) -> u32 {
+fn get_sub_integer_entity(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
     for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
         let offset : u32 = i * 32;
@@ -74,7 +74,7 @@ fn get_sub_integer (range : vec2u) -> u32 {
     return sub_integer;
 }
 
-fn set_sub_integer(range : vec2u, new_value : u32) {
+fn set_sub_integer_entity(range : vec2u, new_value : u32) {
     for (var i : u32 = 0; i < range.y; i += 32) {
         let offset : u32 = i * 32;
 
@@ -91,18 +91,10 @@ fn set_sub_integer(range : vec2u, new_value : u32) {
     }
 }
 
-// Using groups because I'm too lazy to offset everything when i insert something new
-@group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
-
-// First index is player count    qwe asd zxc rfv 1234  mouse_left mouse_middle mouse_left mouse rotation = 2^13 = ?? degrees
-//                                010 101 010 101 0101  0          1            0          10101 01010101
-// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read> players_input : array<u32>;
-
 // sign exponent mantissa
 //  0      10     1010101
 fn get_x_vel () -> f32 {
-    let raw_int = get_sub_integer(base_integer_sub_divisions.x_velocity);
+    let raw_int = get_sub_integer_entity(base_integer_sub_divisions.x_velocity);
     let sign_bit = raw_int >> 9;
     let sign : f32 = f32(sign_bit * 2) - 1.0; // 0 - 1 -> -1 - 1
 
@@ -119,11 +111,11 @@ fn set_x_vel (vel : f32) {
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
     let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
-    set_sub_integer(base_integer_sub_divisions.x_velocity, sub_integer);
+    set_sub_integer_entity(base_integer_sub_divisions.x_velocity, sub_integer);
 }
 
 fn get_y_vel () -> f32 {
-    let raw_int = get_sub_integer(base_integer_sub_divisions.y_velocity);
+    let raw_int = get_sub_integer_entity(base_integer_sub_divisions.y_velocity);
  
     let sign_bit = raw_int >> 9;
     let sign : f32 = f32(sign_bit * 2) - 1.0;
@@ -141,12 +133,12 @@ fn set_y_vel (vel : f32) {
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
     let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
-    set_sub_integer(base_integer_sub_divisions.y_velocity, sub_integer);
+    set_sub_integer_entity(base_integer_sub_divisions.y_velocity, sub_integer);
 }
 
 // 0 10 101010101
 fn get_rotation_vel () -> f32 {
-    let raw_int = get_sub_integer(base_integer_sub_divisions.rotation_velocity);
+    let raw_int = get_sub_integer_entity(base_integer_sub_divisions.rotation_velocity);
 
     let sign_bit = raw_int >> 11;
     let sign : f32 = f32(sign_bit * 2) - 1.0;
@@ -155,6 +147,55 @@ fn get_rotation_vel () -> f32 {
     let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
     
     return sign * exponent_multiplier * f32(raw_int & 511);
+}
+
+// Using groups because I'm too lazy to offset everything when i insert something new
+@group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
+
+// First index is player count    qwe asd zxc rfv 1234  mouse_left mouse_middle mouse_left mouse rotation = 2^13 = ?? degrees
+//                                010 101 010 101 0101  0          1            0          10101 01010101
+// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
+@group(2) @binding(0) var<storage, read> players_input : array<u32>;
+
+const NO_OF_INTEGERS_PER_INPUT : u32 = 2;
+alias InputIntegers = array<u32, NO_OF_INTEGERS_PER_INPUT>;
+var<private> input_integers : InputIntegers;
+
+fn get_sub_integer_input(range : vec2u) -> u32 {
+    var sub_integer : u32 = 0;
+    for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
+        let offset : u32 = i * 32;
+        let mask_start : u32 = clamp(0, 32, range.x - offset);
+        let mask_end : i32 = 31 - i32(range.x) + i32(offset);
+        let bit_mask_start = shift_right(0xFFFFFFFF, clamp(0, 32, mask_start));
+        let bit_mask_end = shift_left(0xFFFFFFFF, u32(clamp(0, 32, mask_end)));
+        let masked_integer = input_integers[i] & bit_mask_start & bit_mask_end;
+
+        if (mask_end < 0) {
+            sub_integer += masked_integer << u32(-mask_end);
+        } else {
+            sub_integer += masked_integer >> u32(mask_end);
+        }
+    }
+
+    return sub_integer;
+}
+
+fn set_sub_integer_input(range : vec2u, new_value : u32) {
+    for (var i : u32 = 0; i < range.y; i += 32) {
+        let offset : u32 = i * 32;
+
+        let mask_start : i32 = 32 - i32(range.x) + i32(offset);
+        let mask_end = 1 + (range.x - offset);
+        
+        let bit_mask_start = shift_left(0xFFFFFFFF, u32(clamp(0, 32, mask_start)));
+        let bit_mask_end = shift_right(0xFFFFFFFF, clamp(0, 32, mask_end));
+        
+        let masked_int = input_integers[i] & (bit_mask_start | bit_mask_end);
+        let value_shift = i32(mask_end) - 32;
+
+        input_integers[i] = masked_int + select(shift_left(new_value, u32(-value_shift)), shift_right(new_value, u32(value_shift)), value_shift > 0);
+    }
 }
 
 @compute @workgroup_size(64, 1, 1) fn cShader(
@@ -174,14 +215,14 @@ fn get_rotation_vel () -> f32 {
     do_the_physics();
 } 
 
-fn do_the_physics(index : u32, index_in_buffer : u32) {
+fn do_the_physics() {
     // if (entity_type == 1) {
     //     // main_john(index, index_in_buffer);
     // }
 }
 
 
-fn handle_collision(entity_type : u32, collider: u32) {
+fn handle_collision(collider: u32) {
 // else
     if (entity_type == 0) { handle_collision_john(collider); } else
     if (entity_type == 1) { handle_collision_block(collider); } else
@@ -229,7 +270,7 @@ fn main_john(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
-    for (var i = 0; i < player_count; i++) {
+    for (var i : u32 = 0; i < player_count; i++) {
         let selected_index = players_input[i * 2 + 1];
 
         if (selected_index == index) {
@@ -255,8 +296,8 @@ fn control_john(index_in_buffer : u32, player_index : u32) {
         i32(w_pressed) - i32(s_pressed),
     );
 
-    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
-    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
+    let new_x = get_x_vel() + f32(dir_vec.x);
+    let new_y = get_y_vel() + f32(dir_vec.y);
 }
 
 fn handle_collision_john(collider : u32) {
@@ -297,7 +338,7 @@ fn main_block(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
-    for (var i = 0; i < player_count; i++) {
+    for (var i : u32 = 0; i < player_count; i++) {
         let selected_index = players_input[i * 2 + 1];
 
         if (selected_index == index) {
@@ -323,8 +364,8 @@ fn control_block(index_in_buffer : u32, player_index : u32) {
         i32(w_pressed) - i32(s_pressed),
     );
 
-    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
-    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
+    let new_x = get_x_vel() + f32(dir_vec.x);
+    let new_y = get_y_vel() + f32(dir_vec.y);
 }
 
 fn handle_collision_block(collider : u32) {
@@ -371,7 +412,7 @@ fn main_drill(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
-    for (var i = 0; i < player_count; i++) {
+    for (var i : u32 = 0; i < player_count; i++) {
         let selected_index = players_input[i * 2 + 1];
 
         if (selected_index == index) {
@@ -397,8 +438,8 @@ fn control_drill(index_in_buffer : u32, player_index : u32) {
         i32(w_pressed) - i32(s_pressed),
     );
     
-    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
-    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
+    let new_x = get_x_vel() + f32(dir_vec.x);
+    let new_y = get_y_vel() + f32(dir_vec.y);
 }
 
 fn handle_collision_drill(collider : u32) {
@@ -438,7 +479,7 @@ fn main_rope(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
-    for (var i = 0; i < player_count; i++) {
+    for (var i : u32 = 0; i < player_count; i++) {
         let selected_index = players_input[i * 2 + 1];
 
         if (selected_index == index) {
@@ -464,8 +505,8 @@ fn control_rope(index_in_buffer : u32, player_index : u32) {
         i32(w_pressed) - i32(s_pressed),
     );
 
-    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
-    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
+    let new_x = get_x_vel() + f32(dir_vec.x);
+    let new_y = get_y_vel() + f32(dir_vec.y);
 }
 
 fn handle_collision_rope(collider : u32) {

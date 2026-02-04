@@ -34,7 +34,7 @@ fn main_block(index : u32, index_in_buffer : u32) {
     let player_count = players_input[0];
 
     var player_index = -1;
-    for (var i = 0; i < player_count; i++) {
+    for (var i : u32 = 0; i < player_count; i++) {
         let selected_index = players_input[i * 2 + 1];
 
         if (selected_index == index) {
@@ -60,8 +60,8 @@ fn control_block(index_in_buffer : u32, player_index : u32) {
         i32(w_pressed) - i32(s_pressed),
     );
 
-    let new_x = get_x_vel(entity_integers) + f32(dir_vec.x);
-    let new_y = get_y_vel(entity_integers) + f32(dir_vec.y);
+    let new_x = get_x_vel() + f32(dir_vec.x);
+    let new_y = get_y_vel() + f32(dir_vec.y);
 }
 
 fn handle_collision_block(collider : u32) {
