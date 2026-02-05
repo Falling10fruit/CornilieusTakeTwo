@@ -6,6 +6,11 @@
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 // 2^10 -> 1023          2^12 -> 4095
+struct sub_division_entry {
+    start : u32,
+    end : u32,
+    prefix_sum : u32,
+}
 struct BaseEntityIntegerSubDivisions {
     entity_type: vec2u,
     chunk: vec2u,
@@ -173,17 +178,73 @@ struct BaseInputIntegerSubDivisions {
     r : vec2u,
     f : vec2u,
     v : vec2u,
+    t : vec2u,
+    g : vec2u,
+    b : vec2u,
+    y : vec2u,
+    h : vec2u,
+    n : vec2u,
+    tab : vec2u,
+    shift : vec2u,
+    ctrl : vec2u,
+    alt : vec2u,
+    zero : vec2u,
     one : vec2u,
     two : vec2u,
     three : vec2u,
     four : vec2u,
+    five : vec2u,
+    six : vec2u,
+    seven : vec2u,
+    eight : vec2u,
+    nine : vec2u,
     mouse_left : vec2u,
     mouse_middle : vec2u,
     mouse_right : vec2u,
-    mouse_rotation : vec2u
+    mouse_rotation : vec2u,
+    mouse_x : vec2u,
+    mouse_y : vec2u,
 }
 const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
-    vec2u(0, 23)
+    vec2u(0, 23),  // entity id
+    vec2u(24, 24), // q     For single bits like these, it's
+    vec2u(25, 25), // w     better to use the get_bit_from_input
+    vec2u(26, 26), // e     function instead of the 
+    vec2u(27, 27), // a     get_sub_integer_input() function for
+    vec2u(28, 28), // s     performance I think
+    vec2u(29, 29), // d
+    vec2u(30, 30), // z
+    vec2u(31, 31), // x
+    vec2u(32, 32), // c
+    vec2u(33, 33), // r
+    vec2u(34, 34), // f
+    vec2u(35, 35), // v
+    vec2u(36, 36), // t
+    vec2u(37, 37), // g
+    vec2u(38, 38), // b
+    vec2u(39, 39), // y
+    vec2u(40, 40), // h
+    vec2u(41, 41), // n
+    vec2u(42, 42), // tab
+    vec2u(43, 43), // shift
+    vec2u(44, 44), // ctrl
+    vec2u(45, 45), // alt
+    vec2u(46, 46), // 0
+    vec2u(47, 47), // 1
+    vec2u(48, 48), // 2
+    vec2u(49, 49), // 3
+    vec2u(50, 50), // 4
+    vec2u(51, 51), // 5
+    vec2u(52, 52), // 6
+    vec2u(53, 53), // 7
+    vec2u(54, 54), // 8
+    vec2u(55, 55), // 9
+    vec2u(56, 56), // mouse left
+    vec2u(57, 57), // mouse middle
+    vec2u(58, 58), // mouse right
+    vec2u(59, 71), // mouse rotation
+    vec2u(72, 83), // mouse x
+    vec2u(84, 95), // mouse y
 );
 var<private> input_integers : InputIntegers;
 
@@ -208,9 +269,8 @@ fn get_sub_integer_input(range : vec2u) -> u32 {
     return sub_integer;
 }
 
-fn get_bit_from_input(index : u32) -> u32 {
-    let integer : u32 = 
-    return 
+fn get_bit_from_input(index : u32) -> u32 { // Use this to quickly get single digits
+    return (players_input[index / 32] >> (31 - index % 32)) & 1u;
 }
 
 fn set_sub_integer_input(range : vec2u, new_value : u32) {
@@ -230,13 +290,28 @@ fn set_sub_integer_input(range : vec2u, new_value : u32) {
     }
 }
 
+fn get_input() { // replace this eventually pls with a dedicated shader. We don't have enough space in the entity_integers to fit a player id
+    for (var i : u32; i < players_input[0]; i++) {
+        let buffer_index = i * 2 + 1;
+        let observed_entity_type = players_input[buffer_index] >> 8;
+
+        if (observed_entity_type == entity_type) {
+            for (var j : u32; j < NO_OF_INTEGERS_PER_INPUT; j++) {
+                input_integers[j] = players_input[buffer_index + j];
+            }
+        }
+    }
+}
+
 @compute @workgroup_size(64, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
     if (global_invocation_id >= arrayLength(entities_buffer_0)) { return; }
-
     for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7 + i]; }
+
     entity_type = (entity_integers[1] >> 23) & 511;
+    get_input();
+
 
 // else
     if (entity_type == 0) { main_john(); } else
@@ -441,25 +516,12 @@ const EntityData_drill = DataStruct_drill(
 );
 
 fn main_drill(index : u32, index_in_buffer : u32) {
-    let player_count = players_input[0];
-
-    var player_index = -1;
-    for (var i : u32 = 0; i < player_count; i++) {
-        let selected_index = players_input[i * 2 + 1];
-
-        if (selected_index == index) {
-            player_index = true;
-            break;
-        }
-    }
-
-    if (player_index != -1) {
+    if (player_index != -1) { // TODO: replace this with our current system
         control_drill(player_index);
     }
 }
 
 fn control_drill(index_in_buffer : u32, player_index : u32) {
-    let input_u32 = players_input[player_index * 2 + 2];
     let w_pressed = (input_u32 >> (16 + 13)) & 4;
     let a_pressed = (input_u32 >> (16 + 10)) & 4;
     let s_pressed = (input_u32 >> (16 + 10)) & 2;

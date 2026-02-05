@@ -37,25 +37,12 @@ const EntityData_drill = DataStruct_drill(
 );
 
 fn main_drill(index : u32, index_in_buffer : u32) {
-    let player_count = players_input[0];
-
-    var player_index = -1;
-    for (var i : u32 = 0; i < player_count; i++) {
-        let selected_index = players_input[i * 2 + 1];
-
-        if (selected_index == index) {
-            player_index = true;
-            break;
-        }
-    }
-
-    if (player_index != -1) {
+    if (player_index != -1) { // TODO: replace this with our current system
         control_drill(player_index);
     }
 }
 
 fn control_drill(index_in_buffer : u32, player_index : u32) {
-    let input_u32 = players_input[player_index * 2 + 2];
     let w_pressed = (input_u32 >> (16 + 13)) & 4;
     let a_pressed = (input_u32 >> (16 + 10)) & 4;
     let s_pressed = (input_u32 >> (16 + 10)) & 2;
