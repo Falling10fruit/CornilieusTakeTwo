@@ -47,7 +47,6 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
 var<private> sub_chunk_index : u32;
-var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
@@ -247,6 +246,7 @@ const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
     vec2u(84, 95), // mouse y
 );
 var<private> input_integers : InputIntegers;
+var<private> is_controlled : bool;
 
 
 fn get_sub_integer_input(range : vec2u) -> u32 {
@@ -374,29 +374,16 @@ const EntityData_john = DataStruct_john(
 );
 
 fn main_john(index : u32, index_in_buffer : u32) {
-    let player_count = players_input[0];
-
-    var player_index = -1;
-    for (var i : u32 = 0; i < player_count; i++) {
-        let selected_index = players_input[i * 2 + 1];
-
-        if (selected_index == index) {
-            player_index = true;
-            break;
-        }
-    }
-
-    if (player_index != -1) {
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
         control_john(player_index);
     }
 }
 
 fn control_john(index_in_buffer : u32, player_index : u32) {
-    let input_u32 = players_input[player_index * 2 + 2];
-    let w_pressed = (input_u32 >> (16 + 13)) & 4;
-    let a_pressed = (input_u32 >> (16 + 10)) & 4;
-    let s_pressed = (input_u32 >> (16 + 10)) & 2;
-    let d_pressed = (input_u32 >> (16 + 10)) & 1;
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
@@ -442,29 +429,16 @@ const EntityData_block = DataStruct_block(
 );
 
 fn main_block(index : u32, index_in_buffer : u32) {
-    let player_count = players_input[0];
-
-    var player_index = -1;
-    for (var i : u32 = 0; i < player_count; i++) {
-        let selected_index = players_input[i * 2 + 1];
-
-        if (selected_index == index) {
-            player_index = true;
-            break;
-        }
-    }
-
-    if (player_index != -1) {
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
         control_block(player_index);
     }
 }
 
 fn control_block(index_in_buffer : u32, player_index : u32) {
-    let input_u32 = players_input[player_index * 2 + 2];
-    let w_pressed = (input_u32 >> (16 + 13)) & 4;
-    let a_pressed = (input_u32 >> (16 + 10)) & 4;
-    let s_pressed = (input_u32 >> (16 + 10)) & 2;
-    let d_pressed = (input_u32 >> (16 + 10)) & 1;
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
@@ -498,34 +472,33 @@ struct DataStruct_drill {
 }
 
 const EntityData_drill = DataStruct_drill(
-    11, // for the for loops to know how many times to loop automatically in the physics function
+    10, // for the for loops to know how many times to loop automatically in the physics function
     array(
-        vec2f(-2.5, 7.5),
-        vec2f(2.5, 7.5),
-        vec2f(3.5, 0.5),
-        vec2f(4.5, -0.5),
-        vec2f(2.5, -0.5),
-        vec2f(2.5, -7.5),
-        vec2f(-3.5, -7.5),
-        vec2f(-3.5, -1.5),
-        vec2f(-4.5, -1.5),
-        vec2f(-4.5, 0.5),
-        vec2f(-2.5, 2.5),
+        vec2f(-2.0, 4.0),
+        vec2f(1.0, 4.0),
+        vec2f(2.0, 3.0),
+        vec2f(2.0, -2.0),
+        vec2f(1.0, -3.0),
+        vec2f(0.0, -3.0),
+        vec2f(0.0, -7.0),
+        vec2f(-1.0, -7.0),
+        vec2f(-1.0, -3.0),
+        vec2f(-2.0, -2.0),
     ),
-    60 // in kilograms
+    15 // in kilograms
 );
 
 fn main_drill(index : u32, index_in_buffer : u32) {
-    if (player_index != -1) { // TODO: replace this with our current system
-        control_drill(player_index);
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
+        control_drill();
     }
 }
 
-fn control_drill(index_in_buffer : u32, player_index : u32) {
-    let w_pressed = (input_u32 >> (16 + 13)) & 4;
-    let a_pressed = (input_u32 >> (16 + 10)) & 4;
-    let s_pressed = (input_u32 >> (16 + 10)) & 2;
-    let d_pressed = (input_u32 >> (16 + 10)) & 1;
+fn control_drill() {
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
@@ -559,40 +532,27 @@ struct DataStruct_rope {
 }
 
 const EntityData_rope = DataStruct_rope(
-    11, // for the for loops to know how many times to loop automatically in the physics function
+    4, // for the for loops to know how many times to loop automatically in the physics function
     array(
-        vec2f(-2.5, 7.5),
-        vec2f(2.5, 7.5),
-        vec2f(3.5, 0.5),
-        vec2f(4.5, -0.5),
+        vec2f(-0.5, 1.0),
+        vec2f(0.5, 1.0),
+        vec2f(0.5, -1.0),
+        vec2f(-0.5, -1.0),
     ),
-    60 // in kilograms
+    2 // in kilograms
 );
 
 fn main_rope(index : u32, index_in_buffer : u32) {
-    let player_count = players_input[0];
-
-    var player_index = -1;
-    for (var i : u32 = 0; i < player_count; i++) {
-        let selected_index = players_input[i * 2 + 1];
-
-        if (selected_index == index) {
-            player_index = true;
-            break;
-        }
-    }
-
-    if (player_index != -1) {
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
         control_rope(player_index);
     }
 }
 
 fn control_rope(index_in_buffer : u32, player_index : u32) {
-    let input_u32 = players_input[player_index * 2 + 2];
-    let w_pressed = (input_u32 >> (16 + 13)) & 4;
-    let a_pressed = (input_u32 >> (16 + 10)) & 4;
-    let s_pressed = (input_u32 >> (16 + 10)) & 2;
-    let d_pressed = (input_u32 >> (16 + 10)) & 1;
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),

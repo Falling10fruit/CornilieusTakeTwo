@@ -19,34 +19,33 @@ struct DataStruct_drill {
 }
 
 const EntityData_drill = DataStruct_drill(
-    11, // for the for loops to know how many times to loop automatically in the physics function
+    10, // for the for loops to know how many times to loop automatically in the physics function
     array(
-        vec2f(-2.5, 7.5),
-        vec2f(2.5, 7.5),
-        vec2f(3.5, 0.5),
-        vec2f(4.5, -0.5),
-        vec2f(2.5, -0.5),
-        vec2f(2.5, -7.5),
-        vec2f(-3.5, -7.5),
-        vec2f(-3.5, -1.5),
-        vec2f(-4.5, -1.5),
-        vec2f(-4.5, 0.5),
-        vec2f(-2.5, 2.5),
+        vec2f(-2.0, 4.0),
+        vec2f(1.0, 4.0),
+        vec2f(2.0, 3.0),
+        vec2f(2.0, -2.0),
+        vec2f(1.0, -3.0),
+        vec2f(0.0, -3.0),
+        vec2f(0.0, -7.0),
+        vec2f(-1.0, -7.0),
+        vec2f(-1.0, -3.0),
+        vec2f(-2.0, -2.0),
     ),
-    60 // in kilograms
+    15 // in kilograms
 );
 
 fn main_drill(index : u32, index_in_buffer : u32) {
-    if (player_index != -1) { // TODO: replace this with our current system
-        control_drill(player_index);
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
+        control_drill();
     }
 }
 
-fn control_drill(index_in_buffer : u32, player_index : u32) {
-    let w_pressed = (input_u32 >> (16 + 13)) & 4;
-    let a_pressed = (input_u32 >> (16 + 10)) & 4;
-    let s_pressed = (input_u32 >> (16 + 10)) & 2;
-    let d_pressed = (input_u32 >> (16 + 10)) & 1;
+fn control_drill() {
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),

@@ -47,7 +47,6 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
 var<private> sub_chunk_index : u32;
-var<private> entity_index_position : vec3u;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
@@ -247,6 +246,7 @@ const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
     vec2u(84, 95), // mouse y
 );
 var<private> input_integers : InputIntegers;
+var<private> is_controlled : bool;
 
 
 fn get_sub_integer_input(range : vec2u) -> u32 {

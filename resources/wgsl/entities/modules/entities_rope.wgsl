@@ -19,40 +19,27 @@ struct DataStruct_rope {
 }
 
 const EntityData_rope = DataStruct_rope(
-    11, // for the for loops to know how many times to loop automatically in the physics function
+    4, // for the for loops to know how many times to loop automatically in the physics function
     array(
-        vec2f(-2.5, 7.5),
-        vec2f(2.5, 7.5),
-        vec2f(3.5, 0.5),
-        vec2f(4.5, -0.5),
+        vec2f(-0.5, 1.0),
+        vec2f(0.5, 1.0),
+        vec2f(0.5, -1.0),
+        vec2f(-0.5, -1.0),
     ),
-    60 // in kilograms
+    2 // in kilograms
 );
 
 fn main_rope(index : u32, index_in_buffer : u32) {
-    let player_count = players_input[0];
-
-    var player_index = -1;
-    for (var i : u32 = 0; i < player_count; i++) {
-        let selected_index = players_input[i * 2 + 1];
-
-        if (selected_index == index) {
-            player_index = true;
-            break;
-        }
-    }
-
-    if (player_index != -1) {
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
         control_rope(player_index);
     }
 }
 
 fn control_rope(index_in_buffer : u32, player_index : u32) {
-    let input_u32 = players_input[player_index * 2 + 2];
-    let w_pressed = (input_u32 >> (16 + 13)) & 4;
-    let a_pressed = (input_u32 >> (16 + 10)) & 4;
-    let s_pressed = (input_u32 >> (16 + 10)) & 2;
-    let d_pressed = (input_u32 >> (16 + 10)) & 1;
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
