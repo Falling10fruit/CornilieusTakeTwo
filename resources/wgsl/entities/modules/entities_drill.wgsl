@@ -14,7 +14,7 @@
 
 struct DataStruct_drill {
     node_count: u32,
-    nodes: array<vec2f, 11>,
+    nodes: array<vec2f, 10>,
     mass: u32
 }
 
@@ -35,17 +35,17 @@ const EntityData_drill = DataStruct_drill(
     15 // in kilograms
 );
 
-fn main_drill(index : u32, index_in_buffer : u32) {
+fn main_drill(global_invocation_id : vec3u) {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
         control_drill();
     }
 }
 
 fn control_drill() {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),

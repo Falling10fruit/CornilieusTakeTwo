@@ -42,7 +42,9 @@ alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<u32>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<u32>;
+alias points_to_entities_buffer_0 = ptr<storage, array<u32>, read_write>;
+@group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<u32>;
+alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -306,18 +308,21 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
 @compute @workgroup_size(64, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    if (global_invocation_id >= arrayLength(entities_buffer_0)) { return; }
-    for (var i = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7 + i]; }
+    let entity_buffer_ptr_0 : points_to_entities_buffer_0 = &entities_buffer_0;
+    let entity_buffer_ptr_1 : points_to_entities_buffer_1 = &entities_buffer_1;
+
+    if (global_invocation_id.x >= arrayLength(entity_buffer_ptr_0)) { return; }
+    for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7 + i]; }
 
     entity_type = (entity_integers[1] >> 23) & 511;
     get_input();
 
 
 // else
-    if (entity_type == 0) { main_john(); } else
-    if (entity_type == 1) { main_block(); } else
-    if (entity_type == 2) { main_drill(); } else
-    if (entity_type == 3) { main_rope(); }
+    if (entity_type == 0) { main_john(global_invocation_id); } else
+    if (entity_type == 1) { main_block(global_invocation_id); } else
+    if (entity_type == 2) { main_drill(global_invocation_id); } else
+    if (entity_type == 3) { main_rope(global_invocation_id); }
 
     do_the_physics();
 } 
@@ -373,17 +378,17 @@ const EntityData_john = DataStruct_john(
     60 // in kilograms
 );
 
-fn main_john(index : u32, index_in_buffer : u32) {
+fn main_john(global_invocation_id : vec3u) {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
-        control_john(player_index);
+        control_john();
     }
 }
 
-fn control_john(index_in_buffer : u32, player_index : u32) {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
+fn control_john() {
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
@@ -428,17 +433,17 @@ const EntityData_block = DataStruct_block(
     100
 );
 
-fn main_block(index : u32, index_in_buffer : u32) {
+fn main_block(global_invocation_id : vec3u) {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
-        control_block(player_index);
+        control_block();
     }
 }
 
-fn control_block(index_in_buffer : u32, player_index : u32) {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
+fn control_block() {
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
@@ -467,7 +472,7 @@ fn handle_collision_block(collider : u32) {
 
 struct DataStruct_drill {
     node_count: u32,
-    nodes: array<vec2f, 11>,
+    nodes: array<vec2f, 10>,
     mass: u32
 }
 
@@ -488,17 +493,17 @@ const EntityData_drill = DataStruct_drill(
     15 // in kilograms
 );
 
-fn main_drill(index : u32, index_in_buffer : u32) {
+fn main_drill(global_invocation_id : vec3u) {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
         control_drill();
     }
 }
 
 fn control_drill() {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
@@ -542,17 +547,17 @@ const EntityData_rope = DataStruct_rope(
     2 // in kilograms
 );
 
-fn main_rope(index : u32, index_in_buffer : u32) {
+fn main_rope(global_invocation_id : vec3u) {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
-        control_rope(player_index);
+        control_rope();
     }
 }
 
-fn control_rope(index_in_buffer : u32, player_index : u32) {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
+fn control_rope() {
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),

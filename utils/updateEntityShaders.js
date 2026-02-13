@@ -27,7 +27,7 @@ if (process.argv.length > 2) {
         const { entity_id } = entities_array[entity];
 
         logic_branch += ` else
-    if (entity_type == ${entity_indicies[entity_id]}) { main_${entity_id}(); }`;
+    if (entity_type == ${entity_indicies[entity_id]}) { main_${entity_id}(global_invocation_id); }`;
         
         collision_handler_branch += ` else
     if (entity_type == ${entity_indicies[entity_id]}) { handle_collision_${entity_id}(collider); }`;

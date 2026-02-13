@@ -49,7 +49,7 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         }),
         compute: {
             module: computeModule,
-            entryPoint: `cShader`
+            entryPoint: `cShader_sprites`
         }
     });
   

@@ -7,15 +7,15 @@ let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
 let bindGroup_playerInput: GPUBindGroup;
 
-let DISPATCH_PER_DIMENSION: number;
+let NO_OF_DISPATCHES: number;
 
 async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
     device = parameters.device;
-    DISPATCH_PER_DIMENSION = Math.sqrt(window.world.NO_OF_SPRITES / 256);
+    NO_OF_DISPATCHES = Math.ceil(window.world.NO_OF_SPRITES / 256);
 
     const computeModule = await loadComputeShader(device) as GPUShaderModule;
     const bindGroupLayout_entities = device.createBindGroupLayout({
-        label: `compute sprites bind gorup layout`,
+        label: `compute entities data bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entities indicies (creation order -> index in buffer)
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // chunk indicies (chunk no. -> index of first entity in chunk)
@@ -26,14 +26,14 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     });
     
     const bindGroupLayout_targetSprites = device.createBindGroupLayout({
-        label: `compute sprites bind gorup layout`,
+        label: `compute entities sprites bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // target sprites buffer
         ]
     });
     
     const bindGroupLayout_playerInput = device.createBindGroupLayout({
-        label: `compute sprites bind gorup layout`,
+        label: `compute entities player input bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
         ]
@@ -56,7 +56,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     });
   
     bindGroup_entities_0 = device.createBindGroup({
-        label: `compute sprites bind group`,
+        label: `compute entities data 0 - 1 bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
             { binding: 0, resource: { buffer: window.entitiesBuffer.entities_indicies }} as GPUBindGroupEntry,
@@ -67,7 +67,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     });
     
     bindGroup_entities_1 = device.createBindGroup({
-        label: `compute sprites bind group`,
+        label: `compute entities data 1 - 0 bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
             { binding: 0, resource: { buffer: window.entitiesBuffer.entities_indicies }} as GPUBindGroupEntry,
@@ -99,12 +99,12 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
 async function loadComputeShader(device: GPUDevice) {
     const computeShaderSource = await invoke("get_entity_compute_shader").catch((e) => { return e });
     if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
-    return device.createShaderModule({ label: "compute sprites shader", code: computeShaderSource });
+    return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
 }
 
 function createPlaceholderEntities() {
-    if (window.entitiesBuffer.entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts`});
-    if (window.entitiesBuffer.entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts`});
+    if (window.entitiesBuffer.entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
+    if (window.entitiesBuffer.entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
 
 }
 
@@ -127,7 +127,7 @@ function computeEntities(pass: GPUComputePassEncoder) {
 
     pass.setBindGroup(1, bindGroup_targetSprites);
     pass.setBindGroup(2, bindGroup_playerInput);
-    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);
+    pass.dispatchWorkgroups(NO_OF_DISPATCHES);
 }
 
 export { setUpComputeEntities, computeEntities }

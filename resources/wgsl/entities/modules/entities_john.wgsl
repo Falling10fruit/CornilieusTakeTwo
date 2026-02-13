@@ -36,17 +36,17 @@ const EntityData_john = DataStruct_john(
     60 // in kilograms
 );
 
-fn main_john(index : u32, index_in_buffer : u32) {
+fn main_john(global_invocation_id : vec3u) {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
-        control_john(player_index);
+        control_john();
     }
 }
 
-fn control_john(index_in_buffer : u32, player_index : u32) {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d);
+fn control_john() {
+    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
+    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
+    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
+    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
 
     let dir_vec = vec2i(
         i32(d_pressed) - i32(a_pressed),
