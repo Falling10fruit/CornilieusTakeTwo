@@ -1,5 +1,54 @@
+import { shift_left, shift_right, add32Uints } from "../../bit_utils";
+
+const entity_indicies = fetch("./src/json/entities/entity_indicies.json").then((res) => {
+    if (!res.ok) { throw new Error(`Failed to fetch entity indicies json with http code ${res.status}`) }
+    return res.json()
+});
+
 export class Entity {
-    constructor () {
-        
+    #entity_type : number;
+    #chunk : number;
+    #x_position : number;
+    #y_position : number;
+    #rotation : number;
+    #y_velocity : number;
+    #x_velocity : number;
+    #rotation_velocity : number
+
+    constructor (
+        entity_type : number | string = 0,
+        global_x_position : number = 0,
+        global_y_position : number = 0,
+        rotation : number = 0,
+        x_velocity : number = 0,
+        y_velocity : number = 0,
+        rotation_velocity : number = 0
+    ) {
+        if (typeof entity_type == "number") { this.#entity_type = entity_type; }
+        if (typeof entity_type == "string") { entity_type = entity_indicies[entity_type]; }
+
+        this.#chunk = Math.floor(global_x_position / (8 * 16)) + window.world.width * Math.floor(global_y_position / (8 * 16));
+        this.#x_position = global_x_position % (8 * 16);
+        this.#y_position = global_y_position % (8 * 16);
+        this.#rotation = rotation;
+        this.#y_velocity = y_velocity;
+        this.#x_velocity = x_velocity;
+        this.#rotation_velocity = rotation_velocity;
+    }
+
+    serialized_representation() {
+        const entity_type = shift_left(this.#entity_type, 23);
+        const chunk = shift_left(this.#chunk, 7);
+        const x_position_first_part = shift_right(this.#x_position, 6);
+        const x_position_second_part = shift_left(this.#x_position, 26);
+        const y_position = shift_left(this.#y_position, 13);
+        const x_velocity = shift_left(this.#x_velocity, 22);
+        const y_velocity = shift_left(this.#y_velocity, 12);
+
+        return new Uint32Array([
+            add32Uints(entity_type, chunk, x_position_first_part),
+            add32Uints(x_position_second_part, y_position, this.#rotation),
+            add32Uints(x_velocity, y_velocity, this.#rotation_velocity),
+        ]);
     }
 }

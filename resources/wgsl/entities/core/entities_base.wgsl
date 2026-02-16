@@ -1,16 +1,18 @@
 // 
 //    Entity index (creation order)
 // 01010101 01010101 01010101 01010101
-// type (2^9 = 512) chunk index 2^16   xPos(2^13)    yPos (16 * 8 pixels divided by 2^13) rotation 2^13 
-//    010101010     1010101010101010 1010101 010101           0101010101010               1010101010101
+// type (2^9 = 512)    chunk index 2^16        xPos(2^13)      yPos (16 * 8 pixels divided by 2^13)       rotation 2^13 
+//   [ 010101010 ]   [ 1010101010101010 ] [ 1010101 | 010101 ]           [ 0101010101010 ]              [ 1010101010101 ] |
 // x_vel      y_vel      rotate_vel
-// 0101010101 0101010101 010101010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
+// 0101010101 0101010101 010101010101 
 // 2^10 -> 1023          2^12 -> 4095
+//01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 struct sub_division_entry {
     start : u32,
     end : u32,
     prefix_sum : u32,
 }
+
 struct BaseEntityIntegerSubDivisions {
     entity_type: vec2u,
     chunk: vec2u,
@@ -34,7 +36,7 @@ const base_entity_integer_sub_divisions = BaseEntityIntegerSubDivisions(
 );
 
 // chunk indicies descriptor
-// index of access is index of chunk, returned u32 is index of first entity in chunk
+// index of access is index of chunk, the first 26 bits is the 
 
 const NO_OF_INTEGERS_PER_ENTITY : u32 = 7;
 alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
@@ -46,9 +48,19 @@ alias points_to_entities_buffer_0 = ptr<storage, array<u32>, read_write>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<u32>;
 alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
+
+// First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
+//                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
+// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
+@group(2) @binding(0) var<storage, read> players_input : array<u32>;
+@group(2) @binding(1) var<uniform> world_dimensions : vec2u;
+
+var<private> entity_index : u32;
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
-var<private> sub_chunk_index : u32;
+var<private> x_position : f32;
+var<private> y_position : f32;
+var<private> rotation : f32;
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
 
@@ -80,6 +92,7 @@ fn get_sub_integer_entity(range : vec2u) -> u32 {
     return sub_integer;
 }
 
+
 fn set_sub_integer_entity(range : vec2u, new_value : u32) {
     for (var i : u32 = 0; i < range.y; i += 32) {
         let offset : u32 = i * 32;
@@ -95,6 +108,31 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 
         entity_integers[i] = masked_int + select(shift_left(new_value, u32(-value_shift)), shift_right(new_value, u32(value_shift)), value_shift > 0);
     }
+}
+
+fn get_x_position_in_chunk () -> f32 { return f32(get_sub_integer_entity(base_entity_integer_sub_divisions.x_position))/32.0; }
+fn get_y_position_in_chunk () -> f32 { return f32(get_sub_integer_entity(base_entity_integer_sub_divisions.y_position))/32.0; }
+
+fn update_entity_position () -> f32 {
+    let world_dimensions_in_chunks = world_dimensions / 8;
+
+    let serialized_x_position : u32 = u32(round(x_position * 32.0));
+    if (serialized_x_position >= 4096) {
+        chunk_x += 1;
+        serialized_x_position -= 4096;
+    }
+    
+    set_sub_integer_entity(base_entity_integer_sub_divisions.x_position, serialized_x_position);
+    
+    let serialized_y_position : u32 = u32(round(y_position * 32.0));
+    if (serialized_y_position >= 4096) {
+        chunk_y += 1;
+        serialized_y_position -= 4096;
+    }
+    
+    set_sub_integer_entity(base_entity_integer_sub_divisions.y_position, serialized_y_position);
+
+    set_sub_integer_entity(base_entity_integer_sub_divisions.chunk, )
 }
 
 // sign exponent mantissa
@@ -158,10 +196,10 @@ fn get_rotation_vel () -> f32 {
 // Using groups because I'm too lazy to offset everything when i insert something new
 @group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
 
-// First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
-//                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
-// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read> players_input : array<u32>;
+fn update_sprite(sprite_index : u32) {
+
+    sprites_target[entity_index] = 
+}
 
 const NO_OF_INTEGERS_PER_INPUT : u32 = 2;
 alias InputIntegers = array<u32, NO_OF_INTEGERS_PER_INPUT>;
@@ -310,11 +348,14 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
 ) {
     let entity_buffer_ptr_0 : points_to_entities_buffer_0 = &entities_buffer_0;
     let entity_buffer_ptr_1 : points_to_entities_buffer_1 = &entities_buffer_1;
+    entity_index = global_invocation_id.x;
 
-    if (global_invocation_id.x >= arrayLength(entity_buffer_ptr_0)) { return; }
-    for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[global_invocation_id.x * 7 + i]; }
+    if (entity_index >= arrayLength(entity_buffer_ptr_0)) { return; }
+    for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[entity_index * 7 + i]; }
 
     entity_type = (entity_integers[1] >> 23) & 511;
+    x_position = get_x_vel();
+    y_position = get_y_vel();
     get_input();
 
 

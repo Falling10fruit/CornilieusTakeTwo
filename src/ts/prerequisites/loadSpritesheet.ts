@@ -19,7 +19,7 @@ async function loadSpritesheet (parameters: { device: GPUDevice }) {
         sampler: device.createSampler(),
     };
 
-    if (window.spritesheet.texture == null) return; // I hate the red lines
+    if (window.spritesheet.texture == null) return window.fail({title: "Failed to generate spritesheet texture", message: "idfk we just made it recently"});
     device.queue.copyExternalImageToTexture(
         { source: spritesheetSource, flipY: false },
         { texture: window.spritesheet.texture },

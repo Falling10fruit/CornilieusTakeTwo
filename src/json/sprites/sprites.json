@@ -1,10 +1,19 @@
-
-{
-    "$schema": "spritesSchema.json",
-    "sprites": {
-        "player_looking_right": {
-            "sprite_id": "player_looking_right",
-            "splice": [16, 0, 25, 15]
-        }
+[ 
+    {
+        "sprite_id": "player_looking_right",
+        "splice": [16, 15, 25, 30]
+    }, {
+        "sprite_id": "player_looking_left",
+        "splice": [16, 0, 25, 15]
+    }, {
+        "sprite_id": "drill",
+        "splice": [25, 0, 29, 11]
+    }, {
+        "sprite_id": "rope",
+        "splice": [25, 11, 26, 13]
+    }, {
+        "sprite_id": "block",
+        "splice": [26, 1, 27, 2]
     }
-}
+
+]

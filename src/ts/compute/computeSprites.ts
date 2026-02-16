@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { shift_left, add32Uints } from "../../bit_utils";
 
 let device: GPUDevice;
 let ctx: GPUCanvasContext;
@@ -77,20 +78,20 @@ function createPlaceholderSprites() {
 
     const current = new Int32Array(window.spritesBuffer.NO_OF_SPRITES);
     const currentEntityPlaceholder = add32Uints(
-        ( 0 << 25 ) >>> 0,
-        ( 0 << 18 ) >>> 0,
-        ( 0  << 9 ) >>> 0,
-        ( 1  << 0 ) >>> 0
-    ) >>> 0;
+        shift_left(0, 5),
+        shift_left(0, 8),
+        shift_left(0, 9),
+        shift_left(1, 0)
+    );
     current[0] = currentEntityPlaceholder;
 
     const target = new Int32Array(window.spritesBuffer.NO_OF_SPRITES);
     const targetEntityPlaceholder = add32Uints(
-        ( 0 << 25 ) >>> 0,
-        ( 0 << 18 ) >>> 0,
-        ( 0  << 9 ) >>> 0,
-        ( 1  << 0 ) >>> 0
-    ) >>> 0;
+        shift_left(0, 5),
+        shift_left(0, 8),
+        shift_left(0, 9),
+        shift_left(1, 0)
+    );
     target[0] = targetEntityPlaceholder;
 
     device.queue.writeBuffer(window.spritesBuffer.current, 0, current);
@@ -103,12 +104,6 @@ function createSpritesBufferOfSize(amountOfSprites: number) {
         size: amountOfSprites * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
-}
-
-function add32Uints(...numbers: number[]) {
-    let sum = 0;
-    for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
-    return sum;
 }
 
 function computeSprites(pass: GPUComputePassEncoder) {

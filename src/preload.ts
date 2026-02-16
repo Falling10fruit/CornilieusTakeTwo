@@ -11,8 +11,8 @@ async function preload (parameters: { device: GPUDevice }) {
         seed: 43758.5453,
         storageBuffer: null,
         dimensionsUniform: null,
-        NO_OF_SPRITES: 2**24,
-        NO_OF_ENTITIES: 2**23,
+        NO_OF_SPRITES: 2**14,
+        NO_OF_ENTITIES: 2**12,
 
         NO_OF_PLAYERS: 1, // aka singleplayer
         playerInputBuffer: null,
@@ -35,6 +35,14 @@ async function preload (parameters: { device: GPUDevice }) {
         texture: null,
         sampler: null,
     };
+    
+    window.entitiesBuffer = {
+        entities_indicies: null,
+        chunk_indicies: null,
+        current_entity_buffer_is: 0,
+        entities_buffer_0: null,
+        entities_buffer_1: null,
+    }
 
     window.keyIsDown = {};
 

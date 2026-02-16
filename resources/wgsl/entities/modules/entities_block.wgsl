@@ -30,8 +30,8 @@ const EntityData_block = DataStruct_block(
     100
 );
 
-fn main_block(global_invocation_id : vec3u) {
-    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
+fn main_block() {
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_block();
     }
 }

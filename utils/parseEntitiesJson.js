@@ -27,7 +27,7 @@ import * as fs from "node:fs/promises"
 // }
 
 async function parseEntityJson(ENTITIES_JSON_PATH) {
-    const entities_array = await readEntityJsonFile(ENTITIES_JSON_PATH);
+    const entities_array = await readJsonFile(ENTITIES_JSON_PATH);
 
     let entity_indicies = {};
     for (let i = 0; i < entities_array.length; i++) {
@@ -37,9 +37,20 @@ async function parseEntityJson(ENTITIES_JSON_PATH) {
     return { entities_array, entity_indicies }
 }
 
-async function readEntityJsonFile(ENTITIES_JSON_PATH) {
-    const data = await fs.readFile(ENTITIES_JSON_PATH);
+async function parseSpriteJson(SPRITE_JSON_PATH) {
+    const sprites_array = await readJsonFile(SPRITE_JSON_PATH);
+
+    let sprite_indicies = {};
+    for (let i = 0; i < sprites_array.length; i++) {
+        sprite_indicies[sprites_array[i].sprite_id] = i;
+    }
+    
+    return { sprites_array, sprite_indicies }
+}
+
+async function readJsonFile(path) {
+    const data = await fs.readFile(path);
     return JSON.parse(data.toString());
 }
 
-export { parseEntityJson }
+export { parseEntityJson, parseSpriteJson }

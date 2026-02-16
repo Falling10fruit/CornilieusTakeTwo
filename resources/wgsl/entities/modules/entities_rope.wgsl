@@ -29,8 +29,8 @@ const EntityData_rope = DataStruct_rope(
     2 // in kilograms
 );
 
-fn main_rope(global_invocation_id : vec3u) {
-    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == global_invocation_id.x) {
+fn main_rope() {
+    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_rope();
     }
 }

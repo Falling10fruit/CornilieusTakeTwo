@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { Entity } from "../entities/baseEntity.ts"
 
 let device: GPUDevice;
 let pipeline: GPUComputePipeline;
@@ -19,9 +20,8 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entities indicies (creation order -> index in buffer)
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // chunk indicies (chunk no. -> index of first entity in chunk)
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // current entity buffer
-            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 0
-            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 1
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 0
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 1
         ]
     });
     
@@ -35,14 +35,15 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     const bindGroupLayout_playerInput = device.createBindGroupLayout({
         label: `compute entities player input bind group layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry
         ]
     });
 
     pipeline = await device.createComputePipelineAsync({
-        label: `compute sprites pipeline`,
+        label: `compute entities pipeline`,
         layout: device.createPipelineLayout({
-            label: `compute sprites pipeline layout`,
+            label: `compute entities pipeline layout`,
             bindGroupLayouts: [
                 bindGroupLayout_entities,
                 bindGroupLayout_targetSprites,
@@ -102,17 +103,6 @@ async function loadComputeShader(device: GPUDevice) {
     return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
 }
 
-function createPlaceholderEntities() {
-    if (window.entitiesBuffer.entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
-    if (window.entitiesBuffer.entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
-
-}
-
-function add32Uints(...numbers: number[]) {
-    let sum = 0;
-    for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
-    return sum;
-}
 
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
@@ -128,6 +118,27 @@ function computeEntities(pass: GPUComputePassEncoder) {
     pass.setBindGroup(1, bindGroup_targetSprites);
     pass.setBindGroup(2, bindGroup_playerInput);
     pass.dispatchWorkgroups(NO_OF_DISPATCHES);
+    
+    window.entitiesBuffer.current_entity_buffer_is = window.entitiesBuffer.current_entity_buffer_is == 0 ? 1 : 0;
 }
 
-export { setUpComputeEntities, computeEntities }
+function createPlaceholderEntities() {
+    const { entities_indicies, chunk_indicies, entities_buffer_0, entities_buffer_1} = window.entitiesBuffer;
+
+    if (entities_indicies == null) return window.fail({ title: `Entities indicies buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
+    if (chunk_indicies == null) return window.fail({ title: `Chunk indicies 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
+    if (entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
+    if (entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
+
+    device.queue.writeBuffer(entities_indicies, 0, new Uint32Array(0));
+    device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array(0));
+    device.queue.writeBuffer(entities_buffer_0, 0, (new Entity()).serialized_representation());
+}
+
+function add32Uints(...numbers: number[]) {
+    let sum = 0;
+    for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
+    return sum;
+}
+
+export { setUpComputeEntities, computeEntities, createPlaceholderEntities }

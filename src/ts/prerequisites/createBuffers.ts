@@ -130,6 +130,7 @@ function updateEntitiesData() {
         entities_buffer_1: buffer_1,
     }
 }
+
 function createPlayerInputBuffer () {
     const playerInputBuffer = device.createBuffer({
         label: `players inputs`,
