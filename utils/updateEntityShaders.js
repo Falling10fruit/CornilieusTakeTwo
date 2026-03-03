@@ -41,8 +41,6 @@ if (process.argv.length > 2) {
         linkEntity(entity_json);
     }
 } else {
-    // 601310 different and 619383 619320
-    // 510585
     let logic_branch = `//`; // To comment out the first "else" statement
     let collision_handler_branch = "//";
     let entity_source = ``;

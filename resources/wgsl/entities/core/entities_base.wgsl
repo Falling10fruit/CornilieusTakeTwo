@@ -37,7 +37,8 @@ const base_entity_integer_sub_divisions = BaseEntityIntegerSubDivisions(
 
 // chunk indicies descriptor
 // index of access is index of chunk, the first 26 bits is the 
-
+//                                  2^6 = 64
+// 01010101 01010101 01010101 01 010101
 const NO_OF_INTEGERS_PER_ENTITY : u32 = 7;
 alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 
@@ -54,6 +55,7 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read> players_input : array<u32>;
 @group(2) @binding(1) var<uniform> world_dimensions : vec2u;
+@group(2) @binding(2) var<storage, read> world_data : array<u32>;
 
 var<private> entity_index : u32;
 var<private> chunk_x : u32;
@@ -195,10 +197,12 @@ fn get_rotation_vel () -> f32 {
 
 // Using groups because I'm too lazy to offset everything when i insert something new
 @group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
-
+//  x pos   y pos   angle     sprite
+// 0101010 1010101 010101010 101010101
 fn update_sprite(sprite_index : u32) {
-
-    sprites_target[entity_index] = 
+    let serialized_x_position = u32(floor(x_position)) % 128;
+    let serialized_y_position = u32(floor(y_position)) % 128;
+    sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + 
 }
 
 const NO_OF_INTEGERS_PER_INPUT : u32 = 2;

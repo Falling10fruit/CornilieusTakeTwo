@@ -14,6 +14,8 @@
     }, {
         "sprite_id": "block",
         "splice": [26, 1, 27, 2]
+    }, {
+        "sprite_id": "monster",
+        "splice": [28, 6, 37, 20]
     }
-
 ]

@@ -6,7 +6,7 @@ let pipeline: GPUComputePipeline;
 let bindGroup_entities_0: GPUBindGroup;
 let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
-let bindGroup_playerInput: GPUBindGroup;
+let bindGroup_additionalData: GPUBindGroup;
 
 let NO_OF_DISPATCHES: number;
 
@@ -32,11 +32,12 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
     
-    const bindGroupLayout_playerInput = device.createBindGroupLayout({
+    const bindGroupLayout_additionalData = device.createBindGroupLayout({
         label: `compute entities player input bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry, // world dimensions in blocks not chunks
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // world data
         ]
     });
 
@@ -47,7 +48,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
             bindGroupLayouts: [
                 bindGroupLayout_entities,
                 bindGroupLayout_targetSprites,
-                bindGroupLayout_playerInput
+                bindGroupLayout_additionalData
             ]
         }),
         compute: {
@@ -86,11 +87,13 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
 
-    bindGroup_playerInput = device.createBindGroup({
-        label: `compute entities player input bind group`,
+    bindGroup_additionalData = device.createBindGroup({
+        label: `compute entities additional data bind group`,
         layout: pipeline.getBindGroupLayout(2),
         entries: [
             { binding: 0, resource: { buffer: window.world.playerInputBuffer }} as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
         ]
     })
 
@@ -116,7 +119,7 @@ function computeEntities(pass: GPUComputePassEncoder) {
     }
 
     pass.setBindGroup(1, bindGroup_targetSprites);
-    pass.setBindGroup(2, bindGroup_playerInput);
+    pass.setBindGroup(2, bindGroup_additionalData);
     pass.dispatchWorkgroups(NO_OF_DISPATCHES);
     
     window.entitiesBuffer.current_entity_buffer_is = window.entitiesBuffer.current_entity_buffer_is == 0 ? 1 : 0;
