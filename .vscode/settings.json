@@ -2,6 +2,9 @@
     "triggerTaskOnSave.tasks": {
         "link_entities_shader": [
             "resources/wgsl/entities/**"
+        ],
+        "update_sprite_index_maps": [
+            "src/json/sprites/**"
         ]
     }
 }

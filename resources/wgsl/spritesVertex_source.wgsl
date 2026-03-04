@@ -15,11 +15,12 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
 
 @group(0) @binding(4) var<storage, read> sCurrentSprites : array<u32>;
 
-// const spritesArray : array<vec4u, 1> = array(
-//     vec4u(0, 0, 16, 16)
-// );
 //  x pos   y pos   rotation  sprite
 // 0101010 1010101 010101010 101010101
+
+// const spritesArray : array<vec4u, 6> = array(
+//      vec4(0, 0, 16, 16)
+// );
 // insert here
 
 struct v_out {

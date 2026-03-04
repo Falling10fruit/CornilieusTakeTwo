@@ -1,21 +1,24 @@
 [ 
     {
         "sprite_id": "player_looking_right",
-        "splice": [16, 15, 25, 30]
+        "coordinates": [16, 15, 25, 30]
     }, {
         "sprite_id": "player_looking_left",
-        "splice": [16, 0, 25, 15]
+        "coordinates": [16, 0, 25, 15]
     }, {
         "sprite_id": "drill",
-        "splice": [25, 0, 29, 11]
+        "coordinates": [25, 0, 29, 11]
     }, {
         "sprite_id": "rope",
-        "splice": [25, 11, 26, 13]
+        "coordinates": [25, 11, 26, 13]
     }, {
         "sprite_id": "block",
-        "splice": [26, 1, 27, 2]
+        "coordinates": [26, 1, 27, 2]
     }, {
         "sprite_id": "monster",
-        "splice": [28, 6, 37, 20]
+        "coordinates": [28, 6, 37, 20]
+    }, {
+        "sprite_id": "pipe",
+        "coordinates": [25, 20, 33, 28]
     }
 ]

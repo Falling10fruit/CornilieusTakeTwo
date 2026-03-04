@@ -16,6 +16,11 @@
             "command": "node",
             "type": "shell" ,
             "args": [ "${workspaceFolder}/utils/updateEntityShaders.js" ]
+        }, {
+            "label": "update_sprite_index_maps",
+            "command": "node",
+            "type": "shell",
+            "args": [ "${workspaceFolder}/utils/updateSpriteIndexMap.js" ]
         }
     ]
 }

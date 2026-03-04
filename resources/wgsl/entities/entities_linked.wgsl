@@ -197,7 +197,38 @@ fn get_rotation_vel () -> f32 {
 
 // Using groups because I'm too lazy to offset everything when i insert something new
 @group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
-//  x pos   y pos   angle     sprite
+struct SpriteIndexMapStruct {
+    // player_looking_right: u32,
+    // player_looking_left: u32,
+    // drill: u32,
+    // rope: u32,
+    // block: u32,
+    // sprite insert
+    player_looking_right: vec4u,
+    player_looking_left: vec4u,
+    drill: vec4u,
+    rope: vec4u,
+    block: vec4u,
+    monster: vec4u,
+    pipe: vec4u
+    // sprite insert
+}
+const sprite_index_map = SpriteIndexMapStruct(
+    // 0,
+    // 1,
+    // 2,
+    // 3,
+    // 4,
+    // sprite insert
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+    // sprite insert
+)
 // 0101010 1010101 010101010 101010101
 fn update_sprite(sprite_index : u32) {
     let serialized_x_position = u32(floor(x_position)) % 128;
@@ -385,7 +416,19 @@ fn handle_collision(collider: u32) {
     if (entity_type == 1) { handle_collision_block(collider); } else
     if (entity_type == 2) { handle_collision_drill(collider); } else
     if (entity_type == 3) { handle_collision_rope(collider); }
-}// entity john
+}player_looking_right: vec4u,
+    player_looking_left: vec4u,
+    drill: vec4u,
+    rope: vec4u,
+    block: vec4u,
+    monster: vec4u,
+    pipe: vec4uundefined0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6undefined// entity john
 
 // @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;

@@ -18,20 +18,6 @@ const { sprites_array, sprite_indicies } = await parseSpriteJson(SPRITES_JSON);
 const SPRITE_INDICIES_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'json', 'sprites', 'sprite_indicies.json');
 writeFile(SPRITE_INDICIES_JSON, JSON.stringify(sprite_indicies))
 
-{
-    const sprite_vertex_path = path.join("resources", "wgsl", "spritesVertex_source.wgsl");
-    const sprite_vertex_source = await readFile(sprite_vertex_path, { encoding: 'utf-8' });
-    const sprite_vertex_split = sprite_vertex_source.split("// insert here")
-    const sprite_vertex_out = sprite_vertex_split[0] + `
-const spritesArray : array<vec4u, ${sprites_array.length}> = array(
-    ${sprites_array.map(sprite_data => `vec4u(${sprite_data.splice.join(", ")})`).join(`,
-    `)}
-);` + sprite_vertex_split[1];
-
-    const sprite_vertex_out_path = path.join("resources", "wgsl", "spritesVertex.wgsl")
-    writeFile(sprite_vertex_out_path, sprite_vertex_out);
-}
-
 if (process.argv.length > 2) {
     for (let i = 2; i < process.argv.length; i++) {
         const entity_id = process.argv[i];
