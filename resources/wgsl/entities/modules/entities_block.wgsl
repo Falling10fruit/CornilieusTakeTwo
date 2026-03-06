@@ -16,7 +16,8 @@
 struct DataStruct_block {
     node_count: u32,
     nodes: array<vec2f, 4>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_block = DataStruct_block(
@@ -27,13 +28,16 @@ const EntityData_block = DataStruct_block(
         vec2f(8, -8),
         vec2f(-8, -8)
     ),
-    100
+    100,
+    sprite_index_map.block
 );
 
 fn main_block() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_block();
     }
+
+    current_sprite = EntityData_block.default_sprite;
 }
 
 fn control_block() {

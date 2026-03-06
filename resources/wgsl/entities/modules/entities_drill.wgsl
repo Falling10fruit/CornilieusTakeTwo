@@ -15,7 +15,8 @@
 struct DataStruct_drill {
     node_count: u32,
     nodes: array<vec2f, 10>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_drill = DataStruct_drill(
@@ -32,13 +33,16 @@ const EntityData_drill = DataStruct_drill(
         vec2f(-1.0, -3.0),
         vec2f(-2.0, -2.0),
     ),
-    15 // in kilograms
+    15, // in kilograms
+    sprite_index_map.drill
 );
 
 fn main_drill() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_drill();
     }
+
+    current_sprite = EntityData_drill.default_sprite;
 }
 
 fn control_drill() {

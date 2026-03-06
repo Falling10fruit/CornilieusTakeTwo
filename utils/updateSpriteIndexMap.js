@@ -22,7 +22,7 @@ const entities_compute_path = path.join("resources", "wgsl", "entities", "core",
 const entities_compute_source = await readFile(entities_compute_path, { encoding: 'utf-8' });
 const entities_compute_split = entities_compute_source.split("// sprite insert")
 const entities_compute_out = entities_compute_split[0] + `// sprite insert
-    ` + sprites_array.map(sprite_data => `${sprite_data.sprite_id}: vec4u`).join(`,
+    ` + sprites_array.map(sprite_data => `${sprite_data.sprite_id}: u32`).join(`,
     `) + `
     // sprite insert` + entities_compute_split[2] + `// sprite insert
     ` + sprites_array.map((useless, index) => index).join(`,

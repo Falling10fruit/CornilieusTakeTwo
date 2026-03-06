@@ -15,7 +15,8 @@
 struct DataStruct_john {
     node_count: u32,
     nodes: array<vec2f, 11>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_john = DataStruct_john(
@@ -33,13 +34,16 @@ const EntityData_john = DataStruct_john(
         vec2f(-4.5, 0.5),
         vec2f(-2.5, 2.5),
     ),
-    60 // in kilograms
+    60, // in kilograms
+    sprite_index_map.john_looking_right
 );
 
 fn main_john() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_john();
     }
+
+    current_sprite = EntityData_john.default_sprite;
 }
 
 fn control_john() {

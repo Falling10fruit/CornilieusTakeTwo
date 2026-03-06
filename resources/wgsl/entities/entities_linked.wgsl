@@ -62,9 +62,10 @@ var<private> chunk_x : u32;
 var<private> chunk_y : u32;
 var<private> x_position : f32;
 var<private> y_position : f32;
-var<private> rotation : f32;
+var<private> rotation : f32; // in the 2^13 format 0 - 8191
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
+var<private> current_sprite : u32;
 
 fn shift_left (value : u32, shift: u32) -> u32 {
     return select(value << shift, 0, shift >= 32);
@@ -115,10 +116,10 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 fn get_x_position_in_chunk () -> f32 { return f32(get_sub_integer_entity(base_entity_integer_sub_divisions.x_position))/32.0; }
 fn get_y_position_in_chunk () -> f32 { return f32(get_sub_integer_entity(base_entity_integer_sub_divisions.y_position))/32.0; }
 
-fn update_entity_position () -> f32 {
+fn update_entity_position () {
     let world_dimensions_in_chunks = world_dimensions / 8;
 
-    let serialized_x_position : u32 = u32(round(x_position * 32.0));
+    var serialized_x_position : u32 = u32(round(x_position * 32.0));
     if (serialized_x_position >= 4096) {
         chunk_x += 1;
         serialized_x_position -= 4096;
@@ -126,7 +127,7 @@ fn update_entity_position () -> f32 {
     
     set_sub_integer_entity(base_entity_integer_sub_divisions.x_position, serialized_x_position);
     
-    let serialized_y_position : u32 = u32(round(y_position * 32.0));
+    var serialized_y_position : u32 = u32(round(y_position * 32.0));
     if (serialized_y_position >= 4096) {
         chunk_y += 1;
         serialized_y_position -= 4096;
@@ -134,7 +135,7 @@ fn update_entity_position () -> f32 {
     
     set_sub_integer_entity(base_entity_integer_sub_divisions.y_position, serialized_y_position);
 
-    set_sub_integer_entity(base_entity_integer_sub_divisions.chunk, )
+    set_sub_integer_entity(base_entity_integer_sub_divisions.chunk, chunk_x + chunk_y * world_dimensions.x);
 }
 
 // sign exponent mantissa
@@ -204,13 +205,13 @@ struct SpriteIndexMapStruct {
     // rope: u32,
     // block: u32,
     // sprite insert
-    player_looking_right: vec4u,
-    player_looking_left: vec4u,
-    drill: vec4u,
-    rope: vec4u,
-    block: vec4u,
-    monster: vec4u,
-    pipe: vec4u
+    john_looking_right: u32,
+    john_looking_left: u32,
+    drill: u32,
+    rope: u32,
+    block: u32,
+    monster: u32,
+    pipe: u32
     // sprite insert
 }
 const sprite_index_map = SpriteIndexMapStruct(
@@ -228,13 +229,7 @@ const sprite_index_map = SpriteIndexMapStruct(
     5,
     6
     // sprite insert
-)
-// 0101010 1010101 010101010 101010101
-fn update_sprite(sprite_index : u32) {
-    let serialized_x_position = u32(floor(x_position)) % 128;
-    let serialized_y_position = u32(floor(y_position)) % 128;
-    sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + 
-}
+);
 
 const NO_OF_INTEGERS_PER_INPUT : u32 = 2;
 alias InputIntegers = array<u32, NO_OF_INTEGERS_PER_INPUT>;
@@ -279,6 +274,7 @@ struct BaseInputIntegerSubDivisions {
     mouse_x : vec2u,
     mouse_y : vec2u,
 }
+
 const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
     vec2u(0, 23),  // entity id
     vec2u(24, 24), // q     For single bits like these, it's
@@ -322,7 +318,6 @@ const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
 );
 var<private> input_integers : InputIntegers;
 var<private> is_controlled : bool;
-
 
 fn get_sub_integer_input(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
@@ -401,6 +396,13 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
     if (entity_type == 3) { main_rope(); }
 
     do_the_physics();
+    
+    //  x       y       rotation  sprite
+    // 0101010 1010101 010101010 101010101
+    let serialized_x_position = u32(floor(x_position)) % 128;
+    let serialized_y_position = u32(floor(y_position)) % 128;
+    let serialized_rotation = u32(floor(rotation / 16.0)) % 512;
+    sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
 } 
 
 fn do_the_physics() {
@@ -416,19 +418,7 @@ fn handle_collision(collider: u32) {
     if (entity_type == 1) { handle_collision_block(collider); } else
     if (entity_type == 2) { handle_collision_drill(collider); } else
     if (entity_type == 3) { handle_collision_rope(collider); }
-}player_looking_right: vec4u,
-    player_looking_left: vec4u,
-    drill: vec4u,
-    rope: vec4u,
-    block: vec4u,
-    monster: vec4u,
-    pipe: vec4uundefined0,
-    1,
-    2,
-    3,
-    4,
-    5,
-    6undefined// entity john
+}// entity john
 
 // @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 // @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
@@ -445,7 +435,8 @@ fn handle_collision(collider: u32) {
 struct DataStruct_john {
     node_count: u32,
     nodes: array<vec2f, 11>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_john = DataStruct_john(
@@ -463,13 +454,16 @@ const EntityData_john = DataStruct_john(
         vec2f(-4.5, 0.5),
         vec2f(-2.5, 2.5),
     ),
-    60 // in kilograms
+    60, // in kilograms
+    sprite_index_map.john_looking_right
 );
 
 fn main_john() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_john();
     }
+
+    current_sprite = EntityData_john.default_sprite;
 }
 
 fn control_john() {
@@ -507,7 +501,8 @@ fn handle_collision_john(collider : u32) {
 struct DataStruct_block {
     node_count: u32,
     nodes: array<vec2f, 4>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_block = DataStruct_block(
@@ -518,13 +513,16 @@ const EntityData_block = DataStruct_block(
         vec2f(8, -8),
         vec2f(-8, -8)
     ),
-    100
+    100,
+    sprite_index_map.block
 );
 
 fn main_block() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_block();
     }
+
+    current_sprite = EntityData_block.default_sprite;
 }
 
 fn control_block() {
@@ -561,7 +559,8 @@ fn handle_collision_block(collider : u32) {
 struct DataStruct_drill {
     node_count: u32,
     nodes: array<vec2f, 10>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_drill = DataStruct_drill(
@@ -578,13 +577,16 @@ const EntityData_drill = DataStruct_drill(
         vec2f(-1.0, -3.0),
         vec2f(-2.0, -2.0),
     ),
-    15 // in kilograms
+    15, // in kilograms
+    sprite_index_map.drill
 );
 
 fn main_drill() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_drill();
     }
+
+    current_sprite = EntityData_drill.default_sprite;
 }
 
 fn control_drill() {
@@ -621,7 +623,8 @@ fn handle_collision_drill(collider : u32) {
 struct DataStruct_rope {
     node_count: u32,
     nodes: array<vec2f, 4>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_rope = DataStruct_rope(
@@ -632,13 +635,16 @@ const EntityData_rope = DataStruct_rope(
         vec2f(0.5, -1.0),
         vec2f(-0.5, -1.0),
     ),
-    2 // in kilograms
+    2, // in kilograms
+    sprite_index_map.rope
 );
 
 fn main_rope() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_rope();
     }
+
+    current_sprite = EntityData_rope.default_sprite;
 }
 
 fn control_rope() {

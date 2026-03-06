@@ -1,9 +1,9 @@
 [ 
     {
-        "sprite_id": "player_looking_right",
+        "sprite_id": "john_looking_right",
         "coordinates": [16, 15, 25, 30]
     }, {
-        "sprite_id": "player_looking_left",
+        "sprite_id": "john_looking_left",
         "coordinates": [16, 0, 25, 15]
     }, {
         "sprite_id": "drill",

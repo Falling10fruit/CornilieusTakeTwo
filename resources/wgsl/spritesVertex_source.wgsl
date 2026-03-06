@@ -15,8 +15,9 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
 
 @group(0) @binding(4) var<storage, read> sCurrentSprites : array<u32>;
 
-//  x pos   y pos   rotation  sprite
-// 0101010 1010101 010101010 101010101
+//   255     255      511     
+//  x pos   y pos   rotation  512 sprites
+// 0101010 1010101 010101010   101010101
 
 // const spritesArray : array<vec4u, 6> = array(
 //      vec4(0, 0, 16, 16)

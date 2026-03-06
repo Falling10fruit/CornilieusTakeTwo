@@ -15,7 +15,8 @@
 struct DataStruct_rope {
     node_count: u32,
     nodes: array<vec2f, 4>,
-    mass: u32
+    mass: u32,
+    default_sprite: u32
 }
 
 const EntityData_rope = DataStruct_rope(
@@ -26,13 +27,16 @@ const EntityData_rope = DataStruct_rope(
         vec2f(0.5, -1.0),
         vec2f(-0.5, -1.0),
     ),
-    2 // in kilograms
+    2, // in kilograms
+    sprite_index_map.rope
 );
 
 fn main_rope() {
     if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
         control_rope();
     }
+
+    current_sprite = EntityData_rope.default_sprite;
 }
 
 fn control_rope() {
