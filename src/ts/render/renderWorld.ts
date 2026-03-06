@@ -28,12 +28,12 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
         label: `render world fragment shader`,
         code: `
             struct TileFormat { id : u32, hitPoints : u32, atlasStart : vec2f, atlasEnd : vec2f }
-            struct TileTypesStruct { GREEN_STONE : TileFormat, DARK_STONE : TileFormat, AQUARITE : TileFormat, ICE : TileFormat }
-            const TileTypes : TileTypesStruct = TileTypesStruct(
-                TileFormat(0u, 6u, vec2f(0.0,  0.0), vec2f(16.0, 16.0)), // GREEN_STONE
-                TileFormat(1u, 8u, vec2f(0.0, 16.0), vec2f(16.0, 32.0)), // DARK_STONE
-                TileFormat(2u, 4u, vec2f(0.0, 32.0), vec2f(16.0, 48.0)), // AQUARITE
-                TileFormat(3u, 2u, vec2f(0.0, 48.0), vec2f(16.0, 64.0))  // ICE
+            // struct TileTypesStruct { GREEN_STONE : TileFormat, DARK_STONE : TileFormat, AQUARITE : TileFormat, ICE : TileFormat }
+            const tile_types_indexed: array<TileFormat, 4> = array(
+                TileFormat(0u, 6u, vec2f(0.0,  0.0), vec2f(16.0, 16.0)),
+                TileFormat(1u, 8u, vec2f(0.0, 16.0), vec2f(16.0, 32.0)),
+                TileFormat(2u, 4u, vec2f(0.0, 32.0), vec2f(16.0, 48.0)),
+                TileFormat(3u, 2u, vec2f(0.0, 48.0), vec2f(16.0, 64.0)) 
             );
 
             struct TransformStruct {
@@ -60,6 +60,23 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                 ) / vec2f(textureDimensions(spritesheet));
             }
 
+            struct TileDataStruct {
+                tile_type: TileFormat,
+                hit_points: u32,
+            }
+
+            fn parse_raw_data (raw_data: u32) -> TileDataStruct {
+                return TileDataStruct(
+                    tile_types_indexed[(raw_data >> 30) & 3u],
+                    (raw_data >> 25) & 31u
+                );
+            }
+
+            fn get_tile_at (position: vec2f) -> TileDataStruct {
+                let index : u32 = u32(floor(position.x) + floor(position.y) * sWorldSize.x);
+                return parse_raw_data(sWorldData[index]);
+            }
+
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
                 var position : vec2f = (v_position.xy - uViewport/2.0) * vec2f(1.0, -1.0);
                 position = vec2f(
@@ -73,11 +90,8 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                     discard;
                 }
 
-                let dataIndex : u32 = u32(floor(position.x) + floor(position.y) * sWorldSize.x);
-                let tileData : u32 = sWorldData[dataIndex];
-
-                let tileType : u32 = (tileData >> 30) & 3u;
-                let hitPoints : u32 = (tileData >> 25) & 31u;
+                let tile_index: u32 = u32(floor(position.x) + floor(position.y) * sWorldSize.x);
+                let tile_data : TileDataStruct = parse_raw_data(sWorldData[tile_index]);
 
                 //     out_color = vec4(0.2, 0.5, 0.4, 1.0); // green stone
                 //     out_color = vec4(0.2, 0.2, 0.2, 1.0); // dark stone
@@ -86,33 +100,36 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
 
                 var out_color : vec4f = vec4f(0.0, 0.0, 0.0, 0.0);
 
-                // switch (tileType) {
-                //     case (TileTypes.GREEN_STONE.id) { out_color = vec4f(0.2, 0.5, 0.4, 1.0); }
-                //     case (TileTypes.DARK_STONE.id) { out_color = vec4f(0.2, 0.2, 0.2, 1.0); }
-                //     case (TileTypes.AQUARITE.id) { out_color = vec4f(0.6, 0.5, 0.2, 1.0); }    
-                //     case (TileTypes.ICE.id) { out_color = vec4f(1.0, 1.0, 1.0, 1.0); }
-                //     default { out_color = vec4f(0.0, 0.0, 0.0, 0.0); }
-                // }
+                out_color = textureSample(spritesheet, spritesheetSampler, interpolateAcrossTile(tile_data.tile_type, fract(position)));
 
-                var typeData : TileFormat;
-                switch (tileType) {
-                    case (TileTypes.GREEN_STONE.id) { typeData = TileTypes.GREEN_STONE; }
-                    case (TileTypes.DARK_STONE.id) { typeData = TileTypes.DARK_STONE; }
-                    case (TileTypes.AQUARITE.id) { typeData = TileTypes.AQUARITE; }    
-                    case (TileTypes.ICE.id) { typeData = TileTypes.ICE; }
-                    default { typeData = TileTypes.GREEN_STONE; }
-                }
+                if (tile_data.hit_points == 0u) {
+                    var occlusion: f32 = 0.0;
 
-                out_color = textureSample(spritesheet, spritesheetSampler, interpolateAcrossTile(typeData, fract(position)));
+                    if (position.y < sWorldSize.y - 1.0) { if (parse_raw_data(sWorldData[tile_index + u32(sWorldSize.x)]).hit_points > 0u) {
+                        occlusion = max(occlusion, fract(position.y) - 0.5);
+                    }}
+                        
+                    if (position.x < sWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + 1]).hit_points > 0u) {
+                        occlusion = max(occlusion, fract(position.x) - 0.5);
+                    }}
 
-                if (hitPoints == 0u) {
-                    out_color.x /= 2.0;
-                    out_color.y /= 2.0;
-                    out_color.z /= 2.0;
+                    if (position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(sWorldSize.x)]).hit_points > 0u) {
+                        occlusion = max(occlusion, 0.5 - fract(position.y));
+                    }}
+
+                    if (position.x > 1.0) { if (parse_raw_data(sWorldData[tile_index - 1]).hit_points > 0u) {
+                        occlusion = max(occlusion, 0.5 - fract(position.x));
+                    }}
+
+                    out_color.x /= 1.5 + occlusion * 2;
+                    out_color.y /= 1.5 + occlusion * 2;
+                    out_color.z /= 1.5 + occlusion * 2;
+
+                    // out_color = vec4f(occlusion, occlusion, occlusion, 1.0);
                 }
 
                 // out_color = vec4f(f32(tileData * 5)/255.0, 0.0, 0.0, 1.0);
-
+                // out_color = vec4f(fract(position.y), 0.0, 0.0, 1.0); // apparently 1 px in position is one block
                 return out_color;
             }
         `
