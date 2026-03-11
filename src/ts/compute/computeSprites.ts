@@ -98,14 +98,6 @@ function createPlaceholderSprites() {
     device.queue.writeBuffer(window.spritesBuffer.target, 0, target);
 }
 
-function createSpritesBufferOfSize(amountOfSprites: number) {
-    return device.createBuffer({
-        label: "Sprites buffer",
-        size: amountOfSprites * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    });
-}
-
 function computeSprites(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);

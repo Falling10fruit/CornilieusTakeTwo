@@ -1,3 +1,5 @@
+import { createPlaceholderEntities } from "../compute/computeEntities";
+
 let device: GPUDevice;
 
 function createBuffers(parameters: { device: GPUDevice }) {
@@ -121,7 +123,7 @@ function updateEntitiesData() {
         size: window.world.NO_OF_ENTITIES * 4 * 7,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
-
+    
     window.entitiesBuffer = {
         entities_indicies: entities_indicies,
         chunk_indicies: chunk_indicies,
@@ -134,16 +136,16 @@ function updateEntitiesData() {
 function createPlayerInputBuffer () {
     const playerInputBuffer = device.createBuffer({
         label: `players inputs`,
-        size: window.world.NO_OF_PLAYERS * 4,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        size: window.world.NO_OF_PLAYERS * 8 + 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
 
     window.world.playerInputBuffer = playerInputBuffer;
 
     const playerInputBufferMapped = device.createBuffer({
         label: `mapped player inputs`,
-        size: window.world.NO_OF_PLAYERS * 4,
-        usage: GPUBufferUsage.MAP_WRITE
+        size: window.world.NO_OF_PLAYERS * 8 + 4,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     });
 
     window.world.playerInputBufferMapped = playerInputBufferMapped;

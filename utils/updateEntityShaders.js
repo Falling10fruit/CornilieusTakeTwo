@@ -8,6 +8,7 @@ import { writeFileSync } from 'node:fs';
 
 const ENTITIES_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'json', 'entities', 'entities.json');
 const { entities_array, entity_indicies } = await parseEntityJson(ENTITIES_JSON);
+entities_array.splice(0, 1);
 
 const ENTITY_INDICIES_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'json', 'entities', 'entity_indicies.json');
 writeFile(ENTITY_INDICIES_JSON, JSON.stringify(entity_indicies));

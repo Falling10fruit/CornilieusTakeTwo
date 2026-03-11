@@ -152,15 +152,15 @@ async function generateWorldToBuffer (parameters: { width: number, height: numbe
     pass.dispatchWorkgroups(width, height);
     pass.end();
 
-    const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 64 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
-    encoder.copyBufferToBuffer(window.world.storageBuffer, readBuffer);
+    // const readBuffer = device.createBuffer({ label: `generateWorld readBuffer`, size: width * height * 64 * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST});
+    // encoder.copyBufferToBuffer(window.world.storageBuffer, readBuffer);
 
     device.queue.submit([encoder.finish()]);
 
-    readBuffer.mapAsync(GPUMapMode.READ).then(() => {
-        console.log(new Uint32Array(readBuffer.getMappedRange().slice(0, 1600)));
-        readBuffer.unmap();
-    });
+    // readBuffer.mapAsync(GPUMapMode.READ).then(() => {
+    //     console.log(new Uint32Array(readBuffer.getMappedRange().slice(0, 1600)));
+    //     readBuffer.unmap();
+    // });
 }
 
 export { setUpGenerateWorld, generateWorldToBuffer }

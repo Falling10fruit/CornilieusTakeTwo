@@ -109,16 +109,32 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                         occlusion = max(occlusion, fract(position.y) - 0.5);
                     }}
                         
+                    if (position.y < sWorldSize.y - 1.0 && position.x < sWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + u32(sWorldSize.x) + 1]).hit_points > 0u) {
+                        occlusion = max(occlusion, min(fract(position.y) - 0.5, fract(position.x) - 0.5));
+                    }}
+                        
                     if (position.x < sWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + 1]).hit_points > 0u) {
                         occlusion = max(occlusion, fract(position.x) - 0.5);
+                    }}
+                          
+                    if (position.x < sWorldSize.x - 1.0 && position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index + 1 - u32(sWorldSize.x)]).hit_points > 0u) {
+                        occlusion = max(occlusion, min(fract(position.x) - 0.5, 0.5 - fract(position.y)));
                     }}
 
                     if (position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(sWorldSize.x)]).hit_points > 0u) {
                         occlusion = max(occlusion, 0.5 - fract(position.y));
                     }}
+                        
+                    if (position.y > 1.0 && position.x > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(sWorldSize.x) - 1]).hit_points > 0u) {
+                        occlusion = max(occlusion, min(0.5 - fract(position.y), 0.5 - fract(position.x)));
+                    }}
 
                     if (position.x > 1.0) { if (parse_raw_data(sWorldData[tile_index - 1]).hit_points > 0u) {
                         occlusion = max(occlusion, 0.5 - fract(position.x));
+                    }}
+                        
+                    if (position.x > 1.0 && position.y < sWorldSize.y - 1.0) { if (parse_raw_data(sWorldData[tile_index - 1 + u32(sWorldSize.x)]).hit_points > 0u) {
+                        occlusion = max(occlusion, min(0.5 - fract(position.x), fract(position.y) - 0.5));
                     }}
 
                     out_color.x /= 1.5 + occlusion * 2;

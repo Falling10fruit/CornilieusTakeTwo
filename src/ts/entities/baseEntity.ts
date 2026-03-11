@@ -6,7 +6,7 @@ const entity_indicies = fetch("./src/json/entities/entity_indicies.json").then((
 });
 
 export class Entity {
-    #entity_type : number;
+    #entity_type : number | string;
     #chunk : number;
     #x_position : number;
     #y_position : number;
@@ -15,17 +15,18 @@ export class Entity {
     #x_velocity : number;
     #rotation_velocity : number
 
-    constructor (
-        entity_type : number | string = 0,
-        global_x_position : number = 0,
-        global_y_position : number = 0,
-        rotation : number = 0,
-        x_velocity : number = 0,
-        y_velocity : number = 0,
-        rotation_velocity : number = 0
-    ) {
+    constructor (parameters: {
+        entity_type : number | string,
+        global_x_position : number,
+        global_y_position : number,
+        rotation : number,
+        x_velocity : number,
+        y_velocity : number,
+        rotation_velocity : number
+    }) {
+        const { entity_type, global_x_position, global_y_position, rotation, x_velocity, y_velocity, rotation_velocity} = parameters;
         if (typeof entity_type == "number") { this.#entity_type = entity_type; }
-        if (typeof entity_type == "string") { entity_type = entity_indicies[entity_type]; }
+        if (typeof entity_type == "string") { this.#entity_type = entity_indicies[entity_type] as any; }
 
         this.#chunk = Math.floor(global_x_position / (8 * 16)) + window.world.width * Math.floor(global_y_position / (8 * 16));
         this.#x_position = global_x_position % (8 * 16);
@@ -49,6 +50,7 @@ export class Entity {
             add32Uints(entity_type, chunk, x_position_first_part),
             add32Uints(x_position_second_part, y_position, this.#rotation),
             add32Uints(x_velocity, y_velocity, this.#rotation_velocity),
+            0, 0, 0, 0
         ]);
     }
 }

@@ -24,13 +24,13 @@ function render () {
 
     device.queue.writeBuffer(window.camera.uniformBuffer, 0, new Float32Array([window.camera.xPos, window.camera.yPos, window.camera.scale, window.camera.rotation]));
 
-    const commanderEncoder = device.createCommandEncoder({ label: `render command encoder`});
+    const commandEncoder = device.createCommandEncoder({ label: `render command encoder`});
     
-    const computePass = commanderEncoder.beginComputePass({ label: `render computePass` });
+    const computePass = commandEncoder.beginComputePass({ label: `render computePass` });
     computeSprites(computePass);
     computePass.end();
 
-    const renderPass = commanderEncoder.beginRenderPass({
+    const renderPass = commandEncoder.beginRenderPass({
         label: `render renderPass`,
         colorAttachments: [{
             clearValue: [0.19607843137254902, 0.39215686274509803, 0.0, 1.0],
@@ -43,7 +43,7 @@ function render () {
     renderSprites(renderPass);
     renderPass.end();
 
-    device.queue.submit([commanderEncoder.finish()]);
+    device.queue.submit([commandEncoder.finish()]);
 
     requestAnimationFrame(render);
 }

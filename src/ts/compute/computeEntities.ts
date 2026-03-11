@@ -7,6 +7,8 @@ let bindGroup_entities_0: GPUBindGroup;
 let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
 let bindGroup_additionalData: GPUBindGroup;
+let debug_buffer: GPUBuffer;
+let debug_buffer_mapped: GPUBuffer;
 
 let NO_OF_DISPATCHES: number;
 
@@ -35,9 +37,10 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     const bindGroupLayout_additionalData = device.createBindGroupLayout({
         label: `compute entities player input bind group layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry, // world dimensions in blocks not chunks
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // world data
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}           as GPUBindGroupLayoutEntry, // debug buffer to transfer one u32 fromt the gpu
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry, // world dimensions in blocks not chunks
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // world data
         ]
     });
 
@@ -87,13 +90,22 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
 
+    debug_buffer = device.createBuffer({ label: `compute entities debug buffer`,
+        size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+    
+    debug_buffer_mapped = device.createBuffer({ label: `compute entities debug buffer`,
+        size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
+
     bindGroup_additionalData = device.createBindGroup({
         label: `compute entities additional data bind group`,
         layout: pipeline.getBindGroupLayout(2),
         entries: [
-            { binding: 0, resource: { buffer: window.world.playerInputBuffer }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
+            { binding: 0, resource: { buffer: debug_buffer                   }} as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.world.playerInputBuffer }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
         ]
     })
 
@@ -125,7 +137,7 @@ function computeEntities(pass: GPUComputePassEncoder) {
     window.entitiesBuffer.current_entity_buffer_is = window.entitiesBuffer.current_entity_buffer_is == 0 ? 1 : 0;
 }
 
-function createPlaceholderEntities() {
+async function createPlaceholderEntities() {
     const { entities_indicies, chunk_indicies, entities_buffer_0, entities_buffer_1} = window.entitiesBuffer;
 
     if (entities_indicies == null) return window.fail({ title: `Entities indicies buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
@@ -135,13 +147,41 @@ function createPlaceholderEntities() {
 
     device.queue.writeBuffer(entities_indicies, 0, new Uint32Array(0));
     device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array(0));
-    device.queue.writeBuffer(entities_buffer_0, 0, (new Entity()).serialized_representation());
+
+    const placeholder_entity = new Entity({
+        entity_type: 0,
+        global_x_position : 10,
+        global_y_position : 0,
+        rotation : 0,
+        x_velocity : 0,
+        y_velocity : 0,
+        rotation_velocity : 0
+    });
+    
+    device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array(placeholder_entity.serialized_representation()));
+    device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(placeholder_entity.serialized_representation()));
 }
 
-function add32Uints(...numbers: number[]) {
-    let sum = 0;
-    for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
-    return sum;
+function simulateEntities() {
+    const commandEncoder = device.createCommandEncoder({ label: `compute entities command encoder` });
+
+    const computePass = commandEncoder.beginComputePass({ label: `compute entities compute pass`});
+    computeEntities(computePass);
+    computePass.end();
+
+    
+    if (window.world.playerInputBuffer == null) return window.fail({ title: `player input buffer is null`, message: `message generated in computeEntities.ts`});
+    if (window.world.playerInputBufferMapped == null) return window.fail({ title: `player input buffer mapped is null`, message: `message generated in computeEntities.ts`});
+    commandEncoder.copyBufferToBuffer(debug_buffer, debug_buffer_mapped);
+    
+    device.queue.submit([commandEncoder.finish()]);
+
+    debug_buffer_mapped.mapAsync(GPUMapMode.READ).then(() => {
+        console.log((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
+        debug_buffer_mapped.unmap();
+    });
+
+    // requestAnimationFrame(simulateEntities);
 }
 
-export { setUpComputeEntities, computeEntities, createPlaceholderEntities }
+export { setUpComputeEntities, simulateEntities, createPlaceholderEntities }

@@ -1,6 +1,7 @@
 // 
 //    Entity index (creation order)
 // 01010101 01010101 01010101 01010101
+// type = 0 means no entity
 // type (2^9 = 512)    chunk index 2^16        xPos(2^13)      yPos (16 * 8 pixels divided by 2^13)       rotation 2^13 
 //   [ 010101010 ]   [ 1010101010101010 ] [ 1010101 | 010101 ]           [ 0101010101010 ]              [ 1010101010101 ] |
 // x_vel      y_vel      rotate_vel
@@ -53,15 +54,18 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 // First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
 //                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read> players_input : array<u32>;
-@group(2) @binding(1) var<uniform> world_dimensions : vec2u;
-@group(2) @binding(2) var<storage, read> world_data : array<u32>;
+@group(2) @binding(0) var<storage> debug_data : u32;
+@group(2) @binding(1) var<storage, read> players_input : array<u32>;
+@group(2) @binding(2) var<uniform> world_dimensions : vec2u;
+@group(2) @binding(3) var<storage, read> world_data : array<u32>;
 
 var<private> entity_index : u32;
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
 var<private> x_position : f32;
 var<private> y_position : f32;
+var<private> x_velocity : f32;
+var<private> y_velocity : f32;
 var<private> rotation : f32; // in the 2^13 format 0 - 8191
 var<private> entity_integers : EntityIntegers;
 var<private> entity_type : u32;
@@ -95,7 +99,6 @@ fn get_sub_integer_entity(range : vec2u) -> u32 {
     return sub_integer;
 }
 
-
 fn set_sub_integer_entity(range : vec2u, new_value : u32) {
     for (var i : u32 = 0; i < range.y; i += 32) {
         let offset : u32 = i * 32;
@@ -112,9 +115,6 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
         entity_integers[i] = masked_int + select(shift_left(new_value, u32(-value_shift)), shift_right(new_value, u32(value_shift)), value_shift > 0);
     }
 }
-
-fn get_x_position_in_chunk () -> f32 { return f32(get_sub_integer_entity(base_entity_integer_sub_divisions.x_position))/32.0; }
-fn get_y_position_in_chunk () -> f32 { return f32(get_sub_integer_entity(base_entity_integer_sub_divisions.y_position))/32.0; }
 
 fn update_entity_position () {
     let world_dimensions_in_chunks = world_dimensions / 8;
@@ -161,6 +161,12 @@ fn set_x_vel (vel : f32) {
     set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, sub_integer);
 }
 
+fn get_x_pos () -> f32 {
+    let x_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.x_position);
+    let chunk_x_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) % world_dimensions.x;
+    return f32(chunk_x_pos * 16 * 16) + f32(x_pos_in_chunk) / 128.0;
+}
+
 fn get_y_vel () -> f32 {
     let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity);
  
@@ -171,6 +177,12 @@ fn get_y_vel () -> f32 {
     let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
     
     return sign * exponent_multiplier * f32(raw_int & 127);
+}
+
+fn get_y_pos () -> f32 {
+    let y_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.y_position);
+    let chunk_y_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) / world_dimensions.x;
+    return f32(chunk_y_pos * 16 * 16) + f32(y_pos_in_chunk) / 128.0;
 }
 
 fn set_y_vel (vel : f32) {
@@ -380,44 +392,52 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
     let entity_buffer_ptr_1 : points_to_entities_buffer_1 = &entities_buffer_1;
     entity_index = global_invocation_id.x;
 
-    if (entity_index >= arrayLength(entity_buffer_ptr_0)) { return; }
+    if (entity_index * NO_OF_INTEGERS_PER_ENTITY >= arrayLength(&entities_buffer_0)) { return; }
     for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[entity_index * 7 + i]; }
 
     entity_type = (entity_integers[1] >> 23) & 511;
-    x_position = get_x_vel();
-    y_position = get_y_vel();
-    get_input();
+    if (entity_type != 0) {
+
+        x_position = get_x_pos();
+        y_position = get_y_pos();
+        x_velocity = get_x_vel();
+        y_velocity = get_y_vel();
+        get_input();
 
 
-// else
-    if (entity_type == 0) { main_john(); } else
-    if (entity_type == 1) { main_block(); } else
-    if (entity_type == 2) { main_drill(); } else
-    if (entity_type == 3) { main_rope(); }
+    // else
+    if (entity_type == 1) { main_john(); } else
+    if (entity_type == 2) { main_block(); } else
+    if (entity_type == 3) { main_drill(); } else
+    if (entity_type == 4) { main_rope(); }
 
-    do_the_physics();
+        do_the_physics();
+        
+        //  x       y       rotation  sprite
+        // 0101010 1010101 010101010 101010101
+        let serialized_x_position = u32(floor(x_position)) % 128;
+        let serialized_y_position = u32(floor(y_position)) % 128;
+        let serialized_rotation = u32(floor(rotation / 16.0)) % 512;
+        sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
+    }
+
     
-    //  x       y       rotation  sprite
-    // 0101010 1010101 010101010 101010101
-    let serialized_x_position = u32(floor(x_position)) % 128;
-    let serialized_y_position = u32(floor(y_position)) % 128;
-    let serialized_rotation = u32(floor(rotation / 16.0)) % 512;
-    sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
+    for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[entity_index * 7 + i]; }
 } 
 
 fn do_the_physics() {
-    // if (entity_type == 1) {
-    //     // main_john(index, index_in_buffer);
-    // }
+    x_position += x_velocity;
+    y_position += y_velocity;
+    update_entity_position();
 }
 
 
 fn handle_collision(collider: u32) {
 // else
-    if (entity_type == 0) { handle_collision_john(collider); } else
-    if (entity_type == 1) { handle_collision_block(collider); } else
-    if (entity_type == 2) { handle_collision_drill(collider); } else
-    if (entity_type == 3) { handle_collision_rope(collider); }
+    if (entity_type == 1) { handle_collision_john(collider); } else
+    if (entity_type == 2) { handle_collision_block(collider); } else
+    if (entity_type == 3) { handle_collision_drill(collider); } else
+    if (entity_type == 4) { handle_collision_rope(collider); }
 }// entity john
 
 // @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
