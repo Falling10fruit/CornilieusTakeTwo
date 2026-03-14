@@ -46,6 +46,8 @@ export class Entity {
         const x_velocity = shift_left(this.#x_velocity, 22);
         const y_velocity = shift_left(this.#y_velocity, 12);
 
+        // console.log(entity_type);
+
         return new Uint32Array([
             add32Uints(entity_type, chunk, x_position_first_part),
             add32Uints(x_position_second_part, y_position, this.#rotation),

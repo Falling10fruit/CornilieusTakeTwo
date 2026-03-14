@@ -132,7 +132,7 @@ function computeEntities(pass: GPUComputePassEncoder) {
 
     pass.setBindGroup(1, bindGroup_targetSprites);
     pass.setBindGroup(2, bindGroup_additionalData);
-    pass.dispatchWorkgroups(NO_OF_DISPATCHES);
+    pass.dispatchWorkgroups(1); // CHANGE IT BACK TO NO_OF_DISPATCHES
     
     window.entitiesBuffer.current_entity_buffer_is = window.entitiesBuffer.current_entity_buffer_is == 0 ? 1 : 0;
 }
@@ -149,7 +149,7 @@ async function createPlaceholderEntities() {
     device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array(0));
 
     const placeholder_entity = new Entity({
-        entity_type: 0,
+        entity_type: 1,
         global_x_position : 10,
         global_y_position : 0,
         rotation : 0,
@@ -157,7 +157,7 @@ async function createPlaceholderEntities() {
         y_velocity : 0,
         rotation_velocity : 0
     });
-    
+    // console.log(placeholder_entity.serialized_representation())
     device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array(placeholder_entity.serialized_representation()));
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(placeholder_entity.serialized_representation()));
 }
@@ -177,11 +177,16 @@ function simulateEntities() {
     device.queue.submit([commandEncoder.finish()]);
 
     debug_buffer_mapped.mapAsync(GPUMapMode.READ).then(() => {
-        console.log((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
+        print_bits(8388608);
+        print_bits((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
         debug_buffer_mapped.unmap();
     });
 
     // requestAnimationFrame(simulateEntities);
+}
+
+function print_bits(u32_number: number) {
+    console.log((u32_number.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
 }
 
 export { setUpComputeEntities, simulateEntities, createPlaceholderEntities }
