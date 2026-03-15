@@ -177,8 +177,9 @@ function simulateEntities() {
     device.queue.submit([commandEncoder.finish()]);
 
     debug_buffer_mapped.mapAsync(GPUMapMode.READ).then(() => {
-        print_bits(8388608);
+        print_bits(2765000637);
         print_bits((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
+        // console.log((new Float32Array(debug_buffer_mapped.getMappedRange()))[0]);
         debug_buffer_mapped.unmap();
     });
 

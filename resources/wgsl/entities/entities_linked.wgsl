@@ -81,13 +81,12 @@ fn shift_right (value : u32, shift: u32) -> u32 {
 
 fn get_sub_integer_entity(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
-    for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
-        let offset : u32 = i * 32;
+    for (var offset : u32 = 0; offset <= range.y; offset += 32) {
         let mask_start : u32 = clamp(0, 32, range.x - offset);
-        let mask_end : i32 = 31 - i32(range.x) + i32(offset);
+        let mask_end : i32 = 31 - i32(range.y) + i32(offset);
         let bit_mask_start = 0xFFFFFFFFu >> mask_start;
         let bit_mask_end = 0xFFFFFFFFu << u32(clamp(0, 32, mask_end));
-        let masked_integer = entity_integers[i] & bit_mask_start & bit_mask_end;
+        let masked_integer = entity_integers[offset / 32] & bit_mask_start & bit_mask_end;
 
         if (mask_end < 0) {
             sub_integer += masked_integer << u32(-mask_end);
@@ -144,7 +143,6 @@ fn get_x_vel () -> f32 {
     let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity);
     let sign_bit = raw_int >> 9;
     let sign : f32 = f32(sign_bit * 2) - 1.0; // 0 - 1 -> -1 - 1
-
     let exponent_int = (raw_int >> 7) & 3;
     let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
     
@@ -333,13 +331,12 @@ var<private> is_controlled : bool;
 
 fn get_sub_integer_input(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
-    for (var i : u32 = range.x / 32; i < range.y / 32; i++) {
-        let offset : u32 = i * 32;
+    for (var offset : u32 = range.x; offset < range.y; offset += 32) {
         let mask_start : u32 = clamp(0, 32, range.x - offset);
-        let mask_end : i32 = 31 - i32(range.x) + i32(offset);
+        let mask_end : i32 = 31 - i32(range.y) + i32(offset);
         let bit_mask_start = 0xFFFFFFFFu >> mask_start;
         let bit_mask_end = 0xFFFFFFFFu << u32(clamp(0, 32, mask_end));
-        let masked_integer = input_integers[i] & bit_mask_start & bit_mask_end;
+        let masked_integer = input_integers[offset / 32] & bit_mask_start & bit_mask_end;
 
         if (mask_end < 0) {
             sub_integer += masked_integer << u32(-mask_end);
@@ -353,23 +350,6 @@ fn get_sub_integer_input(range : vec2u) -> u32 {
 
 fn get_bit_from_input(index : u32) -> u32 { // Use this to quickly get single digits
     return (players_input[index / 32] >> (31 - index % 32)) & 1u;
-}
-
-fn set_sub_integer_input(range : vec2u, new_value : u32) {
-    for (var i : u32 = 0; i < range.y; i += 32) {
-        let offset : u32 = i * 32;
-
-        let mask_start : i32 = 32 - i32(range.x) + i32(offset);
-        let mask_end = 1 + (range.x - offset);
-        
-        let bit_mask_start = 0xFFFFFFFFu << u32(clamp(0, 32, mask_start));
-        let bit_mask_end = 0xFFFFFFFFu >> clamp(0, 32, mask_end);
-        
-        let masked_int = input_integers[i] & (bit_mask_start | bit_mask_end);
-        let value_shift = i32(mask_end) - 32;
-
-        input_integers[i] = masked_int + select(new_value << u32(-value_shift), new_value >> u32(value_shift), value_shift > 0);
-    }
 }
 
 fn get_input() { // replace this eventually pls with a dedicated shader. We don't have enough space in the entity_integers to fit a player id
@@ -393,6 +373,9 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
     let entity_buffer_ptr_1 : points_to_entities_buffer_1 = &entities_buffer_1;
     entity_index = global_invocation_id.x;
 
+    entity_integers[0] = 0xA4CE8FBDu;
+    debug_data = get_sub_integer_entity(vec2u(13, 26));
+
     if (entity_index * NO_OF_INTEGERS_PER_ENTITY >= arrayLength(&entities_buffer_0)) { return; }
     for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[entity_index * 7 + i]; }
 
@@ -404,6 +387,7 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
         x_velocity = get_x_vel();
         y_velocity = get_y_vel();
         get_input();
+
 
 
     // else
