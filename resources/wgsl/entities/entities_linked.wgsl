@@ -52,11 +52,12 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 // First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
 //                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read_write> debug_data : u32;
+@group(2) @binding(0) var<storage, read_write> debug_data : f32;
 @group(2) @binding(1) var<storage, read>       players_input : array<u32>;
 @group(2) @binding(2) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(3) var<storage, read>       world_data : array<u32>;
 
+const CHUNK_LENGTH : u32 = 8; // This is so that it can fit in the sprites
 const NO_OF_INTEGERS_PER_ENTITY : u32 = 7;
 alias EntityIntegers = array<u32, NO_OF_INTEGERS_PER_ENTITY>;
 var<private> entity_integers : EntityIntegers;
@@ -82,16 +83,16 @@ fn shift_right (value : u32, shift: u32) -> u32 {
 fn get_sub_integer_entity(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
     for (var offset : u32 = 0; offset <= range.y; offset += 32) {
-        let mask_start : u32 = clamp(0, 32, range.x - offset);
+        let mask_start : u32 = u32(clamp(i32(range.x) - i32(offset), 0, 32));
         let mask_end : i32 = 31 - i32(range.y) + i32(offset);
-        let bit_mask_start = 0xFFFFFFFFu >> mask_start;
-        let bit_mask_end = 0xFFFFFFFFu << u32(clamp(0, 32, mask_end));
+        let bit_mask_start = shift_right(0xFFFFFFFFu, mask_start);
+        let bit_mask_end = shift_left(0xFFFFFFFFu, u32(clamp(mask_end, 0, 32)));
         let masked_integer = entity_integers[offset / 32] & bit_mask_start & bit_mask_end;
 
         if (mask_end < 0) {
-            sub_integer += masked_integer << u32(-mask_end);
+            sub_integer += shift_left(masked_integer, u32(-mask_end));
         } else {
-            sub_integer += masked_integer >> u32(mask_end);
+            sub_integer += shift_right(masked_integer, u32(mask_end));
         }
     }
 
@@ -105,20 +106,21 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
         let mask_start : i32 = 32 - i32(range.x) + i32(offset);
         let mask_end = 1 + (range.y - offset);
         
-        let bit_mask_start = 0xFFFFFFFFu << u32(clamp(0, 32, mask_start));
-        let bit_mask_end = 0xFFFFFFFFu >> mask_end;
+        let bit_mask_start = shift_left(0xFFFFFFFFu, u32(clamp(mask_start, 0, 32)));
+        let bit_mask_end = shift_right(0xFFFFFFFFu, mask_end);
         
         let masked_int = entity_integers[i] & (bit_mask_start | bit_mask_end);
         let value_shift = i32(mask_end) - 32;
 
-        entity_integers[i] = masked_int + select(new_value << u32(-value_shift), new_value >> u32(value_shift), value_shift > 0);
+        entity_integers[i] = masked_int + select(shift_left(new_value, u32(-value_shift)), shift_right(new_value, u32(value_shift)), value_shift > 0);
     }
 }
 
+const pos_chunk_ratio = 8192 / (CHUNK_LENGTH * 16);
 fn update_entity_position () {
     let world_dimensions_in_chunks = world_dimensions / 8;
 
-    var serialized_x_position : u32 = u32(round(x_position * 32.0));
+    var serialized_x_position : u32 = u32(round(x_position * f32(pos_chunk_ratio)));
     if (serialized_x_position >= 4096) {
         chunk_x += 1;
         serialized_x_position -= 4096;
@@ -126,7 +128,7 @@ fn update_entity_position () {
     
     set_sub_integer_entity(base_entity_integer_sub_divisions.x_position, serialized_x_position);
     
-    var serialized_y_position : u32 = u32(round(y_position * 32.0));
+    var serialized_y_position : u32 = u32(round(y_position * f32(pos_chunk_ratio)));
     if (serialized_y_position >= 4096) {
         chunk_y += 1;
         serialized_y_position -= 4096;
@@ -155,14 +157,14 @@ fn set_x_vel (vel : f32) {
     let power = floor(log2(abs_vel/128) * 0.69314718) + 1.0; // log2(x) / log2(10)
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
-    let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
+    let sub_integer = (clamp(sign, 0, 1) << 9) + (clamp(u32(round(power)), 0, 3) << 7) + clamp(mantissa, 0, 127);
     set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, sub_integer);
 }
 
 fn get_x_pos () -> f32 {
     let x_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.x_position);
     let chunk_x_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) % world_dimensions.x;
-    return f32(chunk_x_pos * 16 * 16) + f32(x_pos_in_chunk) / 128.0;
+    return f32(chunk_x_pos * CHUNK_LENGTH * 16) + f32(x_pos_in_chunk) / f32(pos_chunk_ratio);
 }
 
 fn get_y_vel () -> f32 {
@@ -180,7 +182,7 @@ fn get_y_vel () -> f32 {
 fn get_y_pos () -> f32 {
     let y_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.y_position);
     let chunk_y_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) / world_dimensions.x;
-    return f32(chunk_y_pos * 16 * 16) + f32(y_pos_in_chunk) / 128.0;
+    return f32(chunk_y_pos * 16 * 16) + f32(y_pos_in_chunk) / f32(pos_chunk_ratio);
 }
 
 fn set_y_vel (vel : f32) {
@@ -189,7 +191,7 @@ fn set_y_vel (vel : f32) {
     let power = floor(log2(abs_vel/128) * 0.69314718) + 1.0; // log2(x) / log2(10)
     let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
     
-    let sub_integer = (clamp(0, 1, sign) << 9) + (clamp(0, 3, u32(round(power))) << 7) + clamp(0, 127, mantissa);
+    let sub_integer = (clamp(sign, 0, 1) << 9) + (clamp(u32(round(power)), 0, 3) << 7) + clamp(mantissa, 0, 127);
     set_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity, sub_integer);
 }
 
@@ -332,16 +334,16 @@ var<private> is_controlled : bool;
 fn get_sub_integer_input(range : vec2u) -> u32 {
     var sub_integer : u32 = 0;
     for (var offset : u32 = range.x; offset < range.y; offset += 32) {
-        let mask_start : u32 = clamp(0, 32, range.x - offset);
+        let mask_start : u32 = clamp(range.x - offset, 0, 32);
         let mask_end : i32 = 31 - i32(range.y) + i32(offset);
-        let bit_mask_start = 0xFFFFFFFFu >> mask_start;
-        let bit_mask_end = 0xFFFFFFFFu << u32(clamp(0, 32, mask_end));
+        let bit_mask_start = shift_right(0xFFFFFFFFu, mask_start);
+        let bit_mask_end = shift_left(0xFFFFFFFFu, u32(clamp(mask_end, 0, 32)));
         let masked_integer = input_integers[offset / 32] & bit_mask_start & bit_mask_end;
 
         if (mask_end < 0) {
-            sub_integer += masked_integer << u32(-mask_end);
+            sub_integer += shift_left(masked_integer, u32(-mask_end));
         } else {
-            sub_integer += masked_integer >> u32(mask_end);
+            sub_integer += shift_right(masked_integer, u32(mask_end));
         }
     }
 
@@ -349,7 +351,7 @@ fn get_sub_integer_input(range : vec2u) -> u32 {
 }
 
 fn get_bit_from_input(index : u32) -> u32 { // Use this to quickly get single digits
-    return (players_input[index / 32] >> (31 - index % 32)) & 1u;
+    return (shift_right(players_input[index / 32], (31 - index % 32))) & 1u;
 }
 
 fn get_input() { // replace this eventually pls with a dedicated shader. We don't have enough space in the entity_integers to fit a player id
@@ -369,26 +371,23 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
 @compute @workgroup_size(1, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    let entity_buffer_ptr_0 : points_to_entities_buffer_0 = &entities_buffer_0;
-    let entity_buffer_ptr_1 : points_to_entities_buffer_1 = &entities_buffer_1;
-    entity_index = global_invocation_id.x;
+    entity_index = entities_indicies[global_invocation_id.x];
 
-    entity_integers[0] = 0xA4CE8FBDu;
-    debug_data = get_sub_integer_entity(vec2u(13, 26));
 
     if (entity_index * NO_OF_INTEGERS_PER_ENTITY >= arrayLength(&entities_buffer_0)) { return; }
     for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[entity_index * 7 + i]; }
 
-    entity_type = (entity_integers[1] >> 23) & 511;
-    if (entity_type != 0) {
 
+    entity_type = (entity_integers[0] >> 23) & 511;
+    if (entity_type != 0) {
         x_position = get_x_pos();
         y_position = get_y_pos();
         x_velocity = get_x_vel();
         y_velocity = get_y_vel();
         get_input();
 
-
+        // debug_data = 0xFFFFFFFFu >> 31u;
+        debug_data = x_position;
 
     // else
     if (entity_type == 1) { main_john(); } else
@@ -396,14 +395,13 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
     if (entity_type == 3) { main_drill(); } else
     if (entity_type == 4) { main_rope(); }
 
-        // 00000000 10000000 00000000 00000000
         do_the_physics();
         
         //  x       y       rotation  sprite
         // 0101010 1010101 010101010 101010101
-        let serialized_x_position = u32(floor(x_position)) % 128;
-        let serialized_y_position = u32(floor(y_position)) % 128;
-        let serialized_rotation = u32(floor(rotation / 16.0)) % 512;
+        let serialized_x_position = u32(floor(x_position)) % 127;
+        let serialized_y_position = u32(floor(y_position)) % 127;
+        let serialized_rotation = u32(floor(rotation / 16.0)) % 511;
         sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
 
 
@@ -426,6 +424,11 @@ fn handle_collision(collider: u32) {
     if (entity_type == 2) { handle_collision_block(collider); } else
     if (entity_type == 3) { handle_collision_drill(collider); } else
     if (entity_type == 4) { handle_collision_rope(collider); }
+}
+
+fn Q_rsqrt(x: f32) -> f32 { // Thank you quake
+    let y = bitcast<f32>(0x5f3759df - ( bitcast<u32>(x) >> 1 ));
+    return y * (1.5 - y * y * x * 0.5);
 }// entity john
 
 // @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;

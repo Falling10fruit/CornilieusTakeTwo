@@ -7,4 +7,8 @@ function add32Uints(...numbers: number[]) {
     return sum >>> 0;
 }
 
-export { shift_left, shift_right, add32Uints }
+function print_bits(u32_number: number) {
+    console.log((u32_number.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
+}
+
+export { shift_left, shift_right, add32Uints, print_bits }

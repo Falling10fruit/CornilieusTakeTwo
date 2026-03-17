@@ -1,15 +1,20 @@
-import { shift_left, shift_right, add32Uints } from "../../bit_utils";
+import { shift_left, shift_right, add32Uints, print_bits } from "../../bit_utils";
 
 const entity_indicies = fetch("./src/json/entities/entity_indicies.json").then((res) => {
     if (!res.ok) { throw new Error(`Failed to fetch entity indicies json with http code ${res.status}`) }
     return res.json()
 });
 
+// type (2^9 = 512)     chunk index 2^16         xPos(2^13)       yPos (16 * 8 pixels divided by 2^13)         rotation 2^13 
+//  [ 01010101 0 ]   [ 1010101 01010101 0 ] [ 1010101 | 010101 ]           [ 01 01010101 010 ]              [ 10101 01010101 ] |
+// x_vel      y_vel      rotate_vel
+// 0101010101 0101010101 010101010101 
+// 2^10 -> 1023          2^12 -> 4095
+
 export class Entity {
     #entity_type : number | string;
-    #chunk : number;
-    #x_position : number;
-    #y_position : number;
+    #global_x_position : number;
+    #global_y_position : number;
     #rotation : number;
     #y_velocity : number;
     #x_velocity : number;
@@ -28,9 +33,8 @@ export class Entity {
         if (typeof entity_type == "number") { this.#entity_type = entity_type; }
         if (typeof entity_type == "string") { this.#entity_type = entity_indicies[entity_type] as any; }
 
-        this.#chunk = Math.floor(global_x_position / (8 * 16)) + window.world.width * Math.floor(global_y_position / (8 * 16));
-        this.#x_position = global_x_position % (8 * 16);
-        this.#y_position = global_y_position % (8 * 16);
+        this.#global_x_position = global_x_position;
+        this.#global_y_position = global_y_position;
         this.#rotation = rotation;
         this.#y_velocity = y_velocity;
         this.#x_velocity = x_velocity;
@@ -39,12 +43,22 @@ export class Entity {
 
     serialized_representation() {
         const entity_type = shift_left(this.#entity_type, 23);
-        const chunk = shift_left(this.#chunk, 7);
-        const x_position_first_part = shift_right(this.#x_position, 6);
-        const x_position_second_part = shift_left(this.#x_position, 26);
-        const y_position = shift_left(this.#y_position, 13);
         const x_velocity = shift_left(this.#x_velocity, 22);
         const y_velocity = shift_left(this.#y_velocity, 12);
+
+
+        const formatted_x_position = Math.round(this.#global_x_position * 2**(9 - 3));
+        const formatted_y_position = Math.round(this.#global_y_position * 2**(9 - 3));
+        const chunk = formatted_x_position / (2**13) + window.world.width * formatted_y_position / (2**13);
+        const serialized_x_position = formatted_x_position % (2**13);
+        const serialized_y_position = formatted_y_position % (2**13);
+
+        // console.log("serialized x position");
+        // console.log(serialized_x_position);
+
+        const x_position_first_part = shift_right(serialized_x_position, 6);
+        const x_position_second_part = shift_left(serialized_x_position, 26);
+        const y_position = shift_left(serialized_y_position, 13);
 
         // console.log(entity_type);
 

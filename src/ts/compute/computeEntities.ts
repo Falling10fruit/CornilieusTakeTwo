@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Entity } from "../entities/baseEntity.ts"
+import { print_bits } from "../../bit_utils.ts";
 
 let device: GPUDevice;
 let pipeline: GPUComputePipeline;
@@ -145,8 +146,8 @@ async function createPlaceholderEntities() {
     if (entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
     if (entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
 
-    device.queue.writeBuffer(entities_indicies, 0, new Uint32Array(0));
-    device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array(0));
+    device.queue.writeBuffer(entities_indicies, 0, new Uint32Array([0]));
+    device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array([0]));
 
     const placeholder_entity = new Entity({
         entity_type: 1,
@@ -177,17 +178,14 @@ function simulateEntities() {
     device.queue.submit([commandEncoder.finish()]);
 
     debug_buffer_mapped.mapAsync(GPUMapMode.READ).then(() => {
-        print_bits(2765000637);
-        print_bits((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
-        // console.log((new Float32Array(debug_buffer_mapped.getMappedRange()))[0]);
+        print_bits(8388618);
+        // print_bits((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
+        // console.log((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
+        console.log((new Float32Array(debug_buffer_mapped.getMappedRange()))[0]);
         debug_buffer_mapped.unmap();
     });
 
     // requestAnimationFrame(simulateEntities);
-}
-
-function print_bits(u32_number: number) {
-    console.log((u32_number.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
 }
 
 export { setUpComputeEntities, simulateEntities, createPlaceholderEntities }
