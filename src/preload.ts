@@ -11,8 +11,8 @@ async function preload (parameters: { device: GPUDevice }) {
         seed: 43758.5453,
         storageBuffer: null,
         dimensionsUniform: null,
-        NO_OF_SPRITES: 2**14,
-        NO_OF_ENTITIES: 2**12,
+        NO_OF_SPRITES: 2**15,
+        NO_OF_ENTITIES: 2**16,
 
         NO_OF_PLAYERS: 1, // aka singleplayer
         playerInputBuffer: null,
@@ -52,6 +52,11 @@ async function preload (parameters: { device: GPUDevice }) {
         console.log(event.key);
 
         if (event.key === "F2") eyedropper.click();
+    };
+
+    window.debug = {
+        buffer: null,
+        mapped_buffer: null
     };
 
     createBuffers({ ...parameters });

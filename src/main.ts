@@ -28,5 +28,5 @@ async function start() {
     await bufferInput(device);
     
     simulateEntities();
-    render(); // Also kickstart the simulation here eventually idk when, hopefully soon
+    render();
 }

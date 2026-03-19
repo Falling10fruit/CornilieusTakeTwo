@@ -37,8 +37,9 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
     const bindGroupLayout = device.createBindGroupLayout({
         label: `compute sprites bind gorup layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // current sprites buffer
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry // target sprites buffer
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry,
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // current sprites buffer
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry // target sprites buffer
         ]
     });
 
@@ -58,8 +59,9 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         label: `compute sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.spritesBuffer.current }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.debug.buffer }}          as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.spritesBuffer.current }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.spritesBuffer.target }}  as GPUBindGroupEntry,
         ]
     });
 
@@ -101,7 +103,7 @@ function createPlaceholderSprites() {
 function computeSprites(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION); //
+    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);
 }
 
 export { setUpComputeSprites, computeSprites }

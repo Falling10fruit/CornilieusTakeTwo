@@ -91,19 +91,12 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
 
-    debug_buffer = device.createBuffer({ label: `compute entities debug buffer`,
-        size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    });
-    
-    debug_buffer_mapped = device.createBuffer({ label: `compute entities debug buffer`,
-        size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    });
 
     bindGroup_additionalData = device.createBindGroup({
         label: `compute entities additional data bind group`,
         layout: pipeline.getBindGroupLayout(2),
         entries: [
-            { binding: 0, resource: { buffer: debug_buffer                   }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.debug.buffer            }} as GPUBindGroupEntry,
             { binding: 1, resource: { buffer: window.world.playerInputBuffer }} as GPUBindGroupEntry,
             { binding: 2, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
             { binding: 3, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
@@ -117,25 +110,6 @@ async function loadComputeShader(device: GPUDevice) {
     const computeShaderSource = await invoke("get_entity_compute_shader").catch((e) => { return e });
     if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
     return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
-}
-
-
-function computeEntities(pass: GPUComputePassEncoder) {
-    pass.setPipeline(pipeline);
-    
-    if (window.entitiesBuffer.current_entity_buffer_is == 0) {
-        pass.setBindGroup(0, bindGroup_entities_0);
-        window.entitiesBuffer.current_entity_buffer_is = 1;
-    } else {
-        pass.setBindGroup(0, bindGroup_entities_1);
-        window.entitiesBuffer.current_entity_buffer_is = 0;
-    }
-
-    pass.setBindGroup(1, bindGroup_targetSprites);
-    pass.setBindGroup(2, bindGroup_additionalData);
-    pass.dispatchWorkgroups(1); // CHANGE IT BACK TO NO_OF_DISPATCHES
-    
-    window.entitiesBuffer.current_entity_buffer_is = window.entitiesBuffer.current_entity_buffer_is == 0 ? 1 : 0;
 }
 
 async function createPlaceholderEntities() {
@@ -163,6 +137,30 @@ async function createPlaceholderEntities() {
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(placeholder_entity.serialized_representation()));
 }
 
+const debugging_time = false;
+function computeEntities(pass: GPUComputePassEncoder) {
+    pass.setPipeline(pipeline);
+    
+    if (window.entitiesBuffer.current_entity_buffer_is == 0) {
+        pass.setBindGroup(0, bindGroup_entities_0);
+        window.entitiesBuffer.current_entity_buffer_is = 1;
+    } else {
+        pass.setBindGroup(0, bindGroup_entities_1);
+        window.entitiesBuffer.current_entity_buffer_is = 0;
+    }
+
+    pass.setBindGroup(1, bindGroup_targetSprites);
+    pass.setBindGroup(2, bindGroup_additionalData);
+    
+    if (debugging_time) {
+        pass.dispatchWorkgroups(NO_OF_DISPATCHES);
+    } else {
+        pass.dispatchWorkgroups(NO_OF_DISPATCHES);
+    }
+    
+    window.entitiesBuffer.current_entity_buffer_is = window.entitiesBuffer.current_entity_buffer_is == 0 ? 1 : 0;
+}
+
 function simulateEntities() {
     const commandEncoder = device.createCommandEncoder({ label: `compute entities command encoder` });
 
@@ -173,19 +171,27 @@ function simulateEntities() {
     
     if (window.world.playerInputBuffer == null) return window.fail({ title: `player input buffer is null`, message: `message generated in computeEntities.ts`});
     if (window.world.playerInputBufferMapped == null) return window.fail({ title: `player input buffer mapped is null`, message: `message generated in computeEntities.ts`});
-    commandEncoder.copyBufferToBuffer(debug_buffer, debug_buffer_mapped);
+
+    
+    if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging entities`});
+    if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debugging entities`});
+    if (debugging_time) commandEncoder.copyBufferToBuffer(window.debug.buffer, window.debug.mapped_buffer);
     
     device.queue.submit([commandEncoder.finish()]);
 
-    debug_buffer_mapped.mapAsync(GPUMapMode.READ).then(() => {
-        print_bits(8388618);
-        // print_bits((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
-        // console.log((new Uint32Array(debug_buffer_mapped.getMappedRange()))[0]);
-        console.log((new Float32Array(debug_buffer_mapped.getMappedRange()))[0]);
-        debug_buffer_mapped.unmap();
-    });
+    if (debugging_time) {
+        window.debug.mapped_buffer.mapAsync(GPUMapMode.READ).then(() => {
+            if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging entities`});
 
-    // requestAnimationFrame(simulateEntities);
+            print_bits(8388618);
+            print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // console.log((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            window.debug.mapped_buffer.unmap();
+        });
+    }
+
+    if (!debugging_time) requestAnimationFrame(simulateEntities);
 }
 
 export { setUpComputeEntities, simulateEntities, createPlaceholderEntities }

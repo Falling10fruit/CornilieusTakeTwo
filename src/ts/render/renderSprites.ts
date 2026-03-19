@@ -1,5 +1,6 @@
 let device: GPUDevice;
-let bindGroup: GPUBindGroup;
+let vertex_bind_group: GPUBindGroup;
+let fragment_bind_group: GPUBindGroup;
 let pipeline: GPURenderPipeline;
 
 import { invoke } from "@tauri-apps/api/core";
@@ -13,34 +14,48 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
     const fShader: GPUShaderModule = device.createShaderModule({ label: `render sprites fragment shader`, code: fShaderSource });
 
     
-    const bindGroupLayout = device.createBindGroupLayout({
-        label: `render sprites bind group layout`,
-        entries: [    
+    const vertex_bind_group_layout = device.createBindGroupLayout({
+        label: `render sprites vertex bind group layout`,
+        entries: [   
             { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry, // transform camera
             { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry, // screen resolution
-            { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} } as GPUBindGroupLayoutEntry, // spritesheet
-            { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" }, } as GPUBindGroupLayoutEntry, // sampler for spritesheet
-            { binding: 4, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry, // current sprite buffer
+            { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry, // current sprite buffer
+            
         ]
     });
+
+    const fragment_bind_group_layout = device.createBindGroupLayout({
+        label: `render sprites fragment bind group layout`,
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: {} } as GPUBindGroupLayoutEntry, // spritesheet
+            { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: { type: "non-filtering" }, } as GPUBindGroupLayoutEntry, // sampler for spritesheet
+        ]
+    })
     
-    bindGroup = device.createBindGroup({
-        label: `render sprites bind group`,
-        layout: bindGroupLayout,
+    vertex_bind_group = device.createBindGroup({
+        label: `render sprites vertex bind group`,
+        layout: vertex_bind_group_layout,
         entries: [
             { binding: 0, resource: { buffer: window.camera.uniformBuffer} } as GPUBindGroupEntry, // camera transform
             { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry, // viewport resolutoion
-            { binding: 2, resource: window.spritesheet.texture } as GPUBindGroupEntry,
-            { binding: 3, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
-            { binding: 4, resource: { buffer: window.spritesBuffer.current } } as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.spritesBuffer.current } } as GPUBindGroupEntry,
         ]
     });
+
+    fragment_bind_group = device.createBindGroup({
+        label: `render sprites fragment bind group`,
+        layout: fragment_bind_group_layout,
+        entries: [
+            { binding: 0, resource: window.spritesheet.texture } as GPUBindGroupEntry,
+            { binding: 1, resource: window.spritesheet.sampler } as GPUBindGroupEntry,
+        ]
+    })
     
     pipeline = await device.createRenderPipelineAsync({
         label: `render sprites pipeline`,
         layout: device.createPipelineLayout({
             label: `render sprites pipeline layout`,
-            bindGroupLayouts: [ bindGroupLayout ],
+            bindGroupLayouts: [ vertex_bind_group_layout, fragment_bind_group_layout ],
         }),
         vertex: {
             module: vShader,
@@ -69,7 +84,8 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
 
 function renderSprites (pass: GPURenderPassEncoder) {
     pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
+    pass.setBindGroup(0, vertex_bind_group);
+    pass.setBindGroup(1, fragment_bind_group);
     pass.draw(3, 1);
 };
 

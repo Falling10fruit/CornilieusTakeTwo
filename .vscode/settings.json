@@ -4,7 +4,8 @@
             "resources/wgsl/entities/**"
         ],
         "update_sprite_index_maps": [
-            "src/json/sprites/**"
+            "src/json/sprites/**",
+            "resources/wgsl/sprites**"
         ]
     }
 }

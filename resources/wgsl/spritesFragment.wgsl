@@ -1,5 +1,5 @@
-@group(0) @binding(2) var spritesheet : texture_2d<f32>;
-@group(0) @binding(3) var spritesheetSampler : sampler;
+@group(1) @binding(0) var spritesheet : texture_2d<f32>;
+@group(1) @binding(1) var spritesheetSampler : sampler;
 
 struct v_out {
     @builtin(position) position : vec4f,

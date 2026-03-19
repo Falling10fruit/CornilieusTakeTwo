@@ -5,6 +5,14 @@ let device: GPUDevice;
 function createBuffers(parameters: { device: GPUDevice }) {
     device = parameters.device;
 
+    window.debug.buffer = device.createBuffer({ label: `compute entities debug buffer`,
+        size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+    
+    window.debug.mapped_buffer = device.createBuffer({ label: `compute entities debug buffer`,
+        size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+    });
+
     createRenderBuffers();
     createComputeBuffers();
 }
@@ -79,10 +87,10 @@ function updateSpriteData() {
     window.spritesBuffer = { NO_OF_SPRITES: NO_OF_SPRITES, current: createSpritesBufferOfSize(NO_OF_SPRITES), target: createSpritesBufferOfSize(NO_OF_SPRITES)};
     if (window.spritesBuffer.current == null) return window.fail({ title: "\"current\" sprite buffer is null", message: "spritesBuffer of key \"current\" failed to initialize"});
     if (window.spritesBuffer.target == null) return window.fail({ title: "\"sprite\" buffer is null", message: "spritesBuffer of ket \"target\" failed to initialize"});
-    device.queue.writeBuffer(window.spritesBuffer.current, 0, sprites, 0, NO_OF_SPRITES);
+    device.queue.writeBuffer(window.spritesBuffer.current, 0, sprites, 0, 4);
     
     sprites[0] = add32Uints(IDK_ONE_SPRITE_IG_AS_TEST, (64 << 25) >>> 0); // comment this once you're done
-    device.queue.writeBuffer(window.spritesBuffer.target, 0, sprites, 0, NO_OF_SPRITES);
+    device.queue.writeBuffer(window.spritesBuffer.target, 0, sprites, 0, 4);
     
     function createSpritesBufferOfSize(amountOfSprites: number) {
         return device.createBuffer({

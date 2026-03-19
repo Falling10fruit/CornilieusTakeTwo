@@ -52,7 +52,7 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 // First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
 //                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read_write> debug_data : f32;
+@group(2) @binding(0) var<storage, read_write> debug_data : u32;
 @group(2) @binding(1) var<storage, read>       players_input : array<u32>;
 @group(2) @binding(2) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(3) var<storage, read>       world_data : array<u32>;
@@ -371,10 +371,9 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
 @compute @workgroup_size(1, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
+    if (global_invocation_id.x >= arrayLength(&entities_indicies)) { return; }
+
     entity_index = entities_indicies[global_invocation_id.x];
-
-
-    if (entity_index * NO_OF_INTEGERS_PER_ENTITY >= arrayLength(&entities_buffer_0)) { return; }
     for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entity_integers[i] = entities_buffer_0[entity_index * 7 + i]; }
 
 
@@ -387,7 +386,6 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
         get_input();
 
         // debug_data = 0xFFFFFFFFu >> 31u;
-        debug_data = x_position;
 
     // insert here
 
@@ -398,13 +396,11 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
         let serialized_x_position = u32(floor(x_position)) % 127;
         let serialized_y_position = u32(floor(y_position)) % 127;
         let serialized_rotation = u32(floor(rotation / 16.0)) % 511;
-        sprites_target[entity_index] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
+        sprites_target[global_invocation_id.x] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
 
-
-        for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entities_buffer_1[entity_index * 7 + i] = entity_integers[i];}
-        
+        for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entities_buffer_1[entity_index * 7 + i] = entity_integers[i]; }
     }
-
+    // debug_data = sprites_target[0];
 } 
 
 fn do_the_physics() {

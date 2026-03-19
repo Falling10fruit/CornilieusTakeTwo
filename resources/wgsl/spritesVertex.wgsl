@@ -13,7 +13,7 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(2.0, 0.0),
 );
 
-@group(0) @binding(4) var<storage, read> sCurrentSprites : array<u32>;
+@group(0) @binding(2) var<storage, read> sCurrentSprites : array<u32>;
 
 //   255     255      511     
 //  x pos   y pos   rotation  512 sprites

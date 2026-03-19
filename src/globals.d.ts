@@ -169,6 +169,11 @@ declare global {
              * @see {@link worldBuffer}*/
             generateWorldToBuffer: (parameters: { width: number, height: number, worldBuffer: worldBuffer}) => void;
         };
+
+        debug: {
+            buffer: GPUBuffer | null,
+            mapped_buffer: GPUBuffer | null
+        }
     }
 
     declare module "*.wgsl?raw" {
