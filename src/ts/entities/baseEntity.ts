@@ -24,9 +24,11 @@ export class Entity {
         entity_type : number | string,
         global_x_position : number,
         global_y_position : number,
+        /** In radians */
         rotation : number,
         x_velocity : number,
         y_velocity : number,
+        /** In radians */
         rotation_velocity : number
     }) {
         const { entity_type, global_x_position, global_y_position, rotation, x_velocity, y_velocity, rotation_velocity} = parameters;
@@ -46,7 +48,6 @@ export class Entity {
         const x_velocity = shift_left(this.#x_velocity, 22);
         const y_velocity = shift_left(this.#y_velocity, 12);
 
-
         const formatted_x_position = Math.round(this.#global_x_position * 2**(9 - 3));
         const formatted_y_position = Math.round(this.#global_y_position * 2**(9 - 3));
         const chunk = formatted_x_position / (2**13) + window.world.width * formatted_y_position / (2**13);
@@ -60,12 +61,14 @@ export class Entity {
         const x_position_second_part = shift_left(serialized_x_position, 26);
         const y_position = shift_left(serialized_y_position, 13);
 
-        // console.log(entity_type);
+        const serialized_rotation = Math.round(this.#rotation * 2**13 / (2 * Math.PI)) % 2**13;
+        const serialized_rotation_velocity = Math.round(this.#rotation_velocity * 2**13 / (2 * Math.PI)) % 2**13;
+        // console.log(serialized_rotation);
 
         return new Uint32Array([
             add32Uints(entity_type, chunk, x_position_first_part),
-            add32Uints(x_position_second_part, y_position, this.#rotation),
-            add32Uints(x_velocity, y_velocity, this.#rotation_velocity),
+            add32Uints(x_position_second_part, y_position, serialized_rotation),
+            add32Uints(x_velocity, y_velocity, serialized_rotation_velocity),
             0, 0, 0, 0
         ]);
     }

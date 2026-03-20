@@ -8,9 +8,6 @@ let bindGroup_entities_0: GPUBindGroup;
 let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
 let bindGroup_additionalData: GPUBindGroup;
-let debug_buffer: GPUBuffer;
-let debug_buffer_mapped: GPUBuffer;
-
 let NO_OF_DISPATCHES: number;
 
 async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
@@ -127,7 +124,7 @@ async function createPlaceholderEntities() {
         entity_type: 1,
         global_x_position : 16,
         global_y_position : 0,
-        rotation : 0,
+        rotation : Math.PI/2,
         x_velocity : 0,
         y_velocity : 0,
         rotation_velocity : 0
@@ -137,7 +134,7 @@ async function createPlaceholderEntities() {
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(placeholder_entity.serialized_representation()));
 }
 
-const debugging_time = false;
+const debugging_time = true;
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     
@@ -184,9 +181,9 @@ function simulateEntities() {
             if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging entities`});
 
             print_bits(8388618);
-            print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             // console.log((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            // console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             window.debug.mapped_buffer.unmap();
         });
     }
