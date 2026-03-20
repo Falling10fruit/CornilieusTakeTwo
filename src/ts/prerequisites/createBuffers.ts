@@ -1,3 +1,4 @@
+import { add32Uints } from "../../bit_utils";
 import { createPlaceholderEntities } from "../compute/computeEntities";
 
 let device: GPUDevice;
@@ -26,7 +27,7 @@ function createRenderBuffers() {
     createCameraUniform();
     createCanvasDimensionUniform();
     createPlaceholderWorldDataBuffer();
-    updateSpriteData();
+    createPlaceholderSprites();
 }
 
 function createCameraUniform() {
@@ -72,9 +73,21 @@ function updateWorldData (parameters: { width: number, height: number }) {
     });
 }
 
-function updateSpriteData() {
-    const sprites = new Uint32Array(2**24);
 
+function createPlaceholderSprites() {
+    window.spritesBuffer.current = device.createBuffer({
+        label: `current sprites buffer`,
+        size: window.world.NO_OF_SPRITES * 4,
+        usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    })
+    
+    window.spritesBuffer.target = device.createBuffer({
+        label: `target sprites buffer`,
+        size: window.world.NO_OF_SPRITES * 4,
+        usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    })
+    
+    const sprites = new Uint32Array(2**24);
     const IDK_ONE_SPRITE_IG_AS_TEST  = add32Uints(
         ( 0 << 25 ) >>> 0,
         ( 0 << 18 ) >>> 0,
@@ -82,29 +95,11 @@ function updateSpriteData() {
         ( 1  << 0 ) >>> 0
     ) >>> 0;
     sprites[0] = IDK_ONE_SPRITE_IG_AS_TEST;
-    
-    const NO_OF_SPRITES = window.world.NO_OF_SPRITES;
-    window.spritesBuffer = { NO_OF_SPRITES: NO_OF_SPRITES, current: createSpritesBufferOfSize(NO_OF_SPRITES), target: createSpritesBufferOfSize(NO_OF_SPRITES)};
+
     if (window.spritesBuffer.current == null) return window.fail({ title: "\"current\" sprite buffer is null", message: "spritesBuffer of key \"current\" failed to initialize"});
     if (window.spritesBuffer.target == null) return window.fail({ title: "\"sprite\" buffer is null", message: "spritesBuffer of ket \"target\" failed to initialize"});
     device.queue.writeBuffer(window.spritesBuffer.current, 0, sprites, 0, 4);
-    
-    sprites[0] = add32Uints(IDK_ONE_SPRITE_IG_AS_TEST, (64 << 25) >>> 0); // comment this once you're done
     device.queue.writeBuffer(window.spritesBuffer.target, 0, sprites, 0, 4);
-    
-    function createSpritesBufferOfSize(amountOfSprites: number) {
-        return device.createBuffer({
-            label: "Sprites buffer",
-            size: amountOfSprites * 4,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-        });
-    }
-
-    function add32Uints(...numbers: number[]) {
-        let sum = 0;
-        for (let i = 0; i < numbers.length; i++) { sum = (sum + numbers[i]) >>> 0; }
-        return sum;
-    }
 }
 
 function updateEntitiesData() {

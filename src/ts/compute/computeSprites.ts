@@ -64,40 +64,12 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
             { binding: 2, resource: { buffer: window.spritesBuffer.target }}  as GPUBindGroupEntry,
         ]
     });
-
-    createPlaceholderSprites();
 }
 
 async function loadComputeShader(device: GPUDevice) {
     const computeShaderSource = await invoke("get_sprite_compute_shader").catch((e) => { return e });
     if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
     return device.createShaderModule({ label: "compute sprites shader", code: computeShaderSource });
-}
-
-function createPlaceholderSprites() {
-    if (window.spritesBuffer.current == null) return window.fail({ title: `"current" sprites buffer are null`,  message: `window.spritesBuffer.current is null`});
-    if (window.spritesBuffer.target == null) return window.fail({ title: `"target" sprites buffer are null`,  message: `window.spritesBuffer.target is null`});
-
-    const current = new Int32Array(window.spritesBuffer.NO_OF_SPRITES);
-    const currentEntityPlaceholder = add32Uints(
-        shift_left(0, 5),
-        shift_left(0, 8),
-        shift_left(0, 9),
-        shift_left(1, 0)
-    );
-    current[0] = currentEntityPlaceholder;
-
-    const target = new Int32Array(window.spritesBuffer.NO_OF_SPRITES);
-    const targetEntityPlaceholder = add32Uints(
-        shift_left(0, 5),
-        shift_left(0, 8),
-        shift_left(0, 9),
-        shift_left(1, 0)
-    );
-    target[0] = targetEntityPlaceholder;
-
-    device.queue.writeBuffer(window.spritesBuffer.current, 0, current);
-    device.queue.writeBuffer(window.spritesBuffer.target, 0, target);
 }
 
 function computeSprites(pass: GPUComputePassEncoder) {

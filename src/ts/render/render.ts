@@ -16,7 +16,7 @@ function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
     ctx = parameters.ctx;
 }
 
-const debugging_time = true;
+const debugging_time = false;
 /** The function that renders the entire frame.
  * 
  * Implementation at {@link render} */
@@ -57,9 +57,9 @@ function render () {
             if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging rendering`});
 
             // print_bits(0);
-            print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             // console.log((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            // console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             window.debug.mapped_buffer.unmap();
         });
     }

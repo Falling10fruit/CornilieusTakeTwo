@@ -125,7 +125,7 @@ async function createPlaceholderEntities() {
 
     const placeholder_entity = new Entity({
         entity_type: 1,
-        global_x_position : 10,
+        global_x_position : 16,
         global_y_position : 0,
         rotation : 0,
         x_velocity : 0,

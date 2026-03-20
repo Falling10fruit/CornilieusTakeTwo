@@ -20,11 +20,11 @@ async function preload (parameters: { device: GPUDevice }) {
     };
 
     window.camera = {
-        xPos: 0,
-        yPos: 0,
+        xPos: 3,
+        yPos: 3,
         yVel: 0,
         xVel: 0,
-        scale: 16,
+        scale: 64,
         scaleVel: 0,
         rotation: (0)*Math.PI/180,
         rotationVel: 0,
@@ -35,6 +35,11 @@ async function preload (parameters: { device: GPUDevice }) {
         texture: null,
         sampler: null,
     };
+
+    window.spritesBuffer = {
+        current: null,
+        target: null
+    }
     
     window.entitiesBuffer = {
         entities_indicies: null,

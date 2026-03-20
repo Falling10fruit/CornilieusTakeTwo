@@ -120,7 +120,7 @@ declare global {
          *                  591645
          * ```
          * Initialised at [createBuffers.js](ts/prerequisites/createBuffers.ts)*/
-        spritesBuffer: { NO_OF_SPRITES: number, current: GPUBuffer | null, target: GPUBuffer | null };
+        spritesBuffer: { current: GPUBuffer | null, target: GPUBuffer | null };
 
         /** All 6 buffers a healthy growing entity system needs
          * 

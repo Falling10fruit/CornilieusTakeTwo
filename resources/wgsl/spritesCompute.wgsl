@@ -1,4 +1,4 @@
-@group(0) @binding(0) var<storage, read_write> debug_buffer : u32;
+@group(0) @binding(0) var<storage, read_write> debug_buffer : f32;
 @group(0) @binding(1) var<storage, read_write> current_sprites_buffer : array<u32>;
 @group(0) @binding(2) var<storage, read_write> target_sprites_buffer : array<u32>;
 
@@ -23,15 +23,13 @@ fn round_to_u32(num : f32) -> u32 {
     let target_y_position : f32 = f32((target_sprite >> 18) & 127u);
     let target_angle : f32 = f32((target_sprite >> 9) & 511u);
     
-    let new_x_position = round_to_u32(mix(current_x_position, target_x_position, 0.05));
-    let new_y_position = round_to_u32(mix(current_y_position, target_y_position, 0.05));
-    let new_angle = round_to_u32(mix(current_angle, target_angle, 0.05));
+    let new_x_position = round_to_u32(mix(current_x_position, target_x_position, 0.5));
+    let new_y_position = round_to_u32(mix(current_y_position, target_y_position, 0.5));
+    let new_angle = round_to_u32(mix(current_angle, target_angle, 0.5));
 
     current_sprites_buffer[index] =
         ((new_x_position % 128) << 25) +
         ((new_y_position % 128) << 18) +
         ((new_angle      % 512) << 9 ) +
-        (current_sprite & 511u);
-
-    debug_buffer = target_sprites_buffer[0];
+        ( target_sprite  & 511u);
 }

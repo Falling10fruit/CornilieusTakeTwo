@@ -70,7 +70,7 @@ struct v_out {
     out.v_position = vertexArray[vertexIndex];
     
     // out.position = vec4f(((vertexArray[vertexIndex] + vec2f(xPos, yPos) - uTransform.translate) * uTransform.scale * 2.0) / uViewport, 0.0, 1.0);
-    // out.debug = vec4f(uTransform.rotation, 0.0, 0.0, 255.0)/255.0;
+    // out.debug = vec4f(f32(spriteData & 1u) * 255.0, 0.0, 0.0, 255.0)/255.0;
     return out;
 }
 
