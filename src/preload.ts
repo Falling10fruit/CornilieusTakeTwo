@@ -1,3 +1,4 @@
+import { invoke, Channel } from "@tauri-apps/api/core";
 import { createBuffers } from "./ts/prerequisites/createBuffers";
 import { loadSpritesheet } from "./ts/prerequisites/loadSpritesheet.ts";
 
@@ -51,12 +52,16 @@ async function preload (parameters: { device: GPUDevice }) {
 
     window.keyIsDown = {};
 
+    const key_channel = new Channel();
+    // invoke(`key_stroke_stream`);
+
     window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
     window.onkeydown = (event) => {
         window.keyIsDown[event.key] = true;
-        console.log(event.key);
+        console.log(event.code);
 
         if (event.key === "F2") eyedropper.click();
+
     };
 
     window.debug = {

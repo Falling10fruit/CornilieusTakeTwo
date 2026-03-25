@@ -45,25 +45,28 @@ export class Entity {
 
     serialized_representation() {
         const entity_type = shift_left(this.#entity_type, 23);
-        const x_velocity = shift_left(this.#x_velocity, 22);
-        const y_velocity = shift_left(this.#y_velocity, 12);
-
+        
         const formatted_x_position = Math.round(this.#global_x_position * 2**(9 - 3));
         const formatted_y_position = Math.round(this.#global_y_position * 2**(9 - 3));
         const chunk = formatted_x_position / (2**13) + window.world.width * formatted_y_position / (2**13);
         const serialized_x_position = formatted_x_position % (2**13);
         const serialized_y_position = formatted_y_position % (2**13);
-
+        
         // console.log("serialized x position");
         // console.log(serialized_x_position);
-
+        
         const x_position_first_part = shift_right(serialized_x_position, 6);
         const x_position_second_part = shift_left(serialized_x_position, 26);
         const y_position = shift_left(serialized_y_position, 13);
+        
+        const x_velocity = shift_left(serialize_to_10_bit(this.#x_velocity), 22);
+        const y_velocity = shift_left(serialize_to_10_bit(this.#y_velocity), 12);
 
         const serialized_rotation = Math.round(this.#rotation * 2**13 / (2 * Math.PI)) % 2**13;
         const serialized_rotation_velocity = Math.round(this.#rotation_velocity * 2**13 / (2 * Math.PI)) % 2**13;
-        // console.log(serialized_rotation);
+        
+        // console.log("testing", parse_from_10_bit(serialize_to_10_bit(13)));
+        // print_bits(serialize_to_10_bit(13));
 
         return new Uint32Array([
             add32Uints(entity_type, chunk, x_position_first_part),
@@ -72,4 +75,36 @@ export class Entity {
             0, 0, 0, 0
         ]);
     }
+}
+
+// total bits doesn't include sign bit
+// const total_bits = 9
+// const exponent_bias = -1;
+// const exponent_base = 32;
+// const mantissa_base = 2;
+// const exponent_bits = 2;
+// const mantissa_bits = total_bits - exponent_bits;
+
+const bitcast_buffer = new ArrayBuffer(4);
+const bitcast_float = new Float32Array(bitcast_buffer);
+const bitcast_uint = new Uint32Array(bitcast_buffer);
+
+function serialize_to_10_bit(float: number) {
+    bitcast_float[0] = float;
+
+    const v_exponent = ((bitcast_uint[0] >> 23) & 255) - 127 + 8;
+    const v_mantissa = Math.round((bitcast_uint[0] & 8388607) / 2**19);
+
+    // console.log(v_exponent);
+    // console.log((bitcast_uint[0] & 8388607) / 2**19);
+
+    return ((float < 0 ? 1 : 0) << 9) + (v_exponent << 4) + v_mantissa;
+}
+
+function parse_from_10_bit(bits: number) {
+    const sign_bit = bits >> 9;
+    const exponent = ((bits >> 4) & 31) - 8;
+    const mantissa = (bits & 15) / 16 + 1;
+    
+    return (1 - sign_bit * 2) * 2**exponent * mantissa;
 }

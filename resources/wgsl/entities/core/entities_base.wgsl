@@ -52,7 +52,7 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 // First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
 //                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read_write> debug_data : f32;
+@group(2) @binding(0) var<storage, read_write> debug_data : u32;
 @group(2) @binding(1) var<storage, read>       players_input : array<u32>;
 @group(2) @binding(2) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(3) var<storage, read>       world_data : array<u32>;
@@ -116,7 +116,37 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
     }
 }
 
+fn serialize_to_10_bit (number : f32) -> u32 {
+    let sign = u32(number < 0.0);
+    let number_u32 = frexp(abs(number));
+    let exponent = u32(clamp(number_u32.exp + 8, 0, 31));
+    let mantissa = u32(round(ldexp(number_u32.fract, 4)));
+
+    return (sign << 9) + (exponent << 4) + mantissa;
+}
+
+fn parse_from_10_bit (bits : u32) -> f32 {
+    let sign_bit = f32(bits >> 9);
+    let exponent = f32((bits >> 4) & 31u) - 8.0;
+    let mantissa = f32(bits & 15) / 16.0 + 1.0;
+    
+    return (1.0 - sign_bit * 2.0) *  pow(2.0, exponent) * mantissa;
+}
+
 const pos_chunk_ratio = 8192 / (CHUNK_LENGTH * 16);
+
+fn get_x_pos () -> f32 {
+    let x_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.x_position);
+    let chunk_x_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) % world_dimensions.x;
+    return f32(chunk_x_pos * CHUNK_LENGTH * 16) + f32(x_pos_in_chunk) / f32(pos_chunk_ratio);
+}
+
+fn get_y_pos () -> f32 {
+    let y_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.y_position);
+    let chunk_y_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) / world_dimensions.x;
+    return f32(chunk_y_pos * CHUNK_LENGTH * 16) + f32(y_pos_in_chunk) / f32(pos_chunk_ratio);
+}
+
 fn update_entity_position () {
     let world_dimensions_in_chunks = world_dimensions / 8;
 
@@ -137,62 +167,6 @@ fn update_entity_position () {
     set_sub_integer_entity(base_entity_integer_sub_divisions.y_position, serialized_y_position);
 
     set_sub_integer_entity(base_entity_integer_sub_divisions.chunk, chunk_x + chunk_y * world_dimensions.x);
-}
-
-// sign exponent mantissa
-//  0      10     1010101
-fn get_x_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity);
-    let sign_bit = raw_int >> 9;
-    let sign : f32 = f32(sign_bit * 2) - 1.0; // 0 - 1 -> -1 - 1
-    let exponent_int = (raw_int >> 7) & 3;
-    let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
-    
-    return sign * exponent_multiplier * f32(raw_int & 127);
-}
-
-fn set_x_vel (vel : f32) {
-    let sign = u32(select(1, 0, vel < 0));
-    let abs_vel = abs(vel);
-    let power = floor(log2(abs_vel/128) * 0.69314718) + 1.0; // log2(x) / log2(10)
-    let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
-    
-    let sub_integer = (clamp(sign, 0, 1) << 9) + (clamp(u32(round(power)), 0, 3) << 7) + clamp(mantissa, 0, 127);
-    set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, sub_integer);
-}
-
-fn get_x_pos () -> f32 {
-    let x_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.x_position);
-    let chunk_x_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) % world_dimensions.x;
-    return f32(chunk_x_pos * CHUNK_LENGTH * 16) + f32(x_pos_in_chunk) / f32(pos_chunk_ratio);
-}
-
-fn get_y_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity);
- 
-    let sign_bit = raw_int >> 9;
-    let sign : f32 = f32(sign_bit * 2) - 1.0;
-
-    let exponent_int = (raw_int >> 7) & 3;
-    let exponent_multiplier : f32 = pow(10.0, f32(exponent_int));
-    
-    return sign * exponent_multiplier * f32(raw_int & 127);
-}
-
-fn get_y_pos () -> f32 {
-    let y_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.y_position);
-    let chunk_y_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) / world_dimensions.x;
-    return f32(chunk_y_pos * 16 * 16) + f32(y_pos_in_chunk) / f32(pos_chunk_ratio);
-}
-
-fn set_y_vel (vel : f32) {
-    let sign = u32(select(1, 0, vel < 0));
-    let abs_vel = abs(vel);
-    let power = floor(log2(abs_vel/128) * 0.69314718) + 1.0; // log2(x) / log2(10)
-    let mantissa : u32 = u32(round(abs_vel / pow(10.0, power)));
-    
-    let sub_integer = (clamp(sign, 0, 1) << 9) + (clamp(u32(round(power)), 0, 3) << 7) + clamp(mantissa, 0, 127);
-    set_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity, sub_integer);
 }
 
 // 0 10 101010101
@@ -381,8 +355,8 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
     if (entity_type != 0) {
         x_position = get_x_pos();
         y_position = get_y_pos();
-        x_velocity = get_x_vel();
-        y_velocity = get_y_vel();
+        x_velocity = parse_from_10_bit(get_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity));
+        y_velocity = parse_from_10_bit(get_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity));
         rotation   = f32(get_sub_integer_entity(base_entity_integer_sub_divisions.rotation)) * 2 * pi / 8192.0;
         get_input();
 
@@ -399,9 +373,12 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         sprites_target[global_invocation_id.x] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
 
+
+        set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, serialize_to_10_bit(x_velocity));
+        set_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity, serialize_to_10_bit(y_velocity));
         for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entities_buffer_1[entity_index * 7 + i] = entity_integers[i]; }
     
-        debug_data = rotation;
+        // debug_data = get_y_pos();
     }
     
 } 

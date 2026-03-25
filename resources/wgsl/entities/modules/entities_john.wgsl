@@ -57,8 +57,8 @@ fn control_john() {
         i32(w_pressed) - i32(s_pressed),
     );
 
-    let new_x = get_x_vel() + f32(dir_vec.x);
-    let new_y = get_y_vel() + f32(dir_vec.y);
+    x_position += f32(dir_vec.x);
+    y_position += f32(dir_vec.y);
 }
 
 fn handle_collision_john(collider : u32) {

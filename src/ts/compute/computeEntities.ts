@@ -122,14 +122,14 @@ async function createPlaceholderEntities() {
 
     const placeholder_entity = new Entity({
         entity_type: 1,
-        global_x_position : 16,
-        global_y_position : 0,
-        rotation : Math.PI/2,
+        global_x_position : 32,
+        global_y_position : 16,
+        rotation : Math.PI/4,
         x_velocity : 0,
-        y_velocity : 0,
+        y_velocity : 1,
         rotation_velocity : 0
     });
-    // console.log(placeholder_entity.serialized_representation())
+    print_bits(placeholder_entity.serialized_representation()[1])
     device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array(placeholder_entity.serialized_representation()));
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(placeholder_entity.serialized_representation()));
 }
@@ -180,10 +180,10 @@ function simulateEntities() {
         window.debug.mapped_buffer.mapAsync(GPUMapMode.READ).then(() => {
             if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging entities`});
 
-            print_bits(8388618);
-            // print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // print_bits(8388618);
+            print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             // console.log((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             window.debug.mapped_buffer.unmap();
         });
     }
