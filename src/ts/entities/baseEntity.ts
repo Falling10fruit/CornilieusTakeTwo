@@ -38,22 +38,22 @@ export class Entity {
         this.#global_x_position = global_x_position;
         this.#global_y_position = global_y_position;
         this.#rotation = rotation;
-        this.#y_velocity = y_velocity;
         this.#x_velocity = x_velocity;
+        this.#y_velocity = y_velocity;
         this.#rotation_velocity = rotation_velocity;
     }
 
     serialized_representation() {
         const entity_type = shift_left(this.#entity_type, 23);
         
-        const formatted_x_position = Math.round(this.#global_x_position * 2**(9 - 3));
-        const formatted_y_position = Math.round(this.#global_y_position * 2**(9 - 3));
-        const chunk = formatted_x_position / (2**13) + window.world.width * formatted_y_position / (2**13);
+        const formatted_x_position = Math.round(this.#global_x_position * 64);
+        const formatted_y_position = Math.round(this.#global_y_position * 64);
+        const chunk = Math.floor(formatted_x_position / (2**13)) + window.world.width * Math.floor(formatted_y_position / (2**13)) + 1;
         const serialized_x_position = formatted_x_position % (2**13);
         const serialized_y_position = formatted_y_position % (2**13);
         
-        // console.log("serialized x position");
-        // console.log(serialized_x_position);
+        console.log("serialized y position");
+        print_bits(serialized_y_position);
         
         const x_position_first_part = shift_right(serialized_x_position, 6);
         const x_position_second_part = shift_left(serialized_x_position, 26);
@@ -69,7 +69,7 @@ export class Entity {
         // print_bits(serialize_to_10_bit(13));
 
         return new Uint32Array([
-            add32Uints(entity_type, chunk, x_position_first_part),
+            add32Uints(entity_type, (chunk << 7), x_position_first_part),
             add32Uints(x_position_second_part, y_position, serialized_rotation),
             add32Uints(x_velocity, y_velocity, serialized_rotation_velocity),
             0, 0, 0, 0

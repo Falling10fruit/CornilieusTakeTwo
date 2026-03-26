@@ -81,22 +81,16 @@ fn shift_right (value : u32, shift: u32) -> u32 {
 }
 
 fn get_sub_integer_entity(range : vec2u) -> u32 {
-    var sub_integer : u32 = 0;
-    for (var offset : u32 = 0; offset <= range.y; offset += 32) {
-        let mask_start : u32 = u32(clamp(i32(range.x) - i32(offset), 0, 32));
-        let mask_end : i32 = 31 - i32(range.y) + i32(offset);
-        let bit_mask_start = shift_right(0xFFFFFFFFu, mask_start);
-        let bit_mask_end = shift_left(0xFFFFFFFFu, u32(clamp(mask_end, 0, 32)));
-        let masked_integer = entity_integers[offset / 32] & bit_mask_start & bit_mask_end;
+    let offset_0 = (range.x >> 5) << 5;
+    let start_0 = clamp(range.x - offset_0, 0, 31);
+    let end_0 = clamp(range.y - offset_0, 0, 31);
+    let bits_0 = extractBits(entity_integers[offset_0 >> 5], 31 - min(end_0, 31), min(end_0, 31) - max(start_0, 0) + 1);
+    let offset_1 = (range.y >> 5) << 5;
+    let start_1 = clamp(range.x - offset_1, 0, 31);
+    let end_1 = clamp(range.y - offset_1, 0, 31);
+    let bits_1 = extractBits(entity_integers[offset_1 >> 5], 31 - min(end_1, 31), min(end_1, 31) - max(start_1, 0) + 1);
 
-        if (mask_end < 0) {
-            sub_integer += shift_left(masked_integer, u32(-mask_end));
-        } else {
-            sub_integer += shift_right(masked_integer, u32(mask_end));
-        }
-    }
-
-    return sub_integer;
+    return (bits_0 << (offset_1 - offset_0 + end_1 - end_0)) | bits_1;
 }
 
 fn set_sub_integer_entity(range : vec2u, new_value : u32) {
@@ -360,8 +354,6 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
         rotation   = f32(get_sub_integer_entity(base_entity_integer_sub_divisions.rotation)) * 2 * pi / 8192.0;
         get_input();
 
-        // debug_data = 0xFFFFFFFFu >> 31u;
-
     // insert here
 
         do_the_physics();
@@ -373,14 +365,13 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         sprites_target[global_invocation_id.x] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
 
-
         set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, serialize_to_10_bit(x_velocity));
         set_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity, serialize_to_10_bit(y_velocity));
         for (var i : u32 = 0; i < NO_OF_INTEGERS_PER_ENTITY; i++) { entities_buffer_1[entity_index * 7 + i] = entity_integers[i]; }
     
-        // debug_data = get_y_pos();
+        debug_data = entity_integers[1];
+        debug_data = get_sub_integer_entity(vec2u(24, 40));
     }
-    
 } 
 
 fn do_the_physics() {
@@ -389,12 +380,6 @@ fn do_the_physics() {
     update_entity_position();
 }
 
-
 fn handle_collision(collider: u32) {
 // insert here
-}
-
-fn Q_rsqrt(x: f32) -> f32 { // Thank you quake
-    let y = bitcast<f32>(0x5f3759df - ( bitcast<u32>(x) >> 1 ));
-    return y * (1.5 - y * y * x * 0.5);
 }
