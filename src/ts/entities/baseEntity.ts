@@ -72,7 +72,7 @@ export class Entity {
             add32Uints(entity_type, (chunk << 7), x_position_first_part),
             add32Uints(x_position_second_part, y_position, serialized_rotation),
             add32Uints(x_velocity, y_velocity, serialized_rotation_velocity),
-            0, 0, 0, 0
+            0,
         ]);
     }
 }

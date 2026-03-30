@@ -43,6 +43,16 @@ pub async fn get_entity_compute_shader(handle: tauri::AppHandle) -> Result<Strin
     }
 }
 
+#[tauri::command]
+pub async fn get_input_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/input_compute.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
 fn get_file_as_string (handle: tauri::AppHandle, path_in_resource: &str) -> Result<String, std::io::Error> {
     println!("Loading resource from: {}", path_in_resource);
 
