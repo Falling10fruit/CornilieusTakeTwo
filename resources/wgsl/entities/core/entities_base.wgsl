@@ -8,33 +8,15 @@ const pi = 3.1415926535;
 // 0101010101 0101010101 010101010101 
 // 2^10 -> 1023          2^12 -> 4095
 //01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
-struct sub_division_entry {
-    start : u32,
-    end : u32,
-    prefix_sum : u32,
-}
 
-struct BaseEntityIntegerSubDivisions {
-    entity_type: vec2u,
-    chunk: vec2u,
-    x_position: vec2u,
-    y_position: vec2u,
-    rotation: vec2u,
-    x_velocity: vec2u,
-    y_velocity: vec2u,
-    rotation_velocity: vec2u,
-}
-
-const base_entity_integer_sub_divisions = BaseEntityIntegerSubDivisions(
-    vec2u(0, 8),
-    vec2u(9, 24),
-    vec2u(25, 37),
-    vec2u(38, 50),
-    vec2u(51, 63),
-    vec2u(64, 73),
-    vec2u(74, 83),
-    vec2u(84, 95),
-);
+const entity_sub_int_entity_type = vec2u(0, 8);
+const entity_sub_int_chunk = vec2u(9, 24);
+const entity_sub_int_x_position = vec2u(25, 37);
+const entity_sub_int_y_position = vec2u(38, 50);
+const entity_sub_int_rotation = vec2u(51, 63);
+const entity_sub_int_x_velocity = vec2u(64, 73);
+const entity_sub_int_y_velocity = vec2u(74, 83);
+const entity_sub_int_rotation_velocity = vec2u(84, 95);
 
 // chunk indicies descriptor
 // index of access is index of chunk, the first 26 bits is the 
@@ -150,14 +132,14 @@ fn parse_from_10_bit (bits : u32) -> f32 {
 const pos_chunk_ratio = 8192 / (CHUNK_LENGTH * 16);
 
 fn get_x_pos () -> f32 {
-    let x_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.x_position);
-    let chunk_x_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) % world_dimensions.x;
+    let x_pos_in_chunk = get_sub_integer_entity(entity_sub_int_x_position);
+    let chunk_x_pos = get_sub_integer_entity(entity_sub_int_chunk) % world_dimensions.x;
     return f32(chunk_x_pos * CHUNK_LENGTH * 16) + f32(x_pos_in_chunk) / f32(pos_chunk_ratio);
 }
 
 fn get_y_pos () -> f32 {
-    let y_pos_in_chunk = get_sub_integer_entity(base_entity_integer_sub_divisions.y_position);
-    let chunk_y_pos = get_sub_integer_entity(base_entity_integer_sub_divisions.chunk) / world_dimensions.x;
+    let y_pos_in_chunk = get_sub_integer_entity(entity_sub_int_y_position);
+    let chunk_y_pos = get_sub_integer_entity(entity_sub_int_chunk) / world_dimensions.x;
     return f32(chunk_y_pos * CHUNK_LENGTH * 16) + f32(y_pos_in_chunk) / f32(pos_chunk_ratio);
 }
 
@@ -170,7 +152,7 @@ fn update_entity_position () {
         serialized_x_position -= 4096;
     }
     
-    set_sub_integer_entity(base_entity_integer_sub_divisions.x_position, serialized_x_position);
+    set_sub_integer_entity(entity_sub_int_x_position, serialized_x_position);
     
     var serialized_y_position : u32 = u32(round(y_position * f32(pos_chunk_ratio)));
     if (serialized_y_position >= 4096) {
@@ -178,14 +160,14 @@ fn update_entity_position () {
         serialized_y_position -= 4096;
     }
     
-    set_sub_integer_entity(base_entity_integer_sub_divisions.y_position, serialized_y_position);
+    set_sub_integer_entity(entity_sub_int_y_position, serialized_y_position);
 
-    set_sub_integer_entity(base_entity_integer_sub_divisions.chunk, chunk_x + chunk_y * world_dimensions.x);
+    set_sub_integer_entity(entity_sub_int_chunk, chunk_x + chunk_y * world_dimensions.x);
 }
 
 // 0 10 101010101
 fn get_rotation_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(base_entity_integer_sub_divisions.rotation_velocity);
+    let raw_int = get_sub_integer_entity(entity_sub_int_rotation_velocity);
 
     let sign_bit = raw_int >> 11;
     let sign : f32 = f32(sign_bit * 2) - 1.0;
@@ -360,14 +342,14 @@ fn get_input() { // replace this eventually pls with a dedicated shader. We don'
     if (entity_type != 0) {
         x_position = get_x_pos();
         y_position = get_y_pos();
-        x_velocity = parse_from_10_bit(get_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity));
-        y_velocity = parse_from_10_bit(get_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity));
-        rotation   = f32(get_sub_integer_entity(base_entity_integer_sub_divisions.rotation)) * 2 * pi / 8192.0;
+        x_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity));
+        y_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity));
+        rotation   = f32(get_sub_integer_entity(entity_sub_int_rotation)) * 2 * pi / 8192.0;
         get_input();
 
     // insert here
     
-        // debug_data = get_sub_integer_entity(base_entity_integer_sub_divisions.x_position);
+        // debug_data = get_sub_integer_entity(entity_sub_int_x_position);
 
         do_the_physics();
         
@@ -386,8 +368,8 @@ fn do_the_physics() {
     x_position += x_velocity;
     y_position += y_velocity;
     
-    set_sub_integer_entity(base_entity_integer_sub_divisions.x_velocity, serialize_to_10_bit(x_velocity));
-    set_sub_integer_entity(base_entity_integer_sub_divisions.y_velocity, serialize_to_10_bit(y_velocity));
+    set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
+    set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
     update_entity_position();
 }
 

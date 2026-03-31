@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Entity } from "../entities/baseEntity.ts"
 import { print_bits } from "../../bit_utils.ts";
+import { computeInputs } from "./playerInput.ts";
 
 let device: GPUDevice;
 let pipeline: GPUComputePipeline;
@@ -164,13 +165,9 @@ function simulateEntities() {
     const commandEncoder = device.createCommandEncoder({ label: `compute entities command encoder` });
 
     const computePass = commandEncoder.beginComputePass({ label: `compute entities compute pass`});
+    computeInputs(computePass);
     computeEntities(computePass);
     computePass.end();
-
-    
-    if (window.world.playerInputBuffer == null) return window.fail({ title: `player input buffer is null`, message: `message generated in computeEntities.ts`});
-    if (window.world.playerInputBufferMapped == null) return window.fail({ title: `player input buffer mapped is null`, message: `message generated in computeEntities.ts`});
-
     
     if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging entities`});
     if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debugging entities`});

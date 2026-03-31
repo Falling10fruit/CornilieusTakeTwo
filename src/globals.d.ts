@@ -68,7 +68,9 @@ declare global {
             NO_OF_SPRITES: number;
             NO_OF_ENTITIES: number;
 
-            NO_OF_PLAYERS: number; // Maybe allow the host to change it mid stage AFTER I actually make the game
+            MAX_PLAYERS: number; // Maybe allow the host to change it mid stage AFTER I actually make the game
+            player_count: number;
+            playerCountUniform: GPUBuffer | null;
             playerInputBuffer: GPUBuffer | null;
             playerInputBufferMapped : GPUBuffer | null;
         };
@@ -130,7 +132,7 @@ declare global {
             entities_indicies: GPUBuffer | null,
             /** Holds the index of the chunk the entity is currently in */
             chunk_indicies: GPUBuffer | null,
-            /** Decides which entity texture is going to be used */
+            /** Decides which entity texture is going to be used, results either 0 or 1 */
             current_entity_buffer_is: number,
             /** The first 3D texture that holds entity data, alternates with the second based on `current_entity_texture_is`
              * 
