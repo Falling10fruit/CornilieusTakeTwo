@@ -37,9 +37,8 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         label: `compute entities player input bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}           as GPUBindGroupLayoutEntry, // debug buffer to transfer one u32 fromt the gpu
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // players' input (first index is player count)
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry, // world dimensions in blocks not chunks
-            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // world data
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry, // world dimensions in blocks not chunks
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // world data
         ]
     });
 
@@ -95,9 +94,8 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         layout: pipeline.getBindGroupLayout(2),
         entries: [
             { binding: 0, resource: { buffer: window.debug.buffer            }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.world.playerInputBuffer }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
-            { binding: 3, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
+            { binding: 1, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
         ]
     })
 

@@ -39,26 +39,7 @@ const EntityData_john = DataStruct_john(
 );
 
 fn main_john() {
-    if (get_sub_integer_input(base_input_integer_sub_divisions.entity_id) == entity_index) {
-        control_john();
-    }
-
     current_sprite = EntityData_john.default_sprite;
-}
-
-fn control_john() {
-    let w_pressed = get_bit_from_input(base_input_integer_sub_divisions.w[0]);
-    let a_pressed = get_bit_from_input(base_input_integer_sub_divisions.a[0]);
-    let s_pressed = get_bit_from_input(base_input_integer_sub_divisions.s[0]);
-    let d_pressed = get_bit_from_input(base_input_integer_sub_divisions.d[0]);
-
-    let dir_vec = vec2i(
-        i32(d_pressed) - i32(a_pressed),
-        i32(w_pressed) - i32(s_pressed),
-    );
-
-    x_position += f32(dir_vec.x);
-    y_position += f32(dir_vec.y);
 }
 
 fn handle_collision_john(collider : u32) {

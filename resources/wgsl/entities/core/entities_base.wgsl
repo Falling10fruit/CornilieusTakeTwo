@@ -35,9 +35,8 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 //                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
 // Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
 @group(2) @binding(0) var<storage, read_write> debug_data : u32;
-@group(2) @binding(1) var<storage, read>       players_input : array<u32>;
-@group(2) @binding(2) var<uniform>             world_dimensions : vec2u;
-@group(2) @binding(3) var<storage, read>       world_data : array<u32>;
+@group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
+@group(2) @binding(2) var<storage, read>       world_data : array<u32>;
 
 const CHUNK_LENGTH : u32 = 8; // This is so that it can fit in the sprites
 var<private> entity_vector : vec4u;
@@ -212,122 +211,6 @@ const sprite_index_map = SpriteIndexMapStruct(
     6
     // sprite insert
 );
-
-struct BaseInputIntegerSubDivisions {
-    entity_id : vec2u,
-    q : vec2u,
-    w : vec2u,
-    e : vec2u,
-    a : vec2u,
-    s : vec2u,
-    d : vec2u,
-    z : vec2u,
-    x : vec2u,
-    c : vec2u,
-    r : vec2u,
-    f : vec2u,
-    v : vec2u,
-    t : vec2u,
-    g : vec2u,
-    b : vec2u,
-    y : vec2u,
-    h : vec2u,
-    n : vec2u,
-    tab : vec2u,
-    shift : vec2u,
-    ctrl : vec2u,
-    alt : vec2u,
-    zero : vec2u,
-    one : vec2u,
-    two : vec2u,
-    three : vec2u,
-    four : vec2u,
-    five : vec2u,
-    six : vec2u,
-    seven : vec2u,
-    eight : vec2u,
-    nine : vec2u,
-    mouse_left : vec2u,
-    mouse_middle : vec2u,
-    mouse_right : vec2u,
-    mouse_rotation : vec2u,
-    mouse_x : vec2u,
-    mouse_y : vec2u,
-}
-
-const base_input_integer_sub_divisions = BaseInputIntegerSubDivisions(
-    vec2u(0, 23),  // entity id
-    vec2u(24, 24), // q     For single bits like these, it's
-    vec2u(25, 25), // w     better to use the get_bit_from_input
-    vec2u(26, 26), // e     function instead of the 
-    vec2u(27, 27), // a     get_sub_integer_input() function for
-    vec2u(28, 28), // s     performance I think
-    vec2u(29, 29), // d
-    vec2u(30, 30), // z
-    vec2u(31, 31), // x
-    vec2u(32, 32), // c
-    vec2u(33, 33), // r
-    vec2u(34, 34), // f
-    vec2u(35, 35), // v
-    vec2u(36, 36), // t
-    vec2u(37, 37), // g
-    vec2u(38, 38), // b
-    vec2u(39, 39), // y
-    vec2u(40, 40), // h
-    vec2u(41, 41), // n
-    vec2u(42, 42), // tab
-    vec2u(43, 43), // shift
-    vec2u(44, 44), // ctrl
-    vec2u(45, 45), // alt
-    vec2u(46, 46), // 0
-    vec2u(47, 47), // 1
-    vec2u(48, 48), // 2
-    vec2u(49, 49), // 3
-    vec2u(50, 50), // 4
-    vec2u(51, 51), // 5
-    vec2u(52, 52), // 6
-    vec2u(53, 53), // 7
-    vec2u(54, 54), // 8
-    vec2u(55, 55), // 9
-    vec2u(56, 56), // mouse left
-    vec2u(57, 57), // mouse middle
-    vec2u(58, 58), // mouse right
-    vec2u(59, 71), // mouse rotation
-    vec2u(72, 83), // mouse x
-    vec2u(84, 95), // mouse y
-);
-var<private> input_integers : vec2u;
-var<private> is_controlled : bool;
-
-fn get_sub_integer_input(range : vec2u) -> u32 {
-    let offset_0 = (range.x >> 5) << 5;
-    let start_0 = clamp(range.x - offset_0, 0, 31);
-    let end_0 = clamp(range.y - offset_0, 0, 31);
-    let bits_0 = extractBits(input_integers[offset_0 >> 5], 31 - min(end_0, 31), min(end_0, 31) - max(start_0, 0) + 1);
-    let offset_1 = (range.y >> 5) << 5;
-    let start_1 = clamp(range.x - offset_1, 0, 31);
-    let end_1 = clamp(range.y - offset_1, 0, 31);
-    let bits_1 = extractBits(input_integers[offset_1 >> 5], 31 - min(end_1, 31), min(end_1, 31) - max(start_1, 0) + 1);
-
-    return (bits_0 << (end_1 + offset_1 - end_0 - offset_0)) | bits_1;
-}
-
-fn get_bit_from_input(index : u32) -> u32 { // Use this to quickly get single digits
-    return (input_integers[index/4] >> (3 - index%4)) & 1u;
-}
-
-fn get_input() { // replace this eventually pls with a dedicated shader. We don't have enough space in the enti_fe##### to fit a player id
-    for (var i : u32; i < players_input[0]; i++) {
-        let buffer_index = i * 2 + 1;
-        let observed_entity_type = players_input[buffer_index] >> 8;
-
-        if (observed_entity_type == entity_type) {
-            for (var j : u32; j < 2; j++) {
-                input_integers[j] = players_input[buffer_index + j];
-            }
-        }
-    }
-}
 
 // CHANGE IT BACK TO 64 1 1
 @compute @workgroup_size(1, 1, 1) fn cShader(
