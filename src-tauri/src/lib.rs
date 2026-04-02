@@ -19,7 +19,8 @@ pub fn run() {
       get_shaders::get_sprite_vertex_shader,
       get_shaders::get_sprite_fragment_shader,
       get_shaders::get_sprite_compute_shader,
-      get_input::get_player_inputs
+      get_shaders::get_input_compute_shader,
+      get_input::get_player_inputs,
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

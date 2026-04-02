@@ -48,18 +48,18 @@ export class Entity {
         
         const formatted_x_position = Math.round(this.#global_x_position * 64);
         const formatted_y_position = Math.round(this.#global_y_position * 64);
-        const chunk = Math.floor(formatted_x_position / (2**13)) + window.world.width * Math.floor(formatted_y_position / (2**13)) + 1;
+        const chunk = Math.floor(formatted_x_position / (2**13)) + window.world.width * Math.floor(formatted_y_position / (2**13));
         const serialized_x_position = formatted_x_position % (2**13);
         const serialized_y_position = formatted_y_position % (2**13);
-        
-        console.log("serialized y position");
-        print_bits(serialized_y_position);
         
         const x_position_first_part = shift_right(serialized_x_position, 6);
         const x_position_second_part = shift_left(serialized_x_position, 26);
         const y_position = shift_left(serialized_y_position, 13);
         
         const x_velocity = shift_left(serialize_to_10_bit(this.#x_velocity), 22);
+        
+        // console.log("serialized x velocity");
+        // print_bits(x_velocity);
         const y_velocity = shift_left(serialize_to_10_bit(this.#y_velocity), 12);
 
         const serialized_rotation = Math.round(this.#rotation * 2**13 / (2 * Math.PI)) % 2**13;
@@ -93,6 +93,7 @@ function serialize_to_10_bit(float: number) {
     bitcast_float[0] = float;
 
     const v_exponent = ((bitcast_uint[0] >> 23) & 255) - 127 + 8;
+    if (v_exponent < 0) return 0;
     const v_mantissa = Math.round((bitcast_uint[0] & 8388607) / 2**19);
 
     // console.log(v_exponent);

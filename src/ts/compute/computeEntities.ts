@@ -130,12 +130,12 @@ async function createPlaceholderEntities() {
     });
     const serialized = placeholder_entity.serialized_representation();
     console.log("uploaded entity");
-    print_bits(serialized[0]);
+    print_bits(serialized[1]);
     device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array(serialized));
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(serialized));
 }
 
-const debugging_time = true;
+const debugging_time = false;
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     
@@ -180,9 +180,9 @@ function simulateEntities() {
             console.log(`debug reference`)
             print_bits(8388802);
             console.log("debug buffer");
-            print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            // print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             // console.log((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            // console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
+            console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
             window.debug.mapped_buffer.unmap();
         });
     }

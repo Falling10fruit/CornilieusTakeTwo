@@ -30,11 +30,7 @@ alias points_to_entities_buffer_0 = ptr<storage, array<u32>, read_write>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
-
-// First index is player count   controlled entity's index   qwe asd zxc rfv tgb yhn tab shift ctrl alt 0123456789  mouse_left mouse_middle mouse_right mouse rotation = 2^13 = ?? degrees mouse x      mouse y
-//                               010101010101010101010101    010 101 010 101 010 101 0   1     0    1   0101010101  0          1            0           10101 01010101                     010101010101 010101010101
-// Chat agrees that this should be a storage buffer, calm down yoga - 7 dec 2025
-@group(2) @binding(0) var<storage, read_write> debug_data : u32;
+@group(2) @binding(0) var<storage, read_write> debug_data : f32; // ##DEBUG_TYPE##
 @group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(2) var<storage, read>       world_data : array<u32>;
 
@@ -92,7 +88,7 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
     let offset_0 = start_index << 5;
     let start_0 = range.x - offset_0;
     let end_0 = clamp(range.y - offset_0, 0, 31);
-    let sub_value_0 = new_value >> select(0, range.y - offset_0 - 3, range.y > offset_0 + 3);
+    let sub_value_0 = new_value >> select(0, range.y - offset_0 - 31, range.y > offset_0 + 31);
     start_integer = insertBits(start_integer, sub_value_0, 31 - end_0, end_0 - start_0 + 1);
     set_entity_integer(start_index, start_integer);
 
@@ -103,7 +99,7 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
         let offset_1 = end_index << 5;
         let start_1 = clamp(range.x - offset_1, 0, 31);
         let end_1 = range.y - offset_1;
-        let sub_value_1 = new_value >> select(0, range.y - offset_1 - 3, range.y > offset_1 + 3);
+        let sub_value_1 = new_value >> select(0, range.y - offset_1 - 31, range.y > offset_1 + 31);
         end_integer = insertBits(end_integer, sub_value_1, 31 - end_1, end_1 - start_1 + 1);
 
         set_entity_integer(end_index, end_integer);
@@ -158,6 +154,7 @@ fn update_entity_position () {
         chunk_y += 1;
         serialized_y_position -= 4096;
     }
+
     
     set_sub_integer_entity(entity_sub_int_y_position, serialized_y_position);
 
@@ -228,7 +225,6 @@ const sprite_index_map = SpriteIndexMapStruct(
         x_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity));
         y_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity));
         rotation   = f32(get_sub_integer_entity(entity_sub_int_rotation)) * 2 * pi / 8192.0;
-        get_input();
 
     // else
     if (entity_type == 1) { main_john(); } else
@@ -236,7 +232,6 @@ const sprite_index_map = SpriteIndexMapStruct(
     if (entity_type == 3) { main_drill(); } else
     if (entity_type == 4) { main_rope(); }
     
-        // debug_data = get_sub_integer_entity(entity_sub_int_x_position);
 
         do_the_physics();
         
@@ -254,7 +249,7 @@ const sprite_index_map = SpriteIndexMapStruct(
 fn do_the_physics() {
     x_position += x_velocity;
     y_position += y_velocity;
-    
+
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
     update_entity_position();

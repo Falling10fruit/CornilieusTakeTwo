@@ -4,5 +4,5 @@
 pub async fn get_player_inputs() -> Result<Vec<u32>, String> {
     // 000 001 32 - 6 = 26
     
-    Ok(vec![1, 1 << 2 as u32, 0])
+    Ok(vec![1 << 2 as u32, 0])
 }

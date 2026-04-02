@@ -23,9 +23,9 @@ fn round_to_u32(num : f32) -> u32 {
     let target_y_position : f32 = f32((target_sprite >> 18) & 127u);
     let target_angle : f32 = f32((target_sprite >> 9) & 511u);
     
-    let new_x_position = round_to_u32(mix(current_x_position, target_x_position, 0.5));
-    let new_y_position = round_to_u32(mix(current_y_position, target_y_position, 0.5));
-    let new_angle = round_to_u32(mix(current_angle, target_angle, 0.5));
+    let new_x_position = round_to_u32(mix(current_x_position, target_x_position, 1.0));
+    let new_y_position = round_to_u32(mix(current_y_position, target_y_position, 1.0));
+    let new_angle = round_to_u32(mix(current_angle, target_angle, 1.0));
 
     current_sprites_buffer[index] =
         ((new_x_position % 128) << 25) +
