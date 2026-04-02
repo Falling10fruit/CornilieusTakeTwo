@@ -232,6 +232,7 @@ const sprite_index_map = SpriteIndexMapStruct(
     if (entity_type == 3) { main_drill(); } else
     if (entity_type == 4) { main_rope(); }
     
+        debug_data = y_position;
 
         do_the_physics();
         

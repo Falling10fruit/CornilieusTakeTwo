@@ -17,6 +17,7 @@ async function preload (parameters: { device: GPUDevice }) {
 
         MAX_PLAYERS: 1, // aka singleplayer
         player_count: 1,
+        playerCountUniform: null,
         playerInputBuffer: null,
         playerInputBufferMapped: null
     };
@@ -67,7 +68,7 @@ async function preload (parameters: { device: GPUDevice }) {
 
     window.debug = {
         buffer: null,
-        mapped_buffer: null
+        unmapped_buffers: null
     };
 
     createBuffers({ ...parameters });

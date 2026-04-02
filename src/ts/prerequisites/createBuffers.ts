@@ -5,14 +5,7 @@ let device: GPUDevice;
 
 function createBuffers(parameters: { device: GPUDevice }) {
     device = parameters.device;
-
-    window.debug.buffer = device.createBuffer({ label: `compute entities debug buffer`,
-        size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    });
-    
-    window.debug.mapped_buffer = device.createBuffer({ label: `compute entities debug buffer`,
-        size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    });
+    createDebugBuffers();
 
     createRenderBuffers();
     createComputeBuffers();
@@ -28,6 +21,18 @@ function createRenderBuffers() {
     createCanvasDimensionUniform();
     createPlaceholderWorldDataBuffer();
     createPlaceholderSprites();
+}
+
+function createDebugBuffers() {
+    window.debug.buffer = device.createBuffer({ label: `debug storage buffer`,
+        size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    });
+    
+    for (let i = 0; i < 3; i++) {
+        window.debug.unmapped_buffers?.push(device.createBuffer({ label: `debug mapped buffer`,
+            size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+        }));
+    }
 }
 
 function createCameraUniform() {

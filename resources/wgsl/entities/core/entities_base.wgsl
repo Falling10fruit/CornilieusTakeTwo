@@ -228,6 +228,7 @@ const sprite_index_map = SpriteIndexMapStruct(
 
     // insert here
     
+        debug_data = y_position;
 
         do_the_physics();
         

@@ -174,7 +174,7 @@ declare global {
 
         debug: {
             buffer: GPUBuffer | null,
-            mapped_buffer: GPUBuffer | null
+            unmapped_buffers: Array<GPUBuffer> | null,
         }
     }
 
