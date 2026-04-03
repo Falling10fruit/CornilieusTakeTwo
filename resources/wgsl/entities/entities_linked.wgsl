@@ -30,7 +30,7 @@ alias points_to_entities_buffer_0 = ptr<storage, array<u32>, read_write>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
-@group(2) @binding(0) var<storage, read_write> debug_data : f32; // ##DEBUG_TYPE##
+@group(2) @binding(0) var<storage, read_write> debug_data : u32; // ##DEBUG_TYPE##
 @group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(2) var<storage, read>       world_data : array<u32>;
 
@@ -108,12 +108,13 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 }
 
 fn serialize_to_10_bit (number : f32) -> u32 {
-    let sign = u32(number < 0.0);
-    let number_u32 = frexp(abs(number));
-    let exponent = u32(clamp(number_u32.exp + 8, 0, 31));
-    let mantissa = u32(round(ldexp(number_u32.fract, 4)));
+    let ieee_754 = bitcast<u32>(number);
+    let sign = ieee_754 >> 31;
+    let exponent = u32(clamp(i32(extractBits(ieee_754, 23, 8)) - 119, 0, 31));
+    let rounding = extractBits(ieee_754, 18, 1);
+    let mantissa = ((ieee_754 & 8388607u) >> 19) + rounding;
 
-    return (sign << 9) + (exponent << 4) + mantissa;
+    return (sign << 9) + min((exponent << 4) + mantissa, 0x1FF);
 }
 
 fn parse_from_10_bit (bits : u32) -> f32 {
@@ -150,6 +151,9 @@ fn update_entity_position () {
     set_sub_integer_entity(entity_sub_int_x_position, serialized_x_position);
     
     var serialized_y_position : u32 = u32(round(y_position * f32(pos_chunk_ratio)));
+    
+    debug_data = world_dimensions.x;
+    
     if (serialized_y_position >= 4096) {
         chunk_y += 1;
         serialized_y_position -= 4096;
@@ -232,8 +236,6 @@ const sprite_index_map = SpriteIndexMapStruct(
     if (entity_type == 3) { main_drill(); } else
     if (entity_type == 4) { main_rope(); }
     
-        debug_data = y_position;
-
         do_the_physics();
         
         //  x       y       rotation  sprite
@@ -253,6 +255,8 @@ fn do_the_physics() {
 
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
+    
+    
     update_entity_position();
 }
 

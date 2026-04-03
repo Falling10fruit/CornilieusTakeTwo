@@ -98,8 +98,6 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
             { binding: 2, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
         ]
     })
-
-    createPlaceholderEntities();
 }
 
 async function loadComputeShader(device: GPUDevice) {
@@ -129,14 +127,14 @@ async function createPlaceholderEntities() {
         rotation_velocity : 0
     });
     const serialized = placeholder_entity.serialized_representation();
-    console.log("uploaded entity");
-    print_bits(serialized[1]);
+    // console.log("uploaded entity");
+    // print_bits(serialized[2]);
     device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array(serialized));
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(serialized));
 }
 
 const debugging_time = true;
-let debugging_loops = 1;
+let debugging_loops = 60;
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     if (window.entitiesBuffer.current_entity_buffer_is == 0) {
@@ -164,24 +162,28 @@ function simulateEntities() {
     computePass.end();
     
     if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging entities`});
-    if (window.debug.unmapped_buffers == null) return window.fail({title: `debug mapped buffer is null`, message: `debugging entities`});
+    if (window.debug.unmapped_buffers == null) return window.fail({title: `debug unmapped buffers is null`, message: `debugging entities`});
     let mapping_buffer = null;
-    if (window.debug.unmapped_buffers.length > 0) mapping_buffer = window.debug.unmapped_buffers[0];
-    if (mapping_buffer == null) return;
-    if (debugging_time && window.debug.unmapped_buffers.length > 0) commandEncoder.copyBufferToBuffer(window.debug.buffer, mapping_buffer);
+    if (window.debug.unmapped_buffers.length > 0 && debugging_time) {
+        mapping_buffer = window.debug.unmapped_buffers[0];
+        window.debug.unmapped_buffers.splice(0, 1);
+    }
+    if (mapping_buffer == null && debugging_time) return;
+    if (mapping_buffer != null && debugging_time && window.debug.unmapped_buffers.length > 0) commandEncoder.copyBufferToBuffer(window.debug.buffer, mapping_buffer);
     
     device.queue.submit([commandEncoder.finish()]);
 
-    if (debugging_time && window.debug.unmapped_buffers.length > 0) {
+    if (mapping_buffer != null && debugging_time && window.debug.unmapped_buffers.length > 0) {
         mapping_buffer.mapAsync(GPUMapMode.READ).then(function () {
-            if (window.debug.unmapped_buffers == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging entities`});
+            if (window.debug.unmapped_buffers == null) return window.fail({title: `debug unmapped buffers is null`, message: `debug unmapped buffers became null after trying to map it for reading whilst debugging entities`});
 
-            console.log(`debug reference`)
-            print_bits(8388802);
+            // console.log(`debug reference`)
+            // print_bits(8388802);
             console.log("debug buffer");
             // print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
-            // console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
-            console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
+            console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+            // console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
+            // console.log((new Int32Array(mapping_buffer.getMappedRange()))[0]);
             mapping_buffer.unmap();
             
             window.debug.unmapped_buffers.push(mapping_buffer);

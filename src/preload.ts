@@ -23,11 +23,11 @@ async function preload (parameters: { device: GPUDevice }) {
     };
 
     window.camera = {
-        xPos: 3,
-        yPos: 3,
+        xPos: 7,
+        yPos: 7,
         yVel: 0,
         xVel: 0,
-        scale: 64,
+        scale: 32,
         scaleVel: 0,
         rotation: (0)*Math.PI/180,
         rotationVel: 0,

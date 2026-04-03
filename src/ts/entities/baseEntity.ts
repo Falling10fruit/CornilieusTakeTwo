@@ -56,17 +56,14 @@ export class Entity {
         const x_position_second_part = shift_left(serialized_x_position, 26);
         const y_position = shift_left(serialized_y_position, 13);
         
-        const x_velocity = shift_left(serialize_to_10_bit(this.#x_velocity), 22);
-        
-        // console.log("serialized x velocity");
-        // print_bits(x_velocity);
-        const y_velocity = shift_left(serialize_to_10_bit(this.#y_velocity), 12);
+        const x_velocity = serialize_to_10_bit(this.#x_velocity) << 22;
+        const y_velocity = serialize_to_10_bit(this.#y_velocity) << 12;
 
         const serialized_rotation = Math.round(this.#rotation * 2**13 / (2 * Math.PI)) % 2**13;
         const serialized_rotation_velocity = Math.round(this.#rotation_velocity * 2**13 / (2 * Math.PI)) % 2**13;
         
-        // console.log("testing", parse_from_10_bit(serialize_to_10_bit(13)));
-        // print_bits(serialize_to_10_bit(13));
+        // console.log("testing", parse_from_10_bit(serialize_to_10_bit(1)));
+        // print_bits(serialize_to_10_bit(1));
 
         return new Uint32Array([
             add32Uints(entity_type, (chunk << 7), x_position_first_part),
@@ -90,6 +87,10 @@ const bitcast_float = new Float32Array(bitcast_buffer);
 const bitcast_uint = new Uint32Array(bitcast_buffer);
 
 function serialize_to_10_bit(float: number) {
+    // bitcast_float[0] = 1;
+    // const test_exponent = ((bitcast_uint[0] >> 23) & 255) - 127 + 8;
+    // console.log("test exponent", test_exponent);
+
     bitcast_float[0] = float;
 
     const v_exponent = ((bitcast_uint[0] >> 23) & 255) - 127 + 8;

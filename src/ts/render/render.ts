@@ -16,7 +16,7 @@ function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
     ctx = parameters.ctx;
 }
 
-const debugging_time = false;
+const debugging_time = false; // debug code commented out because the prject fails silently and I'm not debugging anyways
 /** The function that renders the entire frame.
  * 
  * Implementation at {@link render} */
@@ -46,23 +46,31 @@ function render () {
     renderSprites(renderPass);
     renderPass.end();
 
-    if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging render`});
-    if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debugging render`});
-    if (debugging_time) commandEncoder.copyBufferToBuffer(window.debug.buffer, window.debug.mapped_buffer);
+    // if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging render`});
+    // if (window.debug.unmapped_buffers == null) return window.fail({title: `debug mapped buffer is null`, message: `debugging render`});
+    // let mapping_buffer = null;
+    // if (window.debug.unmapped_buffers.length > 0 && debugging_time) {
+    //     mapping_buffer = window.debug.unmapped_buffers[0];
+    //     window.debug.unmapped_buffers.splice(0, 1);
+    // }
+    // if (mapping_buffer == null) return;
+    // if (debugging_time && window.debug.unmapped_buffers.length > 0) commandEncoder.copyBufferToBuffer(window.debug.buffer, mapping_buffer);
 
     device.queue.submit([commandEncoder.finish()]);
     
-    if (debugging_time) {
-        window.debug.mapped_buffer.mapAsync(GPUMapMode.READ).then(() => {
-            if (window.debug.mapped_buffer == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging rendering`});
+    // if (debugging_time) {
+    //     mapping_buffer.mapAsync(GPUMapMode.READ).then(() => {
+    //         if (window.debug.unmapped_buffers == null) return window.fail({title: `debug mapped buffer is null`, message: `debug mapped buffer became null after trying to map it for reading whilst debugging rendering`});
 
-            // print_bits(0);
-            // print_bits((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            // console.log((new Uint32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            console.log((new Float32Array(window.debug.mapped_buffer.getMappedRange()))[0]);
-            window.debug.mapped_buffer.unmap();
-        });
-    }
+    //         // print_bits(0);
+    //         // print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+    //         // console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+    //         console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
+    //         mapping_buffer.unmap();
+
+    //         window.debug.unmapped_buffers.push(mapping_buffer);
+    //     });
+    // }
 
     if (!debugging_time) requestAnimationFrame(render);
 }

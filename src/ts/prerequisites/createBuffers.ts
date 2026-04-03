@@ -28,8 +28,9 @@ function createDebugBuffers() {
         size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
     });
     
+    window.debug.unmapped_buffers = [];
     for (let i = 0; i < 3; i++) {
-        window.debug.unmapped_buffers?.push(device.createBuffer({ label: `debug mapped buffer`,
+        window.debug.unmapped_buffers.push(device.createBuffer({ label: `debug mapped buffer`,
             size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
         }));
     }
