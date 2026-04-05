@@ -49,7 +49,8 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
             @group(0) @binding(3) var spritesheetSampler : sampler;
 
             @group(0) @binding(4) var<storage, read> sWorldData : array<u32>;
-            @group(0) @binding(5) var<uniform> sWorldSize : vec2f;
+            @group(0) @binding(5) var<uniform> worldSize : vec2u;
+            var<private> fWorldSize : vec2f;
 
             fn mixClamped (start : f32, end : f32, weight : f32) -> f32 { return min(end, max(start, mix(start, end, weight))); }
             
@@ -73,11 +74,13 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
             }
 
             fn get_tile_at (position: vec2f) -> TileDataStruct {
-                let index : u32 = u32(floor(position.x) + floor(position.y) * sWorldSize.x);
+                let index : u32 = u32(floor(position.x) + floor(position.y) * fWorldSize.x);
                 return parse_raw_data(sWorldData[index]);
             }
 
             @fragment fn fragmentShader( @builtin(position) v_position : vec4f ) -> @location(0) vec4f {
+                fWorldSize = vec2f(worldSize * 8);
+
                 var position : vec2f = (v_position.xy - uViewport/2.0) * vec2f(1.0, -1.0);
                 position = vec2f(
                     position.x * cos(uTransform.rotation) - position.y * sin(uTransform.rotation),
@@ -86,11 +89,11 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                 position /= uTransform.scale;
                 position += uTransform.translate;
 
-                if (position.x < 0.0 || position.x > sWorldSize.x || position.y < 0.0 || position.y > sWorldSize.y) {
+                if (position.x < 0.0 || position.x > fWorldSize.x || position.y < 0.0 || position.y > fWorldSize.y) {
                     discard;
                 }
 
-                let tile_index: u32 = u32(floor(position.x) + floor(position.y) * sWorldSize.x);
+                let tile_index: u32 = u32(floor(position.x) + floor(position.y) * fWorldSize.x);
                 let tile_data : TileDataStruct = parse_raw_data(sWorldData[tile_index]);
 
                 //     out_color = vec4(0.2, 0.5, 0.4, 1.0); // green stone
@@ -105,27 +108,27 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                 if (tile_data.hit_points == 0u) {
                     var occlusion: f32 = 0.0;
 
-                    if (position.y < sWorldSize.y - 1.0) { if (parse_raw_data(sWorldData[tile_index + u32(sWorldSize.x)]).hit_points > 0u) {
+                    if (position.y < fWorldSize.y - 1.0) { if (parse_raw_data(sWorldData[tile_index + u32(fWorldSize.x)]).hit_points > 0u) {
                         occlusion = max(occlusion, fract(position.y) - 0.5);
                     }}
                         
-                    if (position.y < sWorldSize.y - 1.0 && position.x < sWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + u32(sWorldSize.x) + 1]).hit_points > 0u) {
+                    if (position.y < fWorldSize.y - 1.0 && position.x < fWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + u32(fWorldSize.x) + 1]).hit_points > 0u) {
                         occlusion = max(occlusion, min(fract(position.y) - 0.5, fract(position.x) - 0.5));
                     }}
                         
-                    if (position.x < sWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + 1]).hit_points > 0u) {
+                    if (position.x < fWorldSize.x - 1.0) { if (parse_raw_data(sWorldData[tile_index + 1]).hit_points > 0u) {
                         occlusion = max(occlusion, fract(position.x) - 0.5);
                     }}
                           
-                    if (position.x < sWorldSize.x - 1.0 && position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index + 1 - u32(sWorldSize.x)]).hit_points > 0u) {
+                    if (position.x < fWorldSize.x - 1.0 && position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index + 1 - u32(fWorldSize.x)]).hit_points > 0u) {
                         occlusion = max(occlusion, min(fract(position.x) - 0.5, 0.5 - fract(position.y)));
                     }}
 
-                    if (position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(sWorldSize.x)]).hit_points > 0u) {
+                    if (position.y > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(fWorldSize.x)]).hit_points > 0u) {
                         occlusion = max(occlusion, 0.5 - fract(position.y));
                     }}
                         
-                    if (position.y > 1.0 && position.x > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(sWorldSize.x) - 1]).hit_points > 0u) {
+                    if (position.y > 1.0 && position.x > 1.0) { if (parse_raw_data(sWorldData[tile_index - u32(fWorldSize.x) - 1]).hit_points > 0u) {
                         occlusion = max(occlusion, min(0.5 - fract(position.y), 0.5 - fract(position.x)));
                     }}
 
@@ -133,7 +136,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
                         occlusion = max(occlusion, 0.5 - fract(position.x));
                     }}
                         
-                    if (position.x > 1.0 && position.y < sWorldSize.y - 1.0) { if (parse_raw_data(sWorldData[tile_index - 1 + u32(sWorldSize.x)]).hit_points > 0u) {
+                    if (position.x > 1.0 && position.y < fWorldSize.y - 1.0) { if (parse_raw_data(sWorldData[tile_index - 1 + u32(fWorldSize.x)]).hit_points > 0u) {
                         occlusion = max(occlusion, min(0.5 - fract(position.x), fract(position.y) - 0.5));
                     }}
 

@@ -120,9 +120,9 @@ async function createPlaceholderEntities() {
     const placeholder_entity = new Entity({
         entity_type: 1,
         global_x_position : 0,
-        global_y_position : 16,
+        global_y_position : 32,
         rotation : 0,
-        x_velocity : 0,
+        x_velocity : 1,
         y_velocity : 1,
         rotation_velocity : 0
     });
@@ -133,8 +133,8 @@ async function createPlaceholderEntities() {
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(serialized));
 }
 
-const debugging_time = true;
-let debugging_loops = 60;
+const debugging_time = false;
+let debugging_loops = 1;
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     if (window.entitiesBuffer.current_entity_buffer_is == 0) {

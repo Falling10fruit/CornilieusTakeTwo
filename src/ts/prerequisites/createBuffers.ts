@@ -69,7 +69,7 @@ function updateWorldData (parameters: { width: number, height: number }) {
     });
     device.queue.writeBuffer(
         window.world.dimensionsUniform,
-        0, new Float32Array([ parameters.width * 8, parameters.height * 8 ])
+        0, new Uint32Array([ parameters.width, parameters.height ])
     );
 
     window.world.storageBuffer = device.createBuffer({

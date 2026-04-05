@@ -34,7 +34,8 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 @group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(2) var<storage, read>       world_data : array<u32>;
 
-const CHUNK_LENGTH : u32 = 8; // This is so that it can fit in the sprites
+const CHUNK_LENGTH : u32 = 8;
+const POS_CHUNK_RATIO = f32(8192 / (CHUNK_LENGTH * 16));
 var<private> entity_vector : vec4u;
 var<private> other_entity_vector : vec4u;
 var<private> entity_index : u32;
@@ -125,43 +126,17 @@ fn parse_from_10_bit (bits : u32) -> f32 {
     return (1.0 - sign_bit * 2.0) *  pow(2.0, exponent) * mantissa;
 }
 
-const pos_chunk_ratio = 8192 / (CHUNK_LENGTH * 16);
-
-fn get_x_pos () -> f32 {
-    let x_pos_in_chunk = get_sub_integer_entity(entity_sub_int_x_position);
-    let chunk_x_pos = get_sub_integer_entity(entity_sub_int_chunk) % world_dimensions.x;
-    return f32(chunk_x_pos * CHUNK_LENGTH * 16) + f32(x_pos_in_chunk) / f32(pos_chunk_ratio);
-}
-
-fn get_y_pos () -> f32 {
-    let y_pos_in_chunk = get_sub_integer_entity(entity_sub_int_y_position);
-    let chunk_y_pos = get_sub_integer_entity(entity_sub_int_chunk) / world_dimensions.x;
-    return f32(chunk_y_pos * CHUNK_LENGTH * 16) + f32(y_pos_in_chunk) / f32(pos_chunk_ratio);
-}
-
 fn update_entity_position () {
-    let world_dimensions_in_chunks = world_dimensions / 8;
-
-    var serialized_x_position : u32 = u32(round(x_position * f32(pos_chunk_ratio)));
-    if (serialized_x_position >= 4096) {
-        chunk_x += 1;
-        serialized_x_position -= 4096;
-    }
+    let x_position_13_bit : u32 = u32(round((x_position) * POS_CHUNK_RATIO));
+    let serialized_x_position : u32 = x_position_13_bit  % 8192;
+    chunk_x = x_position_13_bit >> 13;
+    
+    let y_position_13_bit : u32 = u32(round((y_position) * POS_CHUNK_RATIO));
+    let serialized_y_position : u32 = y_position_13_bit  % 8192;
+    chunk_y = y_position_13_bit >> 13;
     
     set_sub_integer_entity(entity_sub_int_x_position, serialized_x_position);
-    
-    var serialized_y_position : u32 = u32(round(y_position * f32(pos_chunk_ratio)));
-    
-    debug_data = world_dimensions.x;
-    
-    if (serialized_y_position >= 4096) {
-        chunk_y += 1;
-        serialized_y_position -= 4096;
-    }
-
-    
     set_sub_integer_entity(entity_sub_int_y_position, serialized_y_position);
-
     set_sub_integer_entity(entity_sub_int_chunk, chunk_x + chunk_y * world_dimensions.x);
 }
 
@@ -224,8 +199,11 @@ const sprite_index_map = SpriteIndexMapStruct(
 
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
-        x_position = get_x_pos();
-        y_position = get_y_pos();
+
+        chunk_x = get_sub_integer_entity(entity_sub_int_chunk) % world_dimensions.x;
+        chunk_y = get_sub_integer_entity(entity_sub_int_chunk) / world_dimensions.x;
+        x_position = f32(get_sub_integer_entity(entity_sub_int_x_position)) / POS_CHUNK_RATIO + f32(chunk_x * 16 * CHUNK_LENGTH);
+        y_position = f32(get_sub_integer_entity(entity_sub_int_y_position)) / POS_CHUNK_RATIO + f32(chunk_y * 16 * CHUNK_LENGTH);
         x_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity));
         y_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity));
         rotation   = f32(get_sub_integer_entity(entity_sub_int_rotation)) * 2 * pi / 8192.0;
@@ -237,6 +215,8 @@ const sprite_index_map = SpriteIndexMapStruct(
     if (entity_type == 4) { main_rope(); }
     
         do_the_physics();
+        
+    debug_data = chunk_y;
         
         //  x       y       rotation  sprite
         // 0101010 1010101 010101010 101010101
@@ -250,8 +230,21 @@ const sprite_index_map = SpriteIndexMapStruct(
 } 
 
 fn do_the_physics() {
+    let world_dimensions_pixels = vec2f(world_dimensions << vec2u(7, 7));
+
     x_position += x_velocity;
+    x_position *= 0.99;
+
+    x_velocity = select(x_velocity, 0.0, x_position < 0.0 || x_position > world_dimensions_pixels.x); // according to gemini this is performant, only 3 instructions
+    x_position = clamp(x_position, 0.0, f32(world_dimensions_pixels.x));
+    
     y_position += y_velocity;
+    y_velocity -= 0.0981; // gravity, like gravity
+    y_velocity *= 0.99;
+    
+    y_velocity = select(y_velocity, 0.0, y_position < 0.0 || y_position > world_dimensions_pixels.y); // according to gemini this is performant, only 3 instructions
+    y_position = clamp(y_position, 0.0, f32(world_dimensions_pixels.y));
+
 
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
