@@ -6,6 +6,127 @@ let pipeline: GPUComputePipeline;
 let bind_group_0: GPUBindGroup;
 let bind_group_1: GPUBindGroup;
 
+const current_input = {
+    "q": 0,
+    "w": 0,
+    "e": 0,
+    "a": 0,
+    "s": 0,
+    "d": 0,
+    "tab": 0,
+    "shift": 0,
+    "ctrl": 0,
+    "alt": 0,
+    "mouse_left": 0,
+    "mouse_middle": 0,
+    "mouse_right": 0,
+    "mouse_x": 0,
+    "mouse_y": 0,
+    "mouse_rotation": 0,
+    "z": 0,
+    "x": 0,
+    "c": 0,
+    "r": 0,
+    "f": 0,
+    "v": 0,
+    "t": 0,
+    "g": 0,
+    "b": 0,
+    "no_9": 0,
+    "no_8": 0,
+    "no_7": 0,
+    "no_6": 0,
+    "no_5": 0,
+    "no_4": 0,
+    "no_3": 0,
+    "no_2": 0,
+    "no_1": 0,
+    "no_0": 0,
+}
+
+function uploadInput() {
+    current_input.q = window.keyIsDown["q"] ? 1 : 0;
+    current_input.w = window.keyIsDown["q"] ? 1 : 0;
+    current_input.e = window.keyIsDown["q"] ? 1 : 0;
+    current_input.a = window.keyIsDown["q"] ? 1 : 0;
+    current_input.s = window.keyIsDown["q"] ? 1 : 0;
+
+    current_input.d = window.keyIsDown["q"] ? 1 : 0;
+    current_input.tab = window.keyIsDown["q"] ? 1 : 0;
+    current_input.shift = window.keyIsDown["q"] ? 1 : 0;
+    current_input.ctrl = window.keyIsDown["q"] ? 1 : 0;
+    current_input.alt = window.keyIsDown["q"] ? 1 : 0;
+    current_input.mouse_left = window.keyIsDown["q"] ? 1 : 0;
+    current_input.mouse_middle = window.keyIsDown["q"] ? 1 : 0;
+    current_input.mouse_right = window.keyIsDown["q"] ? 1 : 0;
+    current_input.mouse_x = window.keyIsDown["q"] ? 1 : 0;
+    current_input.mouse_y = window.keyIsDown["q"] ? 1 : 0;
+
+    current_input.mouse_rotation = window.keyIsDown["q"] ? 1 : 0;
+    current_input.z = window.keyIsDown["q"] ? 1 : 0;
+    current_input.x = window.keyIsDown["q"] ? 1 : 0;
+    current_input.c = window.keyIsDown["q"] ? 1 : 0;
+    current_input.r = window.keyIsDown["q"] ? 1 : 0;
+    current_input.f = window.keyIsDown["q"] ? 1 : 0;
+    current_input.v = window.keyIsDown["q"] ? 1 : 0;
+    current_input.t = window.keyIsDown["q"] ? 1 : 0;
+    current_input.g = window.keyIsDown["q"] ? 1 : 0;
+    current_input.b = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_9 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_8 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_7 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_6 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_5 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_4 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_3 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_2 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_1 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.no_0 = window.keyIsDown["q"] ? 1 : 0;
+
+    const input_array = new Uint32Array([
+            0
+            + (current_input.q << 4)
+            + (current_input.w << 3)
+            + (current_input.e << 2)
+            + (current_input.a << 1)
+            + current_input.s,
+
+            (current_input.d << 31)
+            + (current_input.tab << 30)
+            + (current_input.shift << 29)
+            + (current_input.ctrl << 28)
+            + (current_input.alt << 27)
+            + (current_input.mouse_left << 26)
+            + (current_input.mouse_middle << 25)
+            + (current_input.mouse_right << 24)
+            + (current_input.mouse_x << 12)
+            + current_input.mouse_y,
+
+            (current_input.mouse_rotation << 19)
+            + (current_input.z << 18)
+            + (current_input.x << 17)
+            + (current_input.c << 16)
+            + (current_input.r << 15)
+            + (current_input.f << 14)
+            + (current_input.v << 13)
+            + (current_input.t << 12)
+            + (current_input.g << 11)
+            + (current_input.b << 10)
+            + (current_input.no_9 << 9)
+            + (current_input.no_8 << 8)
+            + (current_input.no_7 << 7)
+            + (current_input.no_6 << 6)
+            + (current_input.no_5 << 5)
+            + (current_input.no_4 << 4)
+            + (current_input.no_3 << 3)
+            + (current_input.no_2 << 2)
+            + (current_input.no_1 << 1)
+            + current_input.no_0
+    ]);
+
+    invoke("upload_player_inputs", input_array);
+}
+
 async function bufferInput(device : GPUDevice) {
     const player_inputs = await invoke("get_player_inputs").catch((e) => { return e });
     if (!(player_inputs instanceof Array)) return window.fail({ title: "Couldn't get player inputs", message: player_inputs});
