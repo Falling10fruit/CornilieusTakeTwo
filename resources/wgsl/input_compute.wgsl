@@ -5,45 +5,46 @@
 var<private> input_vector : vec2u;
 var<private> entity_vector : vec4u;
 
-const input_entity_id       = vec2u(0 , 23);
-const input_q               = vec2u(24, 24);
-const input_w               = vec2u(25, 25);
-const input_e               = vec2u(26, 26);
-const input_a               = vec2u(27, 27);
-const input_s               = vec2u(28, 28);
-const input_d               = vec2u(29, 29);
-const input_z               = vec2u(30, 30);
-const input_x               = vec2u(31, 31);
-const input_c               = vec2u(32, 32);
-const input_r               = vec2u(33, 33);
-const input_f               = vec2u(34, 34);
-const input_v               = vec2u(35, 35);
-const input_t               = vec2u(36, 36);
-const input_g               = vec2u(37, 37);
-const input_b               = vec2u(38, 38);
-const input_y               = vec2u(39, 39);
-const input_h               = vec2u(40, 40);
-const input_n               = vec2u(41, 41);
-const input_tab             = vec2u(42, 42);
-const input_shift           = vec2u(43, 43);
-const input_ctrl            = vec2u(44, 44);
-const input_alt             = vec2u(45, 45);
-const input_0               = vec2u(46, 46);
-const input_1               = vec2u(47, 47);
-const input_2               = vec2u(48, 48);
-const input_3               = vec2u(49, 49);
-const input_4               = vec2u(50, 50);
-const input_5               = vec2u(51, 51);
-const input_6               = vec2u(52, 52);
-const input_7               = vec2u(53, 53);
-const input_8               = vec2u(54, 54);
-const input_9               = vec2u(55, 55);
-const input_mouse_left      = vec2u(56, 56);
-const input_mouse_middle    = vec2u(57, 57);
-const input_mouse_right     = vec2u(58, 58);
-const input_mouse_rotation  = vec2u(59, 71);
-const input_mouse_x         = vec2u(72, 83);
-const input_mouse_y         = vec2u(84, 95);
+// First index is player count   controlled entity's index       qwe as   d tab shift ctrl alt mouse_left mouse_middle mouse_right  mouse x      mouse y       mouse_rotation = 2^13 = ?? degrees zxc rfv tgb 0123456789 
+//                               01010101 01010101 01010101 010  010 10 | 1 0   1     0    1   0          1            0           010101010101 010101010101 | 1010101010101                      010 101 010 0101010101 
+
+const input_entity_id       = vec2u(0 , 26);
+const input_q               = vec2u(27, 27);
+const input_w               = vec2u(28, 28);
+const input_e               = vec2u(29, 29);
+const input_a               = vec2u(30, 30);
+const input_s               = vec2u(31, 31);
+
+const input_d               = vec2u(32, 32);
+const input_tab             = vec2u(33, 33);
+const input_shift           = vec2u(34, 34);
+const input_ctrl            = vec2u(35, 35);
+const input_alt             = vec2u(36, 36);
+const input_mouse_left      = vec2u(37, 37);
+const input_mouse_middle    = vec2u(38, 38);
+const input_mouse_right     = vec2u(39, 39);
+const input_mouse_x         = vec2u(40, 51);
+const input_mouse_y         = vec2u(52, 63);
+
+const input_mouse_rotation  = vec2u(64, 76);
+const input_z               = vec2u(77, 77);
+const input_x               = vec2u(78, 78);
+const input_c               = vec2u(79, 79);
+const input_f               = vec2u(80, 80);
+const input_v               = vec2u(81, 81);
+const input_t               = vec2u(82, 82);
+const input_g               = vec2u(83, 83);
+const input_b               = vec2u(84, 84);
+const input_9               = vec2u(85, 85);
+const input_8               = vec2u(86, 86);
+const input_7               = vec2u(87, 87);
+const input_6               = vec2u(88, 88);
+const input_5               = vec2u(89, 89);
+const input_4               = vec2u(90, 90);
+const input_3               = vec2u(91, 91);
+const input_2               = vec2u(92, 92);
+const input_1               = vec2u(93, 93);
+const input_0               = vec2u(94, 94);
 
 const entity_sub_int_entity_type = vec2u(0, 8);
 const entity_sub_int_x_velocity = vec2u(64, 73);

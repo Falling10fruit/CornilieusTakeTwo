@@ -46,41 +46,41 @@ const current_input = {
 
 function uploadInput() {
     current_input.q = window.keyIsDown["q"] ? 1 : 0;
-    current_input.w = window.keyIsDown["q"] ? 1 : 0;
-    current_input.e = window.keyIsDown["q"] ? 1 : 0;
-    current_input.a = window.keyIsDown["q"] ? 1 : 0;
-    current_input.s = window.keyIsDown["q"] ? 1 : 0;
+    current_input.w = window.keyIsDown["w"] ? 1 : 0;
+    current_input.e = window.keyIsDown["e"] ? 1 : 0;
+    current_input.a = window.keyIsDown["a"] ? 1 : 0;
+    current_input.s = window.keyIsDown["s"] ? 1 : 0;
 
-    current_input.d = window.keyIsDown["q"] ? 1 : 0;
-    current_input.tab = window.keyIsDown["q"] ? 1 : 0;
-    current_input.shift = window.keyIsDown["q"] ? 1 : 0;
-    current_input.ctrl = window.keyIsDown["q"] ? 1 : 0;
-    current_input.alt = window.keyIsDown["q"] ? 1 : 0;
-    current_input.mouse_left = window.keyIsDown["q"] ? 1 : 0;
-    current_input.mouse_middle = window.keyIsDown["q"] ? 1 : 0;
-    current_input.mouse_right = window.keyIsDown["q"] ? 1 : 0;
-    current_input.mouse_x = window.keyIsDown["q"] ? 1 : 0;
-    current_input.mouse_y = window.keyIsDown["q"] ? 1 : 0;
+    current_input.d = window.keyIsDown["d"] ? 1 : 0;
+    current_input.tab = window.keyIsDown["Tab"] ? 1 : 0;
+    current_input.shift = window.keyIsDown["Shift"] ? 1 : 0;
+    current_input.ctrl = window.keyIsDown["Control"] ? 1 : 0;
+    current_input.alt = window.keyIsDown["Alt"] ? 1 : 0;
+    current_input.mouse_left = 0;
+    current_input.mouse_middle = 0;
+    current_input.mouse_right = 0;
+    current_input.mouse_x = 0;
+    current_input.mouse_y = 0;
 
-    current_input.mouse_rotation = window.keyIsDown["q"] ? 1 : 0;
-    current_input.z = window.keyIsDown["q"] ? 1 : 0;
-    current_input.x = window.keyIsDown["q"] ? 1 : 0;
-    current_input.c = window.keyIsDown["q"] ? 1 : 0;
-    current_input.r = window.keyIsDown["q"] ? 1 : 0;
-    current_input.f = window.keyIsDown["q"] ? 1 : 0;
-    current_input.v = window.keyIsDown["q"] ? 1 : 0;
-    current_input.t = window.keyIsDown["q"] ? 1 : 0;
-    current_input.g = window.keyIsDown["q"] ? 1 : 0;
-    current_input.b = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_9 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_8 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_7 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_6 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_5 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_4 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_3 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_2 = window.keyIsDown["q"] ? 1 : 0;
-    current_input.no_1 = window.keyIsDown["q"] ? 1 : 0;
+    current_input.mouse_rotation = 0;
+    current_input.z = window.keyIsDown["z"] ? 1 : 0;
+    current_input.x = window.keyIsDown["x"] ? 1 : 0;
+    current_input.c = window.keyIsDown["c"] ? 1 : 0;
+    current_input.r = window.keyIsDown["r"] ? 1 : 0;
+    current_input.f = window.keyIsDown["f"] ? 1 : 0;
+    current_input.v = window.keyIsDown["v"] ? 1 : 0;
+    current_input.t = window.keyIsDown["t"] ? 1 : 0;
+    current_input.g = window.keyIsDown["g"] ? 1 : 0;
+    current_input.b = window.keyIsDown["b"] ? 1 : 0;
+    current_input.no_9 = window.keyIsDown["9"] ? 1 : 0;
+    current_input.no_8 = window.keyIsDown["8"] ? 1 : 0;
+    current_input.no_7 = window.keyIsDown["7"] ? 1 : 0;
+    current_input.no_6 = window.keyIsDown["6"] ? 1 : 0;
+    current_input.no_5 = window.keyIsDown["5"] ? 1 : 0;
+    current_input.no_4 = window.keyIsDown["4"] ? 1 : 0;
+    current_input.no_3 = window.keyIsDown["3"] ? 1 : 0;
+    current_input.no_2 = window.keyIsDown["2"] ? 1 : 0;
+    current_input.no_1 = window.keyIsDown["1"] ? 1 : 0;
     current_input.no_0 = window.keyIsDown["q"] ? 1 : 0;
 
     const input_array = new Uint32Array([
@@ -124,7 +124,7 @@ function uploadInput() {
             + current_input.no_0
     ]);
 
-    invoke("upload_player_inputs", input_array);
+    invoke("upload_player_inputs", { player_input_array: input_array });
 }
 
 async function bufferInput(device : GPUDevice) {
@@ -200,4 +200,4 @@ function computeInputs(pass: GPUComputePassEncoder) {
     pass.dispatchWorkgroups(1);
 }
 
-export { bufferInput, setUpComputeInputs, computeInputs }
+export { bufferInput, setUpComputeInputs, computeInputs, uploadInput }

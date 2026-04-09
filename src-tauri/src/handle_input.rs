@@ -90,7 +90,7 @@ impl InputFormat {
         ]
     }
 
-    fn pack(&mut self, inputs: [u32; 3]) {
+    fn parse(&mut self, inputs: [u32; 3]) {
         self.q = (inputs[0] >> 4) & 1;
         self.w = (inputs[0] >> 3) & 1;
         self.e = (inputs[0] >> 2) & 1;
@@ -134,10 +134,10 @@ impl InputFormat {
 // First index is player count   controlled entity's index       qwe as   d tab shift ctrl alt mouse_left mouse_middle mouse_right  mouse x      mouse y       mouse_rotation = 2^13 = ?? degrees zxc rfv tgb 0123456789 
 //                               01010101 01010101 01010101 010  010 10 | 1 0   1     0    1   0          1            0           010101010101 010101010101 | 1010101010101                      010 101 010 0101010101 
 #[tauri::command]
-pub async fn get_player_inputs() -> Result<Vec<u32>, String> {
-    // 000 001 32 - 6 = 26
+pub async fn get_player_inputs(state: tauri::State::<'_, Mutex<AppData>>) -> Result<Vec<u32>, String> {
+    let state = state.lock().unwrap();
     
-    Ok(vec![1 << 2 as u32, 0])
+    Ok(state.inputs.clone())
 }
 
 use crate::AppData;
@@ -145,8 +145,11 @@ use crate::AppData;
 #[tauri::command]
 pub fn upload_player_inputs(player_input_array: [u32; 3], state: tauri::State::<'_, Mutex<AppData>>){
     let mut player_input = InputFormat::default();
-    player_input.pack(player_input_array);
+    player_input.parse(player_input_array);
 
     let mut state = state.lock().unwrap();
     state.current_player_inputs = player_input;
+    state.inputs[0] = player_input_array[0];
+    state.inputs[1] = player_input_array[1];
+    state.inputs[2] = player_input_array[2];
 }

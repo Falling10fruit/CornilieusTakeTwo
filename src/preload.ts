@@ -60,7 +60,7 @@ async function preload (parameters: { device: GPUDevice }) {
     window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
     window.onkeydown = (event) => {
         window.keyIsDown[event.key] = true;
-        console.log(event.code);
+        console.log(event.key);
 
         if (event.key === "F2") eyedropper.click();
 

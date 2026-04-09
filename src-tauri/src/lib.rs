@@ -6,7 +6,7 @@ mod handle_input;
 #[derive(Default)]
 pub struct AppData {
   current_player_inputs: handle_input::InputFormat,
-  inputs: Vec<handle_input::InputFormat>,
+  inputs: Vec<u32>,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
