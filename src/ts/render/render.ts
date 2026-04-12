@@ -76,12 +76,12 @@ function render () {
 }
 
 function controlCamera() {
-    if (window.keyIsDown.w) window.camera.yPos += 10 / window.camera.scale;
-    if (window.keyIsDown.s) window.camera.yPos -= 10 / window.camera.scale;
-    if (window.keyIsDown.a) window.camera.xPos -= 10 / window.camera.scale;
-    if (window.keyIsDown.d) window.camera.xPos += 10 / window.camera.scale;
-    if (window.keyIsDown.e) window.camera.scale *= 1.02;
-    if (window.keyIsDown.q) window.camera.scale *= 0.98;
+    if (window.keyIsDown.W) window.camera.yPos += 10 / window.camera.scale;
+    if (window.keyIsDown.S) window.camera.yPos -= 10 / window.camera.scale;
+    if (window.keyIsDown.A) window.camera.xPos -= 10 / window.camera.scale;
+    if (window.keyIsDown.D) window.camera.xPos += 10 / window.camera.scale;
+    if (window.keyIsDown.E) window.camera.scale *= 1.02;
+    if (window.keyIsDown.Q) window.camera.scale *= 0.98;
     if (window.keyIsDown.ArrowLeft) window.camera.rotation += Math.PI/180;
     if (window.keyIsDown.ArrowRight) window.camera.rotation -= Math.PI/180;
 }

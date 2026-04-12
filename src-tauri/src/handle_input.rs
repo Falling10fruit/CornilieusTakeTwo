@@ -48,7 +48,7 @@ fn int_into_bool (integer: u32) -> bool {
 }
 
 impl InputFormat {
-    fn serialize(&self) -> [u32; 3] {
+    fn serialize(&self) -> [u32; 4] {
         [
             0 + (self.q << 4)
             + (self.w << 3)
@@ -86,11 +86,13 @@ impl InputFormat {
             + (self.no_3 << 3)
             + (self.no_2 << 2)
             + (self.no_1 << 1)
-            + self.no_0
+            + self.no_0,
+
+            0_u32
         ]
     }
 
-    fn parse(&mut self, inputs: [u32; 3]) {
+    fn parse(&mut self, inputs: [u32; 4]) {
         self.q = (inputs[0] >> 4) & 1;
         self.w = (inputs[0] >> 3) & 1;
         self.e = (inputs[0] >> 2) & 1;
@@ -135,15 +137,17 @@ impl InputFormat {
 //                               01010101 01010101 01010101 010  010 10 | 1 0   1     0    1   0          1            0           010101010101 010101010101 | 1010101010101                      010 101 010 0101010101 
 #[tauri::command]
 pub async fn get_player_inputs(state: tauri::State::<'_, Mutex<AppData>>) -> Result<Vec<u32>, String> {
-    let state = state.lock().unwrap();
-    
-    Ok(state.inputs.clone())
+    let data = state.lock().unwrap();
+ 
+    // println!("{}", data.inputs[0]);
+
+    Ok(data.inputs.clone())
 }
 
 use crate::AppData;
 
 #[tauri::command]
-pub fn upload_player_inputs(player_input_array: [u32; 3], state: tauri::State::<'_, Mutex<AppData>>){
+pub fn upload_player_inputs(player_input_array: [u32; 4], state: tauri::State::<'_, Mutex<AppData>>){
     let mut player_input = InputFormat::default();
     player_input.parse(player_input_array);
 
@@ -152,4 +156,5 @@ pub fn upload_player_inputs(player_input_array: [u32; 3], state: tauri::State::<
     state.inputs[0] = player_input_array[0];
     state.inputs[1] = player_input_array[1];
     state.inputs[2] = player_input_array[2];
+    state.inputs[3] = player_input_array[3];
 }

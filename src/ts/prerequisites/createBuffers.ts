@@ -79,7 +79,6 @@ function updateWorldData (parameters: { width: number, height: number }) {
     });
 }
 
-
 function createPlaceholderSprites() {
     window.spritesBuffer.current = device.createBuffer({
         label: `current sprites buffer`,
@@ -146,14 +145,13 @@ function createInputBuffers () {
     const playerCountUniform = device.createBuffer({
         label: `player count`,
         size: 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
-
     window.world.playerCountUniform = playerCountUniform;
 
     const playerInputBuffer = device.createBuffer({
         label: `players inputs`,
-        size: window.world.MAX_PLAYERS * 8,
+        size: window.world.MAX_PLAYERS * 16,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
 
@@ -161,7 +159,7 @@ function createInputBuffers () {
 
     const playerInputBufferMapped = device.createBuffer({
         label: `mapped player inputs`,
-        size: window.world.MAX_PLAYERS * 8,
+        size: window.world.MAX_PLAYERS * 16,
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     });
 

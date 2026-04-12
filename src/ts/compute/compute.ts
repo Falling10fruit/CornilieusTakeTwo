@@ -1,5 +1,6 @@
-import { computeInputs } from "./playerInput";
+import { bufferInput, computeInputs, uploadInput } from "./playerInput";
 import { computeEntities } from "./computeEntities";
+import { print_bits } from "../../bit_utils";
 
 let device: GPUDevice;
 
@@ -8,12 +9,16 @@ function setUpComputePass (parameters: { device: GPUDevice}) {
 }
 
 const debugging_time = false;
-let debugging_loops = 1;
-
+let debugging_loops = 999999999;
 function compute() {
-    const commandEncoder = device.createCommandEncoder({ label: `compute entities command encoder` });
+    // if (debugging_time) window.keyIsDown["w"] = true;
+    
+    uploadInput();
+    bufferInput();
 
-    const computePass = commandEncoder.beginComputePass({ label: `compute entities compute pass`});
+    const commandEncoder = device.createCommandEncoder({ label: `compute command encoder` });
+
+    const computePass = commandEncoder.beginComputePass({ label: `compute pass`});
     computeInputs(computePass);
     computeEntities(computePass);
     computePass.end();
@@ -36,9 +41,9 @@ function compute() {
 
             // console.log(`debug reference`)
             // print_bits(8388802);
-            console.log("debug buffer");
-            // print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
-            console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+            // console.log("debug buffer");
+            print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+            // console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
             // console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
             // console.log((new Int32Array(mapping_buffer.getMappedRange()))[0]);
             mapping_buffer.unmap();

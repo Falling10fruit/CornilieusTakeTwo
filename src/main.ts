@@ -12,7 +12,6 @@ import { setUpRender } from "./ts/render/render.ts";
 
 import { generateWorldToBuffer } from "./ts/compute/generateWorldShader";
 
-import { bufferInput } from "./ts/compute/playerInput";
 import { createPlaceholderEntities } from "./ts/compute/computeEntities";
 
 import { render } from "./ts/render/render";
@@ -42,8 +41,6 @@ async function createPrerequisiteVariables() {
 }
 
 async function start() {
-    await bufferInput(device);
-    
     compute();
     render();
 }

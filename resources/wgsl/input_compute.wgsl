@@ -1,8 +1,10 @@
 @group(0) @binding(0) var<uniform> player_count : u32;
-@group(0) @binding(1) var<storage, read> inputs_buffer : array<vec2u>;
+@group(0) @binding(1) var<storage, read> inputs_buffer : array<vec4u>;
 @group(0) @binding(2) var<storage, read_write> entities_buffer : array<vec4u>;
 
-var<private> input_vector : vec2u;
+@group(1) @binding(0) var<storage, read_write> debug_buffer : u32;
+
+var<private> input_vector : vec4u;
 var<private> entity_vector : vec4u;
 
 // First index is player count   controlled entity's index       qwe as   d tab shift ctrl alt mouse_left mouse_middle mouse_right  mouse x      mouse y       mouse_rotation = 2^13 = ?? degrees zxc rfv tgb 0123456789 
@@ -55,6 +57,8 @@ fn index_input_vector(index : u32) -> u32 {
     switch index {
         case 0: { return input_vector.x; }
         case 1: { return input_vector.y; }
+        case 2: { return input_vector.z; }
+        case 3: { return input_vector.w; }
         default: { return 0; }
     }
 }
@@ -73,7 +77,7 @@ fn get_sub_integer_input(range : vec2u) -> u32 {
 }
 
 // Use this to quickly get single digits
-fn get_bit_from_input(index : u32) -> u32 { return (index_input_vector(index/4) >> (3 - index%4)) & 1u; }
+fn get_bit_from_input(index : u32) -> u32 { return (index_input_vector(index >> 5) >> (31 - index%32)) & 1u; }
 
 
 fn index_entity_integer(index : u32) -> u32 {
@@ -116,7 +120,7 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
     let offset_0 = start_index << 5;
     let start_0 = range.x - offset_0;
     let end_0 = clamp(range.y - offset_0, 0, 31);
-    let sub_value_0 = new_value >> select(0, range.y - offset_0 - 3, range.y > offset_0 + 3);
+    let sub_value_0 = new_value >> select(0, range.y - offset_0 - 31, range.y > offset_0 + 31);
     start_integer = insertBits(start_integer, sub_value_0, 31 - end_0, end_0 - start_0 + 1);
     set_entity_integer(start_index, start_integer);
 
@@ -127,21 +131,21 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
         let offset_1 = end_index << 5;
         let start_1 = clamp(range.x - offset_1, 0, 31);
         let end_1 = range.y - offset_1;
-        let sub_value_1 = new_value >> select(0, range.y - offset_1 - 3, range.y > offset_1 + 3);
+        let sub_value_1 = new_value >> select(0, range.y - offset_1 - 31, range.y > offset_1 + 31);
         end_integer = insertBits(end_integer, sub_value_1, 31 - end_1, end_1 - start_1 + 1);
 
         set_entity_integer(end_index, end_integer);
     }
-
 }
 
 fn serialize_to_10_bit (number : f32) -> u32 {
-    let sign = u32(number < 0.0);
-    let number_u32 = frexp(abs(number));
-    let exponent = u32(clamp(number_u32.exp + 8, 0, 31));
-    let mantissa = u32(round(ldexp(number_u32.fract, 4)));
+    let ieee_754 = bitcast<u32>(number);
+    let sign = ieee_754 >> 31;
+    let exponent = u32(clamp(i32(extractBits(ieee_754, 23, 8)) - 119, 0, 31));
+    let rounding = extractBits(ieee_754, 18, 1);
+    let mantissa = ((ieee_754 & 8388607u) >> 19) + rounding;
 
-    return (sign << 9) + (exponent << 4) + mantissa;
+    return (sign << 9) + min((exponent << 4) + mantissa, 0x1FF);
 }
 
 fn parse_from_10_bit (bits : u32) -> f32 {
@@ -157,24 +161,30 @@ fn parse_from_10_bit (bits : u32) -> f32 {
 ) {
     if (global_invocation_id.x >= player_count) { return; }
     input_vector = inputs_buffer[global_invocation_id.x];
+
     let entity_index = input_vector.x >> 9;
     entity_vector = entities_buffer[entity_index];
 
     let w_pressed = get_bit_from_input(input_w.x);
     let s_pressed = get_bit_from_input(input_s.x);
-    let resultant_y_velocity = w_pressed - s_pressed;
+    let resultant_y_velocity = w_pressed - s_pressed + 1u;
 
-    if (resultant_y_velocity != 0u) {
-        set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity)) + f32(resultant_y_velocity)));
+    if (resultant_y_velocity != 1u) {
+        set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity)) + 0.5 * (f32(resultant_y_velocity) - 1.0)));
     }
     
-    let d_pressed = get_bit_from_input(input_w.x);
-    let a_pressed = get_bit_from_input(input_s.x);
-    let resultant_x_velocity = d_pressed - a_pressed;
+    let d_pressed = get_bit_from_input(input_d.x);
+    let a_pressed = get_bit_from_input(input_a.x);
+    let resultant_x_velocity = d_pressed - a_pressed + 1u;
 
-    if (resultant_x_velocity != 0u) {
-        set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity)) + f32(resultant_x_velocity)));
+    debug_buffer = resultant_x_velocity;
+
+    if (resultant_x_velocity != 1u) {
+        set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity)) + 0.5 * (f32(resultant_x_velocity) - 1.0)));
     }
 
+    // set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(1.0));
+
     entities_buffer[entity_index] = entity_vector;
+    
 }

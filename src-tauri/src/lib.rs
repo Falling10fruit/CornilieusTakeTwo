@@ -1,4 +1,5 @@
 use tauri::{Builder, Manager};
+use std::sync::Mutex;
 
 mod get_shaders;
 mod handle_input;
@@ -13,7 +14,12 @@ pub struct AppData {
 pub fn run() {
   Builder::default()
     .setup(|app| {
-      app.manage(std::sync::Mutex::new(AppData::default()));
+      app.manage(Mutex::new(AppData::default()));
+
+      let state = app.state::<Mutex<AppData>>();
+      let mut data = state.lock().unwrap();
+      data.current_player_inputs = handle_input::InputFormat::default();
+      data.inputs =  vec![0_u32, 0_u32, 0_u32, 0_u32];
 
       if cfg!(debug_assertions) {
         app.handle().plugin(

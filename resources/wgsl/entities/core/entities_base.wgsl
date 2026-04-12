@@ -30,7 +30,7 @@ alias points_to_entities_buffer_0 = ptr<storage, array<u32>, read_write>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
-@group(2) @binding(0) var<storage, read_write> debug_data : u32; // ##DEBUG_TYPE##
+@group(2) @binding(0) var<storage, read_write> debug_buffer : u32; // ##DEBUG_TYPE##
 @group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(2) var<storage, read>       world_data : array<u32>;
 
@@ -199,7 +199,6 @@ const sprite_index_map = SpriteIndexMapStruct(
 
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
-
         chunk_x = get_sub_integer_entity(entity_sub_int_chunk) % world_dimensions.x;
         chunk_y = get_sub_integer_entity(entity_sub_int_chunk) / world_dimensions.x;
         x_position = f32(get_sub_integer_entity(entity_sub_int_x_position)) / POS_CHUNK_RATIO + f32(chunk_x * 16 * CHUNK_LENGTH);
@@ -208,11 +207,11 @@ const sprite_index_map = SpriteIndexMapStruct(
         y_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity));
         rotation   = f32(get_sub_integer_entity(entity_sub_int_rotation)) * 2 * pi / 8192.0;
 
+
     // insert here
     
         do_the_physics();
         
-    debug_data = chunk_y;
         
         //  x       y       rotation  sprite
         // 0101010 1010101 010101010 101010101
@@ -229,7 +228,7 @@ fn do_the_physics() {
     let world_dimensions_pixels = vec2f(world_dimensions << vec2u(7, 7));
 
     x_position += x_velocity;
-    x_position *= 0.99;
+    x_velocity *= 0.9;
 
     x_velocity = select(x_velocity, 0.0, x_position < 0.0 || x_position > world_dimensions_pixels.x); // according to gemini this is performant, only 3 instructions
     x_position = clamp(x_position, 0.0, f32(world_dimensions_pixels.x));
