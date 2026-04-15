@@ -20,6 +20,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
             { binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry, // transform camera
             { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry, // screen resolution
             { binding: 2, visibility: GPUShaderStage.VERTEX, buffer: { type: "read-only-storage" } } as GPUBindGroupLayoutEntry, // current sprite buffer
+            { binding: 3, visibility: GPUShaderStage.VERTEX, buffer: { type: "uniform" } } as GPUBindGroupLayoutEntry,
             
         ]
     });
@@ -39,6 +40,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
             { binding: 0, resource: { buffer: window.camera.uniformBuffer} } as GPUBindGroupEntry, // camera transform
             { binding: 1, resource: { buffer: window.viewportUniform } } as GPUBindGroupEntry, // viewport resolutoion
             { binding: 2, resource: { buffer: window.spritesBuffer.current } } as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.world.dimensionsUniform } } as GPUBindGroupEntry,
         ]
     });
 

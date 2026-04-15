@@ -71,7 +71,7 @@ async function preload (parameters: { device: GPUDevice }) {
         unmapped_buffers: null
     };
 
-    createBuffers({ ...parameters });
+    createBuffers({ ...parameters }); // not async btw
     await loadSpritesheet({ ...parameters });
 }
 

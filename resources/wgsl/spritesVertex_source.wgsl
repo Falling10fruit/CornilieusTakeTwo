@@ -6,6 +6,8 @@ struct TransformStruct {
 
 @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
 @group(0) @binding(1) var<uniform> uViewport : vec2f;
+@group(0) @binding(2) var<storage, read> sCurrentSprites : array<vec2u>;
+@group(0) @binding(3) var<uniform> world_dimensions : vec2u;
 
 const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(0.0, 2.0),
@@ -13,11 +15,10 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(2.0, 0.0),
 );
 
-@group(0) @binding(2) var<storage, read> sCurrentSprites : array<u32>;
 
-//   255     255      511     
-//  x pos   y pos   rotation  512 sprites
-// 0101010 1010101 010101010   101010101
+//   33554432                         65536                   127          127          511     
+//  sprite index                     chunk index             x pos        y pos       rotation
+// 01010101 01010101 01010101 0 ] [ 1010101 |  01010101 0 ] [ 1010101 ] [ 0101010 ] [ 1 01010101 ]
 
 // const spritesArray : array<vec4u, 6> = array(
 //      vec4(0, 0, 16, 16)
@@ -37,14 +38,16 @@ struct v_out {
 ) -> v_out {
     var out : v_out;
 
-    let spriteData = sCurrentSprites[instanceIndex];
-    let xPos : f32 = f32((spriteData >> 25) & 127u);
-    let yPos : f32 = f32((spriteData >> 18) & 127u);
-    let rotation = f32((spriteData >> 9) & 511u);
-    let spriteIndex = (spriteData >> 0) & 511u;
+    let sprite_data = sCurrentSprites[instanceIndex];
+    let spriteIndex = (sprite_data.x >> 7);
     let sprite : vec4f = vec4f(spritesArray[spriteIndex]);
 
-    let translateMatrix : mat3x3f = createTranslateMatrix(xPos/16.0, yPos/16.0); // The bottom left of the sprite
+    let chunk : u32 = ((sprite_data.x & 0x7Fu) << 9) + (sprite_data.y >> 23);
+    let xPos : f32 = f32(((sprite_data.y >> 16) & 127u) + 128 * (chunk % world_dimensions.x) );
+    let yPos : f32 = f32(((sprite_data.y >> 9) & 127u) + 128 * (chunk / world_dimensions.x) );
+    let rotation = f32((sprite_data.y >> 0) & 511u);
+
+    let translateMatrix : mat3x3f = createTranslateMatrix(xPos / 16.0, yPos / 16.0); // The bottom left of the sprite
     let rotateMatrix : mat3x3f = createRotateMatrix(rotation);
     let scaleMatrix : mat3x3f = createScaleMatrix((sprite.zw - sprite.xy) / 16.0);
     let transform : mat3x3f = translateMatrix * rotateMatrix * scaleMatrix; // * rotateMatrix; just start with something basic // matricies are associative
@@ -70,7 +73,7 @@ struct v_out {
     out.v_position = vertexArray[vertexIndex];
     
     // out.position = vec4f(((vertexArray[vertexIndex] + vec2f(xPos, yPos) - uTransform.translate) * uTransform.scale * 2.0) / uViewport, 0.0, 1.0);
-    // out.debug = vec4f(f32(spriteData & 1u) * 255.0, 0.0, 0.0, 255.0)/255.0;
+    // out.debug = vec4f(f32(chunk) * 255.0, 0.0, 0.0, 255.0)/255.0;
     return out;
 }
 

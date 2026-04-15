@@ -2,7 +2,7 @@ import { setUpGPU } from "./ts/prerequisites/setUpGPU";
 import { preload } from "./preload";
 
 import { setUpGenerateWorld } from "./ts/compute/generateWorldShader";
-import { setUpComputeSprites } from "./ts/compute/computeSprites";
+import { createPlaceholderSprites, setUpComputeSprites } from "./ts/compute/computeSprites";
 import { setUpComputeEntities } from "./ts/compute/computeEntities";
 import { setUpComputeInputs } from "./ts/compute/playerInput";
 import { setUpCanvasResize } from "./ts/prerequisites/canvasResize.ts"
@@ -18,9 +18,10 @@ import { render } from "./ts/render/render";
 import { compute, setUpComputePass } from "./ts/compute/compute";
 
 const { device, ctx } = await setUpGPU();
+
 await preload({ device: device });
 
-Promise.all([
+await Promise.all([
     setUpComputePass({ device }),
     setUpRender({ device, ctx }),
     setUpGenerateWorld({ device }),
@@ -30,17 +31,13 @@ Promise.all([
     setUpCanvasResize({ device }),
     setUpRenderWorld({ device }),
     setUpRenderSprites({ device }),
-]).then(() => {
-    createPrerequisiteVariables().then(start);
-});
+]);
 
-async function createPrerequisiteVariables() {
-    if (window.world.storageBuffer == null) return console.error("World storage buffer is null");
-    await generateWorldToBuffer({...window.world});
-    await createPlaceholderEntities();
-}
+await Promise.all([
+    generateWorldToBuffer(),
+    createPlaceholderEntities(),
+    createPlaceholderSprites()
+]);
 
-async function start() {
-    compute();
-    render();
-}
+compute();
+render();

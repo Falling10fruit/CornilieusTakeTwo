@@ -135,8 +135,8 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
     });
 }
 
-async function generateWorldToBuffer (parameters: { width: number, height: number }) {
-    const { width, height } = parameters;
+async function generateWorldToBuffer () {
+    const { width, height } = window.world;
 
     if (window.world.storageBuffer == null) return window.fail({ title: `world storage buffer is null`, message: `error generated at generateWorldShader`})
     const bindGroup = device.createBindGroup({

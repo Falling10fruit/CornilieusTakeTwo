@@ -39,6 +39,7 @@ const POS_CHUNK_RATIO = f32(8192 / (CHUNK_LENGTH * 16));
 var<private> entity_vector : vec4u;
 var<private> other_entity_vector : vec4u;
 var<private> entity_index : u32;
+var<private> chunk_index : u32;
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
 var<private> x_position : f32;
@@ -154,7 +155,7 @@ fn get_rotation_vel () -> f32 {
 }
 
 // Using groups because I'm too lazy to offset everything when i insert something new
-@group(1) @binding(0) var<storage, read_write> sprites_target : array<u32>;
+@group(1) @binding(0) var<storage, read_write> sprites_target : array<vec2u>;
 struct SpriteIndexMapStruct {
     // player_looking_right: u32,
     // player_looking_left: u32,
@@ -199,8 +200,9 @@ const sprite_index_map = SpriteIndexMapStruct(
 
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
-        chunk_x = get_sub_integer_entity(entity_sub_int_chunk) % world_dimensions.x;
-        chunk_y = get_sub_integer_entity(entity_sub_int_chunk) / world_dimensions.x;
+        chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
+        chunk_x = chunk_index % world_dimensions.x;
+        chunk_y = chunk_index / world_dimensions.x;
         x_position = f32(get_sub_integer_entity(entity_sub_int_x_position)) / POS_CHUNK_RATIO + f32(chunk_x * 16 * CHUNK_LENGTH);
         y_position = f32(get_sub_integer_entity(entity_sub_int_y_position)) / POS_CHUNK_RATIO + f32(chunk_y * 16 * CHUNK_LENGTH);
         x_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity));
@@ -212,13 +214,19 @@ const sprite_index_map = SpriteIndexMapStruct(
     
         do_the_physics();
         
-        
-        //  x       y       rotation  sprite
-        // 0101010 1010101 010101010 101010101
-        let serialized_x_position = u32(floor(x_position)) % 127;
-        let serialized_y_position = u32(floor(y_position)) % 127;
+
+        //   33554432                         65536                   127          127          511     
+        //  sprite index                     chunk index             x pos        y pos       rotation
+        // 01010101 01010101 01010101 0 ] [ 1010101 |  01010101 0 ] [ 1010101 ] [ 0101010 ] [ 101010101 ]
+        let serialized_x_position = u32(x_position);
+        let serialized_y_position = u32(y_position);
+        let chunk_index = (serialized_x_position >> 7) + world_dimensions.x * (serialized_y_position >> 7);
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
-        sprites_target[global_invocation_id.x] = (serialized_x_position << 25) + (serialized_y_position << 18) + (serialized_rotation << 9) + current_sprite;
+        let target_sprite_vector = vec2u(
+            (current_sprite << 7) + (chunk_index >> 9),
+            (chunk_index << 23) + ((serialized_x_position & 127u) << 16) + ((serialized_y_position & 127u) << 9) + serialized_rotation
+        );
+        sprites_target[global_invocation_id.x] = target_sprite_vector;
 
         entities_buffer_1[entity_index] = entity_vector;
     }

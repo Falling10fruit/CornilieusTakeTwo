@@ -39,7 +39,8 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry,
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // current sprites buffer
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry // target sprites buffer
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // target sprites buffer
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }} as GPUBindGroupLayoutEntry,
         ]
     });
 
@@ -59,9 +60,10 @@ async function setUpComputeSprites(parameters: { device: GPUDevice, ctx: GPUCanv
         label: `compute sprites bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.debug.buffer }}          as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.spritesBuffer.current }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.spritesBuffer.target }}  as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.debug.buffer }}             as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.spritesBuffer.current }}    as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.spritesBuffer.target }}     as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.world.dimensionsUniform }}  as GPUBindGroupEntry,
         ]
     });
 }
@@ -72,10 +74,22 @@ async function loadComputeShader(device: GPUDevice) {
     return device.createShaderModule({ label: "compute sprites shader", code: computeShaderSource });
 }
 
+async function createPlaceholderSprites() {
+    const sprites = new Uint32Array(window.world.NO_OF_SPRITES * 2);
+    sprites[0] = add32Uints(
+        ( 1 << 7 ) // position zero rotation zero
+    );
+
+    if (window.spritesBuffer.current == null) return window.fail({ title: "\"current\" sprite buffer is null", message: "spritesBuffer of key \"current\" failed to initialize"});
+    if (window.spritesBuffer.target == null) return window.fail({ title: "\"sprite\" buffer is null", message: "spritesBuffer of ket \"target\" failed to initialize"});
+    device.queue.writeBuffer(window.spritesBuffer.current, 0, sprites, 0, 4);
+    device.queue.writeBuffer(window.spritesBuffer.target, 0, sprites, 0, 4);
+}
+
 function computeSprites(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
     pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);
 }
 
-export { setUpComputeSprites, computeSprites }
+export { setUpComputeSprites, computeSprites, createPlaceholderSprites }

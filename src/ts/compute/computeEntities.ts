@@ -119,11 +119,11 @@ async function createPlaceholderEntities() {
 
     const placeholder_entity = new Entity({
         entity_type: 1,
-        global_x_position : 0,
-        global_y_position : 32,
+        global_x_position : 127,
+        global_y_position : 0,
         rotation : 0,
-        x_velocity : 1,
-        y_velocity : 1,
+        x_velocity : 0,
+        y_velocity : 0,
         rotation_velocity : 0
     });
     const serialized = placeholder_entity.serialized_representation();
@@ -145,7 +145,7 @@ function computeEntities(pass: GPUComputePassEncoder) {
     pass.setBindGroup(2, bindGroup_additionalData);
     
     
-    pass.dispatchWorkgroups(NO_OF_DISPATCHES);
+    pass.dispatchWorkgroups(1);
 }
 
 export { setUpComputeEntities, computeEntities, createPlaceholderEntities }

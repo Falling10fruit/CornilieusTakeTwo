@@ -1,6 +1,3 @@
-import { add32Uints } from "../../bit_utils";
-import { createPlaceholderEntities } from "../compute/computeEntities";
-
 let device: GPUDevice;
 
 function createBuffers(parameters: { device: GPUDevice }) {
@@ -20,7 +17,7 @@ function createRenderBuffers() {
     createCameraUniform();
     createCanvasDimensionUniform();
     createPlaceholderWorldDataBuffer();
-    createPlaceholderSprites();
+    createSpriteBuffers();
 }
 
 function createDebugBuffers() {
@@ -79,32 +76,18 @@ function updateWorldData (parameters: { width: number, height: number }) {
     });
 }
 
-function createPlaceholderSprites() {
+function createSpriteBuffers() {
     window.spritesBuffer.current = device.createBuffer({
         label: `current sprites buffer`,
-        size: window.world.NO_OF_SPRITES * 4,
+        size: window.world.NO_OF_SPRITES * 8,
         usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     })
     
     window.spritesBuffer.target = device.createBuffer({
         label: `target sprites buffer`,
-        size: window.world.NO_OF_SPRITES * 4,
+        size: window.world.NO_OF_SPRITES * 8,
         usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-    })
-    
-    const sprites = new Uint32Array(2**24);
-    const IDK_ONE_SPRITE_IG_AS_TEST  = add32Uints(
-        ( 0 << 25 ) >>> 0,
-        ( 0 << 18 ) >>> 0,
-        ( 0  << 9 ) >>> 0,
-        ( 1  << 0 ) >>> 0
-    ) >>> 0;
-    sprites[0] = IDK_ONE_SPRITE_IG_AS_TEST;
-
-    if (window.spritesBuffer.current == null) return window.fail({ title: "\"current\" sprite buffer is null", message: "spritesBuffer of key \"current\" failed to initialize"});
-    if (window.spritesBuffer.target == null) return window.fail({ title: "\"sprite\" buffer is null", message: "spritesBuffer of ket \"target\" failed to initialize"});
-    device.queue.writeBuffer(window.spritesBuffer.current, 0, sprites, 0, 4);
-    device.queue.writeBuffer(window.spritesBuffer.target, 0, sprites, 0, 4);
+    });
 }
 
 function updateEntitiesData() {
