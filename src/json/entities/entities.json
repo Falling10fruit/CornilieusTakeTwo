@@ -7,6 +7,8 @@
     }, {
         "entity_id": "john",
         "description": "test character",
+        "dimensions": [9, 15],
+        "center": [5, 7],
         "mass": 40,
         "nodes": [
             -2.5,  7.5,
@@ -37,19 +39,12 @@
                 "description": "offhand, for like attatching yourself to rope"
             }
         ],
-        "sprites": [
-            {
-                "name": "copernicus_look_left",
-                "splice": [16, 0, 9, 15]
-            },
-            {
-                "name": "copernicus_look_right",
-                "splice": [16, 15, 9, 15]
-            }
-        ]
+        "default_sprite": "john_looking_right"
     }, {
         "entity_id": "block",
         "description": "the building block of every build",
+        "dimensions": [1, 1],
+        "center": [0.5, 0.5],
         "mass": 100,
         "nodes": [
              8,  8,
@@ -63,15 +58,12 @@
             { "behvaior": "default", "position": [ -8.0,  0.0 ], "angle": 180 },
             { "behvaior": "default", "position": [  0.0, -8.0 ], "angle": 270 }
         ],
-        "sprites":[
-            {
-                "name": "block",
-                "splice": [0, 8, 16, 16]
-            }
-        ]
+        "default_sprite": "block"
     }, {
         "entity_id": "drill",
         "description": "The prelimenary tool for any job",
+        "dimensions": [4, 11],
+        "center": [2, 7],
         "mass": 15,
         "nodes": [
             -2.0,  4.0,
@@ -95,15 +87,12 @@
                 "description": "Drill handle and chute"
             }
         ],
-        "sprites":[
-            {
-                "name": "drill",
-                "splice": [25, 0, 4, 11]
-            }
-        ]
+        "default_sprite": "drill"
     }, {
         "entity_id": "rope",
         "description": "It wiggles",
+        "dimensions": [1, 2],
+        "center": [0.5, 1],
         "mass": 1,
         "nodes": [
             -0.5,  1.0,
@@ -115,11 +104,6 @@
             { "behvaior": "default", "position": [ 0.0,  1.0 ], "angle": "free" },
             { "behvaior": "default", "position": [ 0.0, -1.0 ], "angle": "free" }
         ],
-        "sprites":[
-            {
-                "name": "rope",
-                "splice": [25, 11, 1, 2]
-            }
-        ]
+        "default_sprite": "rope"
     }
 ]

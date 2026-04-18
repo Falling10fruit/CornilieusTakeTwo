@@ -6,12 +6,17 @@ import { parseSpriteJson } from "./parseEntitiesJson.js";
 const SPRITES_JSON = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'json', 'sprites', 'sprites.json');
 const { sprites_array, sprite_indicies } = await parseSpriteJson(SPRITES_JSON);
 
+const floater = number => number % 1 > 0 ? `${number}` : number + ".0";
+
 const sprite_vertex_path = path.join("resources", "wgsl", "spritesVertex_source.wgsl");
 const sprite_vertex_source = await readFile(sprite_vertex_path, { encoding: 'utf-8' });
 const sprite_vertex_split = sprite_vertex_source.split("// insert here")
 const sprite_vertex_out = sprite_vertex_split[0] + `
-const spritesArray : array<vec4u, ${sprites_array.length}> = array(
-    ${sprites_array.map(sprite_data => `vec4u(${sprite_data.coordinates.join(", ")})`).join(`,
+const spritesArray : array<spriteDataStruct, ${sprites_array.length}> = array(
+    ${sprites_array.map(sprite_data => `spriteDataStruct(
+        vec4f(${sprite_data.coordinates.map(floater).join(", ")}),
+        vec2f(${sprite_data.pivot.map(floater).join(", ")})
+    )`).join(`,
     `)}
 );` + sprite_vertex_split[1];
 

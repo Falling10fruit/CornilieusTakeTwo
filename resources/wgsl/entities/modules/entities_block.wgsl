@@ -13,27 +13,14 @@
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_block {
-    node_count: u32,
-    nodes: array<vec2f, 4>,
-    mass: u32,
-    default_sprite: u32
-}
-
-const EntityData_block = DataStruct_block(
-    4,
-    array(
-        vec2f(-8, 8),
-        vec2f(8, 8),
-        vec2f(8, -8),
-        vec2f(-8, -8)
-    ),
-    100,
-    sprite_index_map.block
+const nodes_block: array<vec2f, 4> = array(
+    vec2f(-8, 8),
+    vec2f(8, 8),
+    vec2f(8, -8),
+    vec2f(-8, -8)
 );
 
 fn main_block() {
-    current_sprite = EntityData_block.default_sprite;
 }
 
 fn handle_collision_block(collider : u32) {

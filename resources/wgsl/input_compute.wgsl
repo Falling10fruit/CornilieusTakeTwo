@@ -170,7 +170,7 @@ fn parse_from_10_bit (bits : u32) -> f32 {
     let resultant_y_velocity = w_pressed - s_pressed + 1u;
 
     if (resultant_y_velocity != 1u) {
-        set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity)) + 0.5 * (f32(resultant_y_velocity) - 1.0)));
+        set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity)) + 1.0 * (f32(resultant_y_velocity) - 1.0)));
     }
     
     let d_pressed = get_bit_from_input(input_d.x);
@@ -178,7 +178,7 @@ fn parse_from_10_bit (bits : u32) -> f32 {
     let resultant_x_velocity = d_pressed - a_pressed + 1u;
     
     if (resultant_x_velocity != 1u) {
-        set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity)) + 0.3 * (f32(resultant_x_velocity) - 1.0)));
+        set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity)) + 1.0 * (f32(resultant_x_velocity) - 1.0)));
     }
 
     // set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(1.0));

@@ -1,24 +1,31 @@
 [ 
     {
         "sprite_id": "john_looking_right",
-        "coordinates": [16, 15, 25, 30]
+        "coordinates": [16, 15, 25, 30],
+        "pivot": [5, 7]
     }, {
         "sprite_id": "john_looking_left",
-        "coordinates": [16, 0, 25, 15]
+        "coordinates": [16, 0, 25, 15],
+        "pivot": [4, 7]
     }, {
         "sprite_id": "drill",
-        "coordinates": [25, 0, 29, 11]
+        "coordinates": [25, 0, 29, 11],
+        "pivot": [2, 7]
     }, {
         "sprite_id": "rope",
-        "coordinates": [25, 11, 26, 13]
+        "coordinates": [25, 11, 26, 13],
+        "pivot": [1, 0.5]
     }, {
         "sprite_id": "block",
-        "coordinates": [26, 1, 27, 2]
+        "coordinates": [26, 1, 27, 2],
+        "pivot": [0.5, 0.5]
     }, {
         "sprite_id": "monster",
-        "coordinates": [28, 6, 37, 20]
+        "coordinates": [28, 6, 37, 20],
+        "pivot": [5, 8]
     }, {
         "sprite_id": "pipe",
-        "coordinates": [25, 20, 33, 28]
+        "coordinates": [25, 20, 33, 28],
+        "pivot": [4, 4]
     }
 ]

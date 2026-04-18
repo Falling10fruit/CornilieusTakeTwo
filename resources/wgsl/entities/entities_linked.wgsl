@@ -36,9 +36,20 @@ alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
 const CHUNK_LENGTH : u32 = 8;
 const POS_CHUNK_RATIO = f32(8192 / (CHUNK_LENGTH * 16));
+
+struct EntityData {
+    node_count: u32,
+    center: vec2f,
+    dimensions: vec2f,
+    mass: f32,
+    default_sprite: u32
+}
+
 var<private> entity_vector : vec4u;
 var<private> other_entity_vector : vec4u;
 var<private> entity_index : u32;
+var<private> entity_type : u32;
+var<private> current_entity_data : EntityData;
 var<private> chunk_index : u32;
 var<private> chunk_x : u32;
 var<private> chunk_y : u32;
@@ -47,8 +58,61 @@ var<private> y_position : f32;
 var<private> x_velocity : f32;
 var<private> y_velocity : f32;
 var<private> rotation : f32; // in the 2^13 format 0 - 8191
-var<private> entity_type : u32;
 var<private> current_sprite : u32;
+
+//  const entity_data_john: EntityData = EntityData(
+//      node_count: 11,
+//      center: vec2f(5.0, 7.0),
+//      dimensions: [7, 11],
+
+fn get_entity_data(type_index : u32) -> EntityData {
+    switch type_index {
+        //  case 0: {
+        //      EntithyData(
+        //          node_count: 11,
+        //      ) 
+        //  }
+        
+        case 1: {
+            return EntityData(
+                22,
+                vec2f(5.0, 7.0),
+                vec2f(9.0, 7.0),
+                40.0,
+                0
+            );
+        }
+        case 2: {
+            return EntityData(
+                8,
+                vec2f(0.5, 0.5),
+                vec2f(1.0, 0.5),
+                100.0,
+                4
+            );
+        }
+        case 3: {
+            return EntityData(
+                24,
+                vec2f(2.0, 7.0),
+                vec2f(4.0, 7.0),
+                15.0,
+                2
+            );
+        }
+        case 4: {
+            return EntityData(
+                8,
+                vec2f(0.5, 1.0),
+                vec2f(1.0, 1.0),
+                1.0,
+                3
+            );
+        }
+
+        default: { return EntityData(0, vec2f(0.0, 0.0), vec2f(0.0, 0.0), 0.0, 0u); }
+    }
+}
 
 fn index_entity_integer(index : u32) -> u32 {
     switch index {
@@ -201,6 +265,8 @@ const sprite_index_map = SpriteIndexMapStruct(
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
         chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
+        current_entity_data = get_entity_data(entity_type);
+        current_sprite = current_entity_data.default_sprite;
         chunk_x = chunk_index % world_dimensions.x;
         chunk_y = chunk_index / world_dimensions.x;
         x_position = f32(get_sub_integer_entity(entity_sub_int_x_position)) / POS_CHUNK_RATIO + f32(chunk_x * 16 * CHUNK_LENGTH);
@@ -217,7 +283,6 @@ const sprite_index_map = SpriteIndexMapStruct(
     if (entity_type == 4) { main_rope(); }
     
         do_the_physics();
-        
 
         //   33554432                         65536                   127          127          511     
         //  sprite index                     chunk index             x pos        y pos       rotation
@@ -240,18 +305,17 @@ fn do_the_physics() {
     let world_dimensions_pixels = vec2f(world_dimensions << vec2u(7, 7));
 
     x_position += x_velocity;
-    x_velocity *= 0.9;
+    x_velocity *= 0.97;
 
-    x_velocity = select(x_velocity, 0.0, x_position < 0.0 || x_position > world_dimensions_pixels.x); // according to gemini this is performant, only 3 instructions
-    x_position = clamp(x_position, 0.0, f32(world_dimensions_pixels.x));
+    x_velocity = select(x_velocity, 0.0, x_position < current_entity_data.dimensions.x/2 || x_position > world_dimensions_pixels.x - current_entity_data.dimensions.x/2); // according to gemini this is performant, only 3 instructions
+    x_position = clamp(x_position, current_entity_data.dimensions.x/2, world_dimensions_pixels.x - current_entity_data.dimensions.x/2);
     
     y_position += y_velocity;
-    y_velocity -= 0.0981; // gravity, like gravity
-    y_velocity *= 0.99;
+    y_velocity -= 0.0981; // gravity, like gravity 
+    y_velocity *= 0.97;
     
-    y_velocity = select(y_velocity, 0.0, y_position < 0.0 || y_position > world_dimensions_pixels.y); // according to gemini this is performant, only 3 instructions
-    y_position = clamp(y_position, 0.0, f32(world_dimensions_pixels.y));
-
+    y_velocity = select(y_velocity, 0.0, y_position < current_entity_data.dimensions.y/2 || y_position > world_dimensions_pixels.y - current_entity_data.dimensions.y/2); // according to gemini this is performant, only 3 instructions
+    y_position = clamp(y_position, current_entity_data.dimensions.y/2, world_dimensions_pixels.y - current_entity_data.dimensions.y/2);
 
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
@@ -280,34 +344,21 @@ fn handle_collision(collider: u32) {
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_john {
-    node_count: u32,
-    nodes: array<vec2f, 11>,
-    mass: u32,
-    default_sprite: u32
-}
-
-const EntityData_john = DataStruct_john(
-    11, // for the for loops to know how many times to loop automatically in the physics function
-    array(
-        vec2f(-2.5, 7.5),
-        vec2f(2.5, 7.5),
-        vec2f(3.5, 0.5),
-        vec2f(4.5, -0.5),
-        vec2f(2.5, -0.5),
-        vec2f(2.5, -7.5),
-        vec2f(-3.5, -7.5),
-        vec2f(-3.5, -1.5),
-        vec2f(-4.5, -1.5),
-        vec2f(-4.5, 0.5),
-        vec2f(-2.5, 2.5),
-    ),
-    60, // in kilograms
-    sprite_index_map.john_looking_right
+const nodes_john: array<vec2f, 11> = array(
+    vec2f(-2.5, 7.5),
+    vec2f(2.5, 7.5),
+    vec2f(3.5, 0.5),
+    vec2f(4.5, -0.5),
+    vec2f(2.5, -0.5),
+    vec2f(2.5, -7.5),
+    vec2f(-3.5, -7.5),
+    vec2f(-3.5, -1.5),
+    vec2f(-4.5, -1.5),
+    vec2f(-4.5, 0.5),
+    vec2f(-2.5, 2.5),
 );
 
 fn main_john() {
-    current_sprite = EntityData_john.default_sprite;
 }
 
 fn handle_collision_john(collider : u32) {
@@ -327,27 +378,14 @@ fn handle_collision_john(collider : u32) {
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_block {
-    node_count: u32,
-    nodes: array<vec2f, 4>,
-    mass: u32,
-    default_sprite: u32
-}
-
-const EntityData_block = DataStruct_block(
-    4,
-    array(
-        vec2f(-8, 8),
-        vec2f(8, 8),
-        vec2f(8, -8),
-        vec2f(-8, -8)
-    ),
-    100,
-    sprite_index_map.block
+const nodes_block: array<vec2f, 4> = array(
+    vec2f(-8, 8),
+    vec2f(8, 8),
+    vec2f(8, -8),
+    vec2f(-8, -8)
 );
 
 fn main_block() {
-    current_sprite = EntityData_block.default_sprite;
 }
 
 fn handle_collision_block(collider : u32) {
@@ -366,33 +404,20 @@ fn handle_collision_block(collider : u32) {
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_drill {
-    node_count: u32,
-    nodes: array<vec2f, 10>,
-    mass: u32,
-    default_sprite: u32
-}
-
-const EntityData_drill = DataStruct_drill(
-    10, // for the for loops to know how many times to loop automatically in the physics function
-    array(
-        vec2f(-2.0, 4.0),
-        vec2f(1.0, 4.0),
-        vec2f(2.0, 3.0),
-        vec2f(2.0, -2.0),
-        vec2f(1.0, -3.0),
-        vec2f(0.0, -3.0),
-        vec2f(0.0, -7.0),
-        vec2f(-1.0, -7.0),
-        vec2f(-1.0, -3.0),
-        vec2f(-2.0, -2.0),
-    ),
-    15, // in kilograms
-    sprite_index_map.drill
+const nodes_drill: array<vec2f, 10> = array(
+    vec2f(-2.0, 4.0),
+    vec2f(1.0, 4.0),
+    vec2f(2.0, 3.0),
+    vec2f(2.0, -2.0),
+    vec2f(1.0, -3.0),
+    vec2f(0.0, -3.0),
+    vec2f(0.0, -7.0),
+    vec2f(-1.0, -7.0),
+    vec2f(-1.0, -3.0),
+    vec2f(-2.0, -2.0),
 );
 
 fn main_drill() {
-    current_sprite = EntityData_drill.default_sprite;
 }
 
 fn handle_collision_drill(collider : u32) {
@@ -411,27 +436,15 @@ fn handle_collision_drill(collider : u32) {
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_rope {
-    node_count: u32,
-    nodes: array<vec2f, 4>,
-    mass: u32,
-    default_sprite: u32
-}
 
-const EntityData_rope = DataStruct_rope(
-    4, // for the for loops to know how many times to loop automatically in the physics function
-    array(
-        vec2f(-0.5, 1.0),
-        vec2f(0.5, 1.0),
-        vec2f(0.5, -1.0),
-        vec2f(-0.5, -1.0),
-    ),
-    2, // in kilograms
-    sprite_index_map.rope
+const nodes_rope: array<vec2f, 4> = array(
+    vec2f(-0.5, 1.0),
+    vec2f(0.5, 1.0),
+    vec2f(0.5, -1.0),
+    vec2f(-0.5, -1.0),
 );
 
 fn main_rope() {
-    current_sprite = EntityData_rope.default_sprite;
 }
 
 fn handle_collision_rope(collider : u32) {

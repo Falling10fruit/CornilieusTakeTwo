@@ -12,34 +12,21 @@
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_john {
-    node_count: u32,
-    nodes: array<vec2f, 11>,
-    mass: u32,
-    default_sprite: u32
-}
-
-const EntityData_john = DataStruct_john(
-    11, // for the for loops to know how many times to loop automatically in the physics function
-    array(
-        vec2f(-2.5, 7.5),
-        vec2f(2.5, 7.5),
-        vec2f(3.5, 0.5),
-        vec2f(4.5, -0.5),
-        vec2f(2.5, -0.5),
-        vec2f(2.5, -7.5),
-        vec2f(-3.5, -7.5),
-        vec2f(-3.5, -1.5),
-        vec2f(-4.5, -1.5),
-        vec2f(-4.5, 0.5),
-        vec2f(-2.5, 2.5),
-    ),
-    60, // in kilograms
-    sprite_index_map.john_looking_right
+const nodes_john: array<vec2f, 11> = array(
+    vec2f(-2.5, 7.5),
+    vec2f(2.5, 7.5),
+    vec2f(3.5, 0.5),
+    vec2f(4.5, -0.5),
+    vec2f(2.5, -0.5),
+    vec2f(2.5, -7.5),
+    vec2f(-3.5, -7.5),
+    vec2f(-3.5, -1.5),
+    vec2f(-4.5, -1.5),
+    vec2f(-4.5, 0.5),
+    vec2f(-2.5, 2.5),
 );
 
 fn main_john() {
-    current_sprite = EntityData_john.default_sprite;
 }
 
 fn handle_collision_john(collider : u32) {

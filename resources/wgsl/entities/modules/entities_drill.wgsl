@@ -12,33 +12,20 @@
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_drill {
-    node_count: u32,
-    nodes: array<vec2f, 10>,
-    mass: u32,
-    default_sprite: u32
-}
-
-const EntityData_drill = DataStruct_drill(
-    10, // for the for loops to know how many times to loop automatically in the physics function
-    array(
-        vec2f(-2.0, 4.0),
-        vec2f(1.0, 4.0),
-        vec2f(2.0, 3.0),
-        vec2f(2.0, -2.0),
-        vec2f(1.0, -3.0),
-        vec2f(0.0, -3.0),
-        vec2f(0.0, -7.0),
-        vec2f(-1.0, -7.0),
-        vec2f(-1.0, -3.0),
-        vec2f(-2.0, -2.0),
-    ),
-    15, // in kilograms
-    sprite_index_map.drill
+const nodes_drill: array<vec2f, 10> = array(
+    vec2f(-2.0, 4.0),
+    vec2f(1.0, 4.0),
+    vec2f(2.0, 3.0),
+    vec2f(2.0, -2.0),
+    vec2f(1.0, -3.0),
+    vec2f(0.0, -3.0),
+    vec2f(0.0, -7.0),
+    vec2f(-1.0, -7.0),
+    vec2f(-1.0, -3.0),
+    vec2f(-2.0, -2.0),
 );
 
 fn main_drill() {
-    current_sprite = EntityData_drill.default_sprite;
 }
 
 fn handle_collision_drill(collider : u32) {

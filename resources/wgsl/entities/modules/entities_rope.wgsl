@@ -12,27 +12,15 @@
 //                                 01010101010101010101010101010101       010 101 010 101 0101            01010101 01010101
 // @group(0) @binding(6) var<storage, read> players_input : array<u32>;
 
-struct DataStruct_rope {
-    node_count: u32,
-    nodes: array<vec2f, 4>,
-    mass: u32,
-    default_sprite: u32
-}
 
-const EntityData_rope = DataStruct_rope(
-    4, // for the for loops to know how many times to loop automatically in the physics function
-    array(
-        vec2f(-0.5, 1.0),
-        vec2f(0.5, 1.0),
-        vec2f(0.5, -1.0),
-        vec2f(-0.5, -1.0),
-    ),
-    2, // in kilograms
-    sprite_index_map.rope
+const nodes_rope: array<vec2f, 4> = array(
+    vec2f(-0.5, 1.0),
+    vec2f(0.5, 1.0),
+    vec2f(0.5, -1.0),
+    vec2f(-0.5, -1.0),
 );
 
 fn main_rope() {
-    current_sprite = EntityData_rope.default_sprite;
 }
 
 fn handle_collision_rope(collider : u32) {
