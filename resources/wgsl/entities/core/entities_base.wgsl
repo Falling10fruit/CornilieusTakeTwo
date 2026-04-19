@@ -217,10 +217,10 @@ const sprite_index_map = SpriteIndexMapStruct(
     // sprite insert
 );
 
-// CHANGE IT BACK TO 64 1 1
-@compute @workgroup_size(1, 1, 1) fn cShader(
+@compute @workgroup_size(64, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
+    debug_buffer = 1u;
     if (global_invocation_id.x >= arrayLength(&entities_indicies)) { return; }
 
     entity_index = entities_indicies[global_invocation_id.x];
@@ -228,6 +228,7 @@ const sprite_index_map = SpriteIndexMapStruct(
 
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
+
         chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
         current_entity_data = get_entity_data(entity_type);
         current_sprite = current_entity_data.default_sprite;
@@ -267,15 +268,15 @@ fn do_the_physics() {
     x_position += x_velocity;
     x_velocity *= 0.97;
 
-    x_velocity = select(x_velocity, 0.0, x_position < current_entity_data.dimensions.x/2 || x_position > world_dimensions_pixels.x - current_entity_data.dimensions.x/2); // according to gemini this is performant, only 3 instructions
-    x_position = clamp(x_position, current_entity_data.dimensions.x/2, world_dimensions_pixels.x - current_entity_data.dimensions.x/2);
+    x_velocity = select(x_velocity, 0.0, x_position < 0.0 || x_position > world_dimensions_pixels.x); // according to gemini this is performant, only 3 instructions
+    x_position = clamp(x_position, 0, world_dimensions_pixels.x);
     
     y_position += y_velocity;
     y_velocity -= 0.0981; // gravity, like gravity 
     y_velocity *= 0.97;
     
-    y_velocity = select(y_velocity, 0.0, y_position < current_entity_data.dimensions.y/2 || y_position > world_dimensions_pixels.y - current_entity_data.dimensions.y/2); // according to gemini this is performant, only 3 instructions
-    y_position = clamp(y_position, current_entity_data.dimensions.y/2, world_dimensions_pixels.y - current_entity_data.dimensions.y/2);
+    y_velocity = select(y_velocity, 0.0, y_position < 0.0 || y_position > world_dimensions_pixels.y); // according to gemini this is performant, only 3 instructions
+    y_position = clamp(y_position, 0.0, world_dimensions_pixels.y);
 
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));

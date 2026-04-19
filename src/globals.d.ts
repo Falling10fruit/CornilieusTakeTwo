@@ -73,6 +73,24 @@ declare global {
             playerCountUniform: GPUBuffer | null;
             playerInputBuffer: GPUBuffer | null;
             playerInputBufferMapped : GPUBuffer | null;
+
+            entities: {
+                indirect_count_buffer: GPUBuffer | null,
+                /** which sprites are which entities */
+                entities_indicies: GPUBuffer | null,
+                /** Holds the index of the chunk the entity is currently in */
+                chunk_indicies: GPUBuffer | null,
+                /** Decides which entity texture is going to be used, results either 0 or 1 */
+                current_entity_buffer_is: number,
+                /** The first 3D texture that holds entity data, alternates with the second based on `current_entity_texture_is`
+                 * 
+                 * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
+                entities_buffer_0: GPUBuffer | null,
+                /** The second 3D texture that holds entity data, alternates with the first based on `current_entity_texture_is`
+                 * 
+                 * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
+                entities_buffer_1: GPUBuffer | null
+            }
         };
 
         /**
@@ -123,26 +141,6 @@ declare global {
          * ```
          * Initialised at [createBuffers.js](ts/prerequisites/createBuffers.ts)*/
         spritesBuffer: { current: GPUBuffer | null, target: GPUBuffer | null };
-
-        /** All 6 buffers a healthy growing entity system needs
-         * 
-         * Initialised at [createBuffers.js](ts/prerequisites/createBuffers.ts)*/
-        entitiesBuffer: {
-            /** I don't know what this is for */
-            entities_indicies: GPUBuffer | null,
-            /** Holds the index of the chunk the entity is currently in */
-            chunk_indicies: GPUBuffer | null,
-            /** Decides which entity texture is going to be used, results either 0 or 1 */
-            current_entity_buffer_is: number,
-            /** The first 3D texture that holds entity data, alternates with the second based on `current_entity_texture_is`
-             * 
-             * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
-            entities_buffer_0: GPUBuffer | null,
-            /** The second 3D texture that holds entity data, alternates with the first based on `current_entity_texture_is`
-             * 
-             * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
-            entities_buffer_1: GPUBuffer | null
-        }
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;

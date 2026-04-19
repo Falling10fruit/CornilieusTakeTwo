@@ -8,7 +8,7 @@ function setUpComputePass (parameters: { device: GPUDevice}) {
     device = parameters.device;
 }
 
-const debugging_time = false;
+const debugging_time = true;
 let debugging_loops = 999999999;
 function compute() {
     // if (debugging_time) window.keyIsDown["w"] = true;
@@ -54,7 +54,7 @@ function compute() {
 
     if (!debugging_time || debugging_loops > 0) {
         if (debugging_time) debugging_loops--;
-        window.entitiesBuffer.current_entity_buffer_is = (window.entitiesBuffer.current_entity_buffer_is == 0) ? 1 : 0;
+        window.world.entities.current_entity_buffer_is = (window.world.entities.current_entity_buffer_is == 0) ? 1 : 0;
         requestAnimationFrame(compute) // eventually transfer to webworkers
     };
 }

@@ -9,7 +9,7 @@ function createBuffers(parameters: { device: GPUDevice }) {
 }
 
 function createComputeBuffers() {
-    updateEntitiesData();
+    createEntityBuffers();
     createInputBuffers();
 }
 
@@ -90,38 +90,43 @@ function createSpriteBuffers() {
     });
 }
 
-function updateEntitiesData() {
+function createEntityBuffers() {
+    const indirect_count_buffer = device.createBuffer({
+        label: `entity count buffer`,
+        size: 12,
+        usage: GPUBufferUsage.INDIRECT | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+    const dispatch_dimensions = new Uint32Array([1, 1, 1]);
+    device.queue.writeBuffer(indirect_count_buffer, 0, dispatch_dimensions, 0, dispatch_dimensions.length);
+    window.world.entities.indirect_count_buffer = indirect_count_buffer;
+
     const entities_indicies = device.createBuffer({
         label: `entities indicies buffer`,
         size: window.world.NO_OF_ENTITIES * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    });
+    }); 
+    window.world.entities.entities_indicies = entities_indicies;
 
     const chunk_indicies = device.createBuffer({
         label: `chunk indicies buffer`,
         size: window.world.NO_OF_ENTITIES * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
+    window.world.entities.chunk_indicies = chunk_indicies;
 
     const buffer_0 = device.createBuffer({
         label: `entities texture 0`,
         size: window.world.NO_OF_ENTITIES * 4 * 7,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
-
+    window.world.entities.entities_buffer_0 = buffer_0;
+    
     const buffer_1 = device.createBuffer({
         label: `entities texture 0`,
         size: window.world.NO_OF_ENTITIES * 4 * 7,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     });
-    
-    window.entitiesBuffer = {
-        entities_indicies: entities_indicies,
-        chunk_indicies: chunk_indicies,
-        current_entity_buffer_is: 0,
-        entities_buffer_0: buffer_0,
-        entities_buffer_1: buffer_1,
-    }
+    window.world.entities.entities_buffer_1 = buffer_1;
 }
 
 function createInputBuffers () {

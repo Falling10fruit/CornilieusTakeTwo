@@ -172,7 +172,7 @@ async function setUpComputeInputs(parameters: { device: GPUDevice, ctx: GPUCanva
         entries: [
             { binding: 0, resource: { buffer: window.world.playerCountUniform }}         as GPUBindGroupEntry,
             { binding: 1, resource: { buffer: window.world.playerInputBuffer }}          as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.entitiesBuffer.entities_buffer_0 }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.entities.entities_buffer_0 }} as GPUBindGroupEntry,
         ]
     });
   
@@ -182,7 +182,7 @@ async function setUpComputeInputs(parameters: { device: GPUDevice, ctx: GPUCanva
         entries: [
             { binding: 0, resource: { buffer: window.world.playerCountUniform }}         as GPUBindGroupEntry,
             { binding: 1, resource: { buffer: window.world.playerInputBuffer }}          as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.entitiesBuffer.entities_buffer_1 }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.entities.entities_buffer_1 }} as GPUBindGroupEntry,
         ]
     });
 
@@ -217,7 +217,7 @@ async function loadComputeShader(device: GPUDevice) {
 function computeInputs(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
 
-    if (window.entitiesBuffer.current_entity_buffer_is == 0) {
+    if (window.world.entities.current_entity_buffer_is == 0) {
         pass.setBindGroup(0, bind_group_0);
     } else {
         pass.setBindGroup(0, bind_group_1);

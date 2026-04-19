@@ -19,7 +19,16 @@ async function preload (parameters: { device: GPUDevice }) {
         player_count: 1,
         playerCountUniform: null,
         playerInputBuffer: null,
-        playerInputBufferMapped: null
+        playerInputBufferMapped: null,
+
+        entities: {
+            indirect_count_buffer: null,
+            entities_indicies: null,
+            chunk_indicies: null,
+            current_entity_buffer_is: 0,
+            entities_buffer_0: null,
+            entities_buffer_1: null,
+        }
     };
 
     window.camera = {
@@ -42,14 +51,6 @@ async function preload (parameters: { device: GPUDevice }) {
     window.spritesBuffer = {
         current: null,
         target: null
-    }
-    
-    window.entitiesBuffer = {
-        entities_indicies: null,
-        chunk_indicies: null,
-        current_entity_buffer_is: 0,
-        entities_buffer_0: null,
-        entities_buffer_1: null,
     }
 
     window.keyIsDown = {};

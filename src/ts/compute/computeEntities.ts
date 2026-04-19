@@ -62,10 +62,10 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         label: `compute entities data 0 - 1 bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.entitiesBuffer.entities_indicies }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.entitiesBuffer.chunk_indicies }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.entitiesBuffer.entities_buffer_0 }} as GPUBindGroupEntry,
-            { binding: 3, resource: { buffer: window.entitiesBuffer.entities_buffer_1 }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.world.entities.entities_indicies }} as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.world.entities.chunk_indicies }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.entities.entities_buffer_0 }} as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.world.entities.entities_buffer_1 }} as GPUBindGroupEntry,
         ]
     });
     
@@ -73,10 +73,10 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         label: `compute entities data 1 - 0 bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.entitiesBuffer.entities_indicies }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.entitiesBuffer.chunk_indicies }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.entitiesBuffer.entities_buffer_1 }} as GPUBindGroupEntry,
-            { binding: 3, resource: { buffer: window.entitiesBuffer.entities_buffer_0 }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.world.entities.entities_indicies }} as GPUBindGroupEntry,
+            { binding: 1, resource: { buffer: window.world.entities.chunk_indicies }} as GPUBindGroupEntry,
+            { binding: 2, resource: { buffer: window.world.entities.entities_buffer_1 }} as GPUBindGroupEntry,
+            { binding: 3, resource: { buffer: window.world.entities.entities_buffer_0 }} as GPUBindGroupEntry,
         ]
     });
 
@@ -107,7 +107,7 @@ async function loadComputeShader(device: GPUDevice) {
 }
 
 async function createPlaceholderEntities() {
-    const { entities_indicies, chunk_indicies, entities_buffer_0, entities_buffer_1} = window.entitiesBuffer;
+    const { entities_indicies, chunk_indicies, entities_buffer_0, entities_buffer_1} = window.world.entities;
 
     if (entities_indicies == null) return window.fail({ title: `Entities indicies buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
     if (chunk_indicies == null) return window.fail({ title: `Chunk indicies 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
@@ -117,25 +117,34 @@ async function createPlaceholderEntities() {
     device.queue.writeBuffer(entities_indicies, 0, new Uint32Array([0]));
     device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array([0]));
 
-    const placeholder_entity = new Entity({
+    const placeholder_entity_0 = new Entity({
         entity_type: 1,
         global_x_position : 0,
         global_y_position : 0,
-        rotation : Math.PI/2,
+        rotation : 0,
         x_velocity : 0,
         y_velocity : 0,
         rotation_velocity : 0
-    });
-    const serialized = placeholder_entity.serialized_representation();
+    }).serialized_representation();
+    
+    const placeholder_entity_1 = new Entity({
+        entity_type: 2,
+        global_x_position : 10,
+        global_y_position : 26,
+        rotation : 0,
+        x_velocity : 0,
+        y_velocity : 0,
+        rotation_velocity : 0
+    }).serialized_representation();
     // console.log("uploaded entity");
     // print_bits(serialized[2]);
-    device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array(serialized));
-    device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array(serialized));
+    device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array([...placeholder_entity_0, ...placeholder_entity_1]));
+    device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array([...placeholder_entity_0, ...placeholder_entity_1]));
 }
 
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
-    if (window.entitiesBuffer.current_entity_buffer_is == 0) {
+    if (window.world.entities.current_entity_buffer_is == 0) {
         pass.setBindGroup(0, bindGroup_entities_0);
     } else {
         pass.setBindGroup(0, bindGroup_entities_1);
@@ -144,8 +153,8 @@ function computeEntities(pass: GPUComputePassEncoder) {
     pass.setBindGroup(1, bindGroup_targetSprites);
     pass.setBindGroup(2, bindGroup_additionalData);
     
-    
-    pass.dispatchWorkgroups(1);
+    if (window.world.entities.indirect_count_buffer == null) return window.fail({ title: "indirect buffer missing", message: "while computing entities"});
+    pass.dispatchWorkgroupsIndirect(window.world.entities.indirect_count_buffer, 0);
 }
 
 export { setUpComputeEntities, computeEntities, createPlaceholderEntities }
