@@ -8,7 +8,7 @@ function setUpComputePass (parameters: { device: GPUDevice}) {
     device = parameters.device;
 }
 
-const debugging_time = true;
+const debugging_time = false;
 let debugging_loops = 999999999;
 function compute() {
     // if (debugging_time) window.keyIsDown["w"] = true;
@@ -42,8 +42,8 @@ function compute() {
             // console.log(`debug reference`)
             // print_bits(8388802);
             // console.log("debug buffer");
-            print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
-            // console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+            // print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+            console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
             // console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
             // console.log((new Int32Array(mapping_buffer.getMappedRange()))[0]);
             mapping_buffer.unmap();

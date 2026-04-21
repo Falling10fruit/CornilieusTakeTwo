@@ -34,5 +34,4 @@
         (target_sprite.x & 0xFFFFFF80u) + (new_chunk_index >> 9),
         (new_chunk_index << 23) + ((new_x_position & 127u) << 16) + ((new_y_position & 127u) << 9) + (new_angle)
     );
-
 }

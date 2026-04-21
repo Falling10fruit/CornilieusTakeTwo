@@ -89,7 +89,7 @@ async function createPlaceholderSprites() {
 function computeSprites(pass: GPUComputePassEncoder) {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, bindGroup);
-    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION, DISPATCH_PER_DIMENSION);
+    pass.dispatchWorkgroups(DISPATCH_PER_DIMENSION);
 }
 
 export { setUpComputeSprites, computeSprites, createPlaceholderSprites }

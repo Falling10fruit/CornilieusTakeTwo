@@ -88,7 +88,7 @@ function renderSprites (pass: GPURenderPassEncoder) {
     pass.setPipeline(pipeline);
     pass.setBindGroup(0, vertex_bind_group);
     pass.setBindGroup(1, fragment_bind_group);
-    pass.draw(3, 1);
+    pass.draw(3, 10);
 };
 
 export { setUpRenderSprites, renderSprites }

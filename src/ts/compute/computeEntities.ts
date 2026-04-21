@@ -114,9 +114,8 @@ async function createPlaceholderEntities() {
     if (entities_buffer_0 == null) return window.fail({ title: `Entity buffer 0 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
     if (entities_buffer_1 == null) return window.fail({ title: `Entity buffer 1 is null`,  message: `Message generated at computeEntities.ts while trying to generate placeholder entities`});
 
-    device.queue.writeBuffer(entities_indicies, 0, new Uint32Array([0]));
     device.queue.writeBuffer(chunk_indicies, 0, new Uint32Array([0]));
-
+    
     const placeholder_entity_0 = new Entity({
         entity_type: 1,
         global_x_position : 0,
@@ -128,7 +127,7 @@ async function createPlaceholderEntities() {
     }).serialized_representation();
     
     const placeholder_entity_1 = new Entity({
-        entity_type: 2,
+        entity_type: 3,
         global_x_position : 10,
         global_y_position : 26,
         rotation : 0,
@@ -136,8 +135,8 @@ async function createPlaceholderEntities() {
         y_velocity : 0,
         rotation_velocity : 0
     }).serialized_representation();
-    // console.log("uploaded entity");
     // print_bits(serialized[2]);
+    device.queue.writeBuffer(entities_indicies, 0, new Uint32Array([0, 1]));
     device.queue.writeBuffer(entities_buffer_0, 0, new Uint32Array([...placeholder_entity_0, ...placeholder_entity_1]));
     device.queue.writeBuffer(entities_buffer_1, 0, new Uint32Array([...placeholder_entity_0, ...placeholder_entity_1]));
 }

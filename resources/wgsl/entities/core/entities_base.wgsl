@@ -220,15 +220,12 @@ const sprite_index_map = SpriteIndexMapStruct(
 @compute @workgroup_size(64, 1, 1) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    debug_buffer = 1u;
-    if (global_invocation_id.x >= arrayLength(&entities_indicies)) { return; }
-
     entity_index = entities_indicies[global_invocation_id.x];
     entity_vector = entities_buffer_0[entity_index];
 
+
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
-
         chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
         current_entity_data = get_entity_data(entity_type);
         current_sprite = current_entity_data.default_sprite;
@@ -244,6 +241,10 @@ const sprite_index_map = SpriteIndexMapStruct(
     // insert here
     
         do_the_physics();
+
+        // if (entity_index == 1) {
+        //     debug_buffer = global_invocation_id.x;
+        // }
 
         //   33554432                         65536                   127          127          511     
         //  sprite index                     chunk index             x pos        y pos       rotation
