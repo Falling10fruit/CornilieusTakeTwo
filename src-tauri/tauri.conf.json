@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Cornilieus",
   "version": "0.1.0",
-  "identifier": "com.tauri.dev",
+  "identifier": "com.cornilieus.game",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:8408",

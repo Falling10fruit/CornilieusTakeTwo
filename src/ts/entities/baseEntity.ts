@@ -1,8 +1,10 @@
 import { shift_left, shift_right, add32Uints, print_bits } from "../../bit_utils";
 
-const entity_indicies = fetch("./src/json/entities/entity_indicies.json").then((res) => {
+type entity_indexes = { [key : string] : number }
+
+const entity_indicies = await fetch("./src/json/entities/entity_indicies.json").then((res) => {
     if (!res.ok) { throw new Error(`Failed to fetch entity indicies json with http code ${res.status}`) }
-    return res.json()
+    return res.json() as unknown as entity_indexes
 });
 
 // type (2^9 = 512)     chunk index 2^16         xPos(2^13)       yPos (16 * 8 pixels divided by 2^13)         rotation 2^13 
@@ -12,14 +14,14 @@ const entity_indicies = fetch("./src/json/entities/entity_indicies.json").then((
 // 2^10 -> 1023          2^12 -> 4095
 
 export class Entity {
-    #entity_type : number | string;
+    #entity_type : number;
     #global_x_position : number;
     #global_y_position : number;
     #rotation : number;
     #y_velocity : number;
     #x_velocity : number;
     #rotation_velocity : number
-
+ 
     constructor (parameters: {
         entity_type : number | string,
         global_x_position : number,
@@ -32,8 +34,10 @@ export class Entity {
         rotation_velocity : number
     }) {
         const { entity_type, global_x_position, global_y_position, rotation, x_velocity, y_velocity, rotation_velocity} = parameters;
-        if (typeof entity_type == "number") { this.#entity_type = entity_type; }
-        if (typeof entity_type == "string") { this.#entity_type = entity_indicies[entity_type] as any; }
+        let numerical_type : number = 0;
+        if (typeof entity_type == "number") { numerical_type = entity_type; }
+        if (typeof entity_type == "string") { numerical_type = entity_indicies[entity_type]; }
+        this.#entity_type = numerical_type;
 
         this.#global_x_position = global_x_position;
         this.#global_y_position = global_y_position;

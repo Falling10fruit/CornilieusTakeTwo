@@ -304,26 +304,33 @@ const sprite_index_map = SpriteIndexMapStruct(
 } 
 
 fn do_the_physics() {
+    for (var i : u32 = 0; i < current_entity_data.node_count; i++) {
+        let point = 
+    }
+
     let world_dimensions_pixels = vec2f(world_dimensions << vec2u(7, 7));
 
     x_position += x_velocity;
     x_velocity *= 0.97;
 
-    x_velocity = select(x_velocity, 0.0, x_position < 0.0 || x_position > world_dimensions_pixels.x); // according to gemini this is performant, only 3 instructions
+    x_velocity = select(x_velocity, 0.0, x_position < 0.0 || x_position > world_dimensions_pixels.x);
     x_position = clamp(x_position, 0, world_dimensions_pixels.x);
     
     y_position += y_velocity;
-    y_velocity -= 0.0981; // gravity, like gravity 
+    y_velocity -= 0.0981;
     y_velocity *= 0.97;
     
-    y_velocity = select(y_velocity, 0.0, y_position < 0.0 || y_position > world_dimensions_pixels.y); // according to gemini this is performant, only 3 instructions
+    y_velocity = select(y_velocity, 0.0, y_position < 0.0 || y_position > world_dimensions_pixels.y);
     y_position = clamp(y_position, 0.0, world_dimensions_pixels.y);
 
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
     
-    
     update_entity_position();
+}
+
+fn translate_point(x: f32, y: f32) {
+
 }
 
 fn handle_collision(collider: u32) {
