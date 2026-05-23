@@ -31,7 +31,10 @@ var<private> digits : vec4u = vec4u(0, 0, 0, 0);
         } workgroupBarrier();
     }
 
+    workgroup_histogram[0][workgroup_id.x] = 0;
     for (var i : u32 = 0; i < 32; i++) {
-        workgroup_histogram[local_invocation_index + 256 * i][workgroup_id.x] = per_32_sums[local_invocation_index] + ((digits[i >> 3] >> ((i & 7u) << 2)) & 0xFu);
-    }
+        if (local_invocation_index > 0 || i > 0) {
+            workgroup_histogram[local_invocation_index + 256 * i + 1][workgroup_id.x] = per_32_sums[local_invocation_index] + ((digits[i >> 3] >> ((i & 7u) << 2)) & 0xFu);
+        }
+    } workgroupBarrier();
 }

@@ -26,9 +26,7 @@ const entity_sub_int_rotation_velocity = vec2u(84, 95);
 @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-alias points_to_entities_buffer_0 = ptr<storage, array<u32>, read_write>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
-alias points_to_entities_buffer_1 = ptr<storage, array<u32>, read_write>;
 
 @group(2) @binding(0) var<storage, read_write> debug_buffer : u32; // ##DEBUG_TYPE##
 @group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
@@ -253,7 +251,7 @@ const sprite_index_map = SpriteIndexMapStruct(
     // sprite insert
 );
 
-@compute @workgroup_size(64, 1, 1) fn cShader(
+@compute @workgroup_size(32) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
     entity_index = entities_indicies[global_invocation_id.x];
@@ -304,10 +302,6 @@ const sprite_index_map = SpriteIndexMapStruct(
 } 
 
 fn do_the_physics() {
-    for (var i : u32 = 0; i < current_entity_data.node_count; i++) {
-        let point = 
-    }
-
     let world_dimensions_pixels = vec2f(world_dimensions << vec2u(7, 7));
 
     x_position += x_velocity;
@@ -327,10 +321,6 @@ fn do_the_physics() {
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
     
     update_entity_position();
-}
-
-fn translate_point(x: f32, y: f32) {
-
 }
 
 fn handle_collision(collider: u32) {

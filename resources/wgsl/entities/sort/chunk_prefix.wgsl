@@ -12,7 +12,6 @@ var<workgroup> shared_copy : array<u32, 256>;
     shared_copy[local_invocation_index] = atomicLoad(&byte_count[local_invocation_index].count);
 
     workgroupBarrier();
-    // Kogge Stone, thanks gemini for teaching me. i still cant read papers. low attention span ahh
     for (var stride : u32 = 1; stride < 256; stride *= 2) {
 
         var temporary : u32;
@@ -26,5 +25,8 @@ var<workgroup> shared_copy : array<u32, 256>;
         } workgroupBarrier();
     }
 
-    byte_count[local_invocation_index].prefix_sum = shared_copy[local_invocation_index];
+    byte_count[0].prefix_sum = 0;
+    if (local_invocation_index != 255) {
+        byte_count[local_invocation_index + 1].prefix_sum = shared_copy[local_invocation_index];
+    }
 }

@@ -10,12 +10,13 @@
 
 @group(0) @binding(0) var<storage> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage> entity_buffer_1 : array<vec4u>;
+@group(0) @binding(2) var<storage> collision
 struct AtomicCount {
     count: atomic<u32>,
     prefix_sum: atomic<u32>
 }
-@group(0) @binding(2) var<storage, read_write> byte_count : array<AtomicCount>;
-@group(0) @binding(3) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // 256 buckets of each workgroup. for 2 ^ 24 entities this array is 8192 elements something long
+@group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
+@group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // 256 buckets of each workgroup. for 2 ^ 24 entities this array is 8192 elements something long
 
 override BYTE_SHIFT : u32;
 var<workgroup> local_rank : array<array<u32, 16>, 256>;
@@ -68,4 +69,6 @@ var<workgroup> previous_prefix_1 : vec4u;
         entity_buffer_1[chunk_offset + local_offset] = entity_data;
         workgroupBarrier();
     }
+
+    
 }

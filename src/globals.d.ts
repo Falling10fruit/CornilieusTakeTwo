@@ -78,7 +78,9 @@ declare global {
                 indirect_count_buffer: GPUBuffer | null,
                 /** which sprites are which entities */
                 entities_indicies: GPUBuffer | null,
-                /** Holds the index of the chunk the entity is currently in */
+                /** Holds the index of the chunk the entity is currently in
+                 * has no_of_chunks + 1 elements, the last one has a value of length(entities_buffer)
+                */
                 chunk_indicies: GPUBuffer | null,
                 /** Decides which entity texture is going to be used, results either 0 or 1 */
                 current_entity_buffer_is: number,
@@ -89,7 +91,17 @@ declare global {
                 /** The second 3D texture that holds entity data, alternates with the first based on `current_entity_texture_is`
                  * 
                  * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
-                entities_buffer_1: GPUBuffer | null
+                entities_buffer_1: GPUBuffer | null,
+                /**
+                 * links entity type to entity data stored in entity_data_buffer*/
+                entity_index_buffer: GPUBudder | null,
+                /**
+                 * A buffer of struct EntityDataStruct defined as:
+                 * ```
+                 * 
+                 * ```
+                 */
+                entity_data_buffer: GPUBufer | null,
             }
         };
 
