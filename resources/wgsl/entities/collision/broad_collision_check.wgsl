@@ -79,8 +79,8 @@ fn conditional_set(address : ptr<private, u32>, value : u32, conditional: bool) 
                     
                     let temp_4 = colliding_entity_distances_squared.z;
                     let temp_5 = colliding_entity_distances_squared.w;
-                    colliding_entity_distances_squared.y = max(temp_4, temp_5);
-                    colliding_entity_distances_squared.z = min(temp_4, temp_5);
+                    colliding_entity_distances_squared.z = max(temp_4, temp_5);
+                    colliding_entity_distances_squared.w = min(temp_4, temp_5);
 
                     //     index at dist squared    index at colliding entities
                     //          0101                    0101
