@@ -53,7 +53,7 @@ const bounding_corner_signs : array<vec2u, 4> = array(
     let entity_chunk_position = vec2u(entity_chunk_index % WORLD_WIDTH, entity_chunk_index / WORLD_WIDTH);
     let entity_local_position = vec2u(((entity_vector.x & 0x7Fu) << 6) + (entity_vector.y >> 26), (entity_vector.y >> 13) & 0x1FFFu);
     
-    entities_buffer_1[global_invocation_id.x] = vec4u(entity_local_position + (entity_chunk_position << vec2u(13, 13)), broad_dimensions);
+    entities_buffer_1[global_invocation_id.x] = vec4u((entity_chunk_position << vec2u(13, 13)) + entity_local_position, broad_dimensions);
 }
 
 
