@@ -1,12 +1,9 @@
 @group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
 override world_width_in_chunks : u32; 
 override world_height_in_chunks : u32;
-var<workgroup> entity_redix : array<u32, 32>;
 
-@group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
 
 const chunk_offsets : array<vec2u, 4> = array(
     vec2u(1, 1),
@@ -30,10 +27,10 @@ fn conditional_set(address : ptr<private, u32>, value : u32, conditional: bool) 
     colliding_entity_distances_squared.y = bitcast<f32>(0x7FFFFFFEu);
     colliding_entity_distances_squared.z = bitcast<f32>(0x7FFFFFFDu);
     colliding_entity_distances_squared.w = bitcast<f32>(0x7FFFFFFCu);
-    colliding_entity_indexes.x = 0 << 30;
-    colliding_entity_indexes.y = 1 << 30;
-    colliding_entity_indexes.z = 2 << 30;
-    colliding_entity_indexes.w = 3 << 30;
+    colliding_entity_indexes.x = (0 << 30) + global_invocation_id.x;
+    colliding_entity_indexes.y = (1 << 30) + global_invocation_id.x;
+    colliding_entity_indexes.z = (2 << 30) + global_invocation_id.x;
+    colliding_entity_indexes.w = (3 << 30) + global_invocation_id.x;
     let entity_broad_vector = entities_buffer_1[global_invocation_id.x];
 
     let this_center = vec2f(entity_broad_vector.xy) / 4096.0;
@@ -109,5 +106,5 @@ fn conditional_set(address : ptr<private, u32>, value : u32, conditional: bool) 
 
     workgroupBarrier();
 
-    entities_buffer_1[global_invocation_id.x] = colliding_entity_indexes;
+    entities_buffer_1[global_invocation_id.x] = colliding_entity_indexes & vec4u(0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu);
 }

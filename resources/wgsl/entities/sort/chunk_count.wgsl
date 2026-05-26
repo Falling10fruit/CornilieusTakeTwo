@@ -6,7 +6,7 @@ struct AtomicCount {
 @group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
 @group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // so a 16 by 8192 for a 2^24 entity
 
-override BIT_SHIFT : u32; // four passes to get all 4 bits of 2 bytes
+override BIT_SHIFT : u32 = 12; // four passes to get all 4 bits of 2 bytes
 var<workgroup> local_buckets : array<atomic<u32>, 16>;
 
 @compute @workgroup_size(256) fn sort_entities( // 8,192  dispatches
