@@ -174,19 +174,19 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 fn serialize_to_10_bit (number : f32) -> u32 {
     let ieee_754 = bitcast<u32>(number);
     let sign = ieee_754 >> 31;
-    let exponent = u32(clamp(i32(extractBits(ieee_754, 23, 8)) - 119, 0, 31));
-    let rounding = extractBits(ieee_754, 18, 1);
-    let mantissa = ((ieee_754 & 8388607u) >> 19) + rounding;
+    let exponent = bitcast<u32>(clamp(bitcast<i32>((ieee_754 >> 23) & 0xFFu) - 120, 0, 31));
+    let rounding = (ieee_754 >> 18) & 1u;
+    let mantissa = ((ieee_754 >> 19) & 0xFu) + rounding;
 
     return (sign << 9) + min((exponent << 4) + mantissa, 0x1FF);
 }
 
 fn parse_from_10_bit (bits : u32) -> f32 {
-    let sign_bit = f32(bits >> 9);
-    let exponent = f32((bits >> 4) & 31u) - 8.0;
-    let mantissa = f32(bits & 15) / 16.0 + 1.0;
+    let sign_bit = bits >> 9;
+    let exponent = (bits >> 4) & 0x1Fu;
+    let mantissa = bits & 0xFu;
     
-    return (1.0 - sign_bit * 2.0) *  pow(2.0, exponent) * mantissa;
+    return bitcast<f32>((sign_bit << 31) + ((exponent + 120) << 23) + (mantissa << 19));
 }
 
 fn update_entity_position () {

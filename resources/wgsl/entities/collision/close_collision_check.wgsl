@@ -1,5 +1,8 @@
 // type (2^9 = 512)     chunk index 2^16         xPos(2^13)       yPos (16 * 8 pixels divided by 2^13)         rotation 2^13 
 //  [ 01010101 0 ]   [ 1010101 01010101 0 ] [ 1010101 | 010101 ]           [ 01 01010101 010 ]              [ 10101 01010101 ] |
+// x_vel      y_vel      rotate_vel
+// 0101010101 0101010101 010101010101 
+// 2^10 -> 1023          2^12 -> 4095
 
 @group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
@@ -33,8 +36,16 @@ fn rotate_node(node : vec2f, cosin : vec2f) -> vec2f {
     );
 }
 
-fn pseudo_cross_product(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
+fn cross_2d(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
     return vec_0.x * vec_1.y - vec_1.x * vec_0.y;
+}
+
+fn parse_velocity (bits : u32) -> f32 {
+    let sign_bit = bits >> 9;
+    let exponent = (bits >> 4) & 0x1Fu;
+    let mantissa = bits & 0xFu;
+    
+    return bitcast<f32>((sign_bit << 31) + ((exponent + 120) << 23) + (mantissa << 19));
 }
 
 @compute @workgroup_size(256) fn main(
@@ -53,6 +64,7 @@ fn pseudo_cross_product(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
     let this_entity_local_position = vec2u(((this_entity_vector.x & 0x7Fu) << 6) + (this_entity_vector.y >> 26), (this_entity_vector.y >> 13) & 0x1FFFu);
     let this_entity_global_position = (this_entity_chunk_position << vec2u(13, 13)) + this_entity_local_position;
     let this_entity_cosin = cosin_lut[this_entity_vector.y & 0x1FFFu];
+    let this_entity_velocity = vec2f(parse_velocity(this_entity_vector.z >> 22), parse_velocity((this_entity_vector.z >> 12) & 0x3FFu));
 
     let colliding_entities_vector = entities_buffer_1[global_invocation_id.x];
 
@@ -64,6 +76,8 @@ fn pseudo_cross_product(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
     let entity_0_local_position = vec2u(((entity_0_vector.x & 0x7Fu) << 6) + (entity_0_vector.y >> 26), (entity_0_vector.y >> 13) & 0x1FFFu);
     let entity_0_global_position = (entity_0_chunk_position << vec2u(13, 13)) + entity_0_local_position;
     let entity_0_cosin = cosin_lut[entity_0_vector.y & 0x1FFFu];
+    let entity_0_velocity = vec2f(parse_velocity(entity_0_vector.z >> 22), parse_velocity((entity_0_vector.z >> 12) & 0x3FFu));
+    let entity_0_line_of_symmetry =  
     
     let entity_1_vector = entities_buffer_0[colliding_entities_vector.y];
     let entity_1_type = entity_1_vector.x >> 23;
@@ -106,8 +120,8 @@ fn pseudo_cross_product(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
             let other_node_delta = other_next_node - other_node;
             let other_node_coordinates = other_node + vec2f(entity_0_global_position) / 4096.0;
 
-
-            let x = p(1, 2);
+            let lambda = cross_2d(other_node_coordinates - this_node_coordinates, other_node_delta) / cross_2d(this_node_delta, other_node_delta);
+            let intersection_success = 0.0 >= lambda && lambda <= 1.0;
         }
     }
 }
