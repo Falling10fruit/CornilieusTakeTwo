@@ -23,6 +23,7 @@ struct EntityData {
 @group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 
 @group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
+@group(2) @binding(1) var<storage, read_write> hilbert_curve : array<u32>;
 
 override entity_type_count : u32 = 5;
 var<workgroup> entity_type_data_lds : array<EntityData, entity_type_count>;
@@ -88,7 +89,7 @@ fn parse_velocity (bits : u32) -> f32 {
     let entity_1_global_position = (entity_1_chunk_position << vec2u(13, 13)) + entity_1_local_position;
     let entity_1_cosin = cosin_lut[entity_1_vector.y & 0x1FFFu];
 
-    let entity_2_vector = entities_buffer_0[colliding_entities_vector.y];
+    let entity_2_vector = entities_buffer_0[colliding_entities_vector.z];
     let entity_2_type = entity_2_vector.x >> 23;
     let entity_2_type_data = entity_type_data_lds[entity_2_type];
     let entity_2_chunk_index = (entity_2_vector.x >> 7) & 0xFFu;
@@ -97,7 +98,7 @@ fn parse_velocity (bits : u32) -> f32 {
     let entity_2_global_position = (entity_2_chunk_position << vec2u(13, 13)) + entity_2_local_position;
     let entity_2_cosin = cosin_lut[entity_2_vector.y & 0x1FFFu];
     
-    let entity_3_vector = entities_buffer_0[colliding_entities_vector.y];
+    let entity_3_vector = entities_buffer_0[colliding_entities_vector.w];
     let entity_3_type = entity_3_vector.x >> 23;
     let entity_3_type_data = entity_type_data_lds[entity_3_type];
     let entity_3_chunk_index = (entity_2_vector.x >> 7) & 0xFFu;

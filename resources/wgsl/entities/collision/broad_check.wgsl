@@ -1,9 +1,22 @@
 @group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
-override world_width_in_chunks : u32; 
-override world_height_in_chunks : u32;
+struct EntityData {
+    node_count: u32,
+    node_pointer: u32,
+    center: vec2f,
+    dimensions: vec2f,
+    mass: f32,
+    default_sprite: u32
+}
+@group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
 
+@group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
+@group(2) @binding(1) var<storage, read_write> hilbert_curve : array<u32>;
+
+override WORLD_WIDTH_IN_CHUNKS : u32; 
+override WORLD_HEIGHT_IN_CHUNKS : u32;
 
 const chunk_offsets : array<vec2u, 4> = array(
     vec2u(1, 1),
@@ -15,10 +28,6 @@ const chunk_offsets : array<vec2u, 4> = array(
 var<private> colliding_entity_distances_squared : vec4f;
 var<private> colliding_entity_indexes : vec4u;
 var<private> insert_entity_index_pointer : u32;
-
-fn conditional_set(address : ptr<private, u32>, value : u32, conditional: bool) {
-    *address = *address * u32(!conditional) + value * u32(conditional);
-}
 
 @compute @workgroup_size(32) fn main(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
@@ -38,14 +47,14 @@ fn conditional_set(address : ptr<private, u32>, value : u32, conditional: bool) 
 
     let entity_chunk_position = entity_broad_vector.xy >> vec2u(13, 13);
     let local_position_bias = ((entity_broad_vector.xy & vec2u(0x1000u, 0x1000u)) >> vec2u(12, 12));
-    let chunk_edge_check = vec2u(entity_chunk_position == vec2u(world_width_in_chunks - 1, world_height_in_chunks - 1));
+    let chunk_edge_check = vec2u(entity_chunk_position == vec2u(WORLD_WIDTH_IN_CHUNKS - 1, WORLD_HEIGHT_IN_CHUNKS - 1));
     let chunk_bias = local_position_bias * chunk_edge_check;
     let chunk_base = entity_chunk_position + chunk_bias;
 
     for (var i = 0; i < 4; i++) {
         let chunk_offset = chunk_offsets[i];
         let chunk_position = chunk_base - chunk_offset;
-        let chunk_index = chunk_position.x + chunk_position.y * world_width_in_chunks;
+        let chunk_index = chunk_position.x + chunk_position.y * WORLD_WIDTH_IN_CHUNKS;
         let current_chunk_first_entity_index = chunk_indicies[chunk_index];
         var next_chunk_first_entity_index = chunk_indicies[chunk_index + 1];
         
@@ -84,19 +93,19 @@ fn conditional_set(address : ptr<private, u32>, value : u32, conditional: bool) 
                     // From the least significant bit on the right
                     let entity_0_dist_squared_index = colliding_entity_indexes.x >> 30;
                     let dist_squared_of_entity_0 = colliding_entity_distances_squared[entity_0_dist_squared_index];
-                    conditional_set(&insert_entity_index_pointer, (entity_0_dist_squared_index << 4) + 0, dist_squared < dist_squared_of_entity_0);
+                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_0_dist_squared_index << 4) + 0, dist_squared < dist_squared_of_entity_0);
 
                     let entity_1_dist_squared_index = colliding_entity_indexes.y >> 30;
                     let dist_squared_of_entity_1 = colliding_entity_distances_squared[entity_1_dist_squared_index];
-                    conditional_set(&insert_entity_index_pointer, (entity_1_dist_squared_index << 4) + 1, dist_squared < dist_squared_of_entity_1);
+                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_1_dist_squared_index << 4) + 1, dist_squared < dist_squared_of_entity_1);
                     
                     let entity_2_dist_squared_index = colliding_entity_indexes.z >> 30;
                     let dist_squared_of_entity_2 = colliding_entity_distances_squared[entity_2_dist_squared_index];
-                    conditional_set(&insert_entity_index_pointer, (entity_2_dist_squared_index << 4) + 2, dist_squared < dist_squared_of_entity_2);
+                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_2_dist_squared_index << 4) + 2, dist_squared < dist_squared_of_entity_2);
                     
                     let entity_3_dist_squared_index = colliding_entity_indexes.w >> 30;
                     let dist_squared_of_entity_3 = colliding_entity_distances_squared[entity_3_dist_squared_index];
-                    conditional_set(&insert_entity_index_pointer, (entity_3_dist_squared_index << 4) + 3, dist_squared < dist_squared_of_entity_3);
+                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_3_dist_squared_index << 4) + 3, dist_squared < dist_squared_of_entity_3);
 
                     colliding_entity_indexes[insert_entity_index_pointer & 3u] = (((insert_entity_index_pointer >> 4) & 3u) << 30) + other_entity_index;
                 }
