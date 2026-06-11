@@ -11,8 +11,26 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
     const computeShader = device.createShaderModule({
         label: `generate world shader`,
         code: `
-            //  MIT License. © Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing
-            // https://gist.github.com/munrocket/236ed5ba7e409b8bdf1ff6eca5dcdc39
+        // ============================================================================
+        // LICENSE NOTICE
+        // 
+        // MIT License
+        // Copyright © Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing
+        //
+        // Permission is hereby granted, free of charge, to any person obtaining a copy
+        // of this software and associated documentation files (the "Software"), to deal
+        // in the Software without restriction, including without limitation the rights
+        // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        // copies of the Software, and to permit persons to whom the Software is
+        // furnished to do so, subject to the following conditions:
+        //
+        // The above copyright notice and this permission notice shall be included in all
+        // copies or substantial portions of the Software.
+        // ============================================================================
+        // Source: https://gist.github.com/munrocket/236ed5ba7e409b8bdf1ff6eca5dcdc39
+        // ============================================================================
+        // yes i generated the credit with ai
+        
             fn mod289(x: vec2f) -> vec2f {
                 return x - floor(x * (1. / 289.)) * 289.;
             }

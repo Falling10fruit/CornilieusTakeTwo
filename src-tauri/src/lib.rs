@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 mod get_shaders;
 mod handle_input;
+mod get_spritesheet;
 
 #[derive(Default)]
 pub struct AppData {
@@ -37,7 +38,8 @@ pub fn run() {
       get_shaders::get_sprite_compute_shader,
       get_shaders::get_input_compute_shader,
       handle_input::get_player_inputs,
-      handle_input::upload_player_inputs
+      handle_input::upload_player_inputs,
+      get_spritesheet::get_spritesheet
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

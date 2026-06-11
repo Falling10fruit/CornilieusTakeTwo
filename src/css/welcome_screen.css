@@ -1,0 +1,56 @@
+#TitleScreen {
+    height: 100vh;
+    font-family: sans-serif;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#TitleScreen header h1 {
+    margin: 0;
+    font-size: 5em;
+}
+
+#TitleScreen header p {
+    margin: 0;
+    text-align: right;
+}
+
+#TitleScreen #menu { display: flex; }
+#TitleScreen #menu .side_menu { transition: filter 1s, max-width 0.5s; }
+#TitleScreen #menu:hover .side_menu { transition: filter 1s, max-width 0s; }
+
+.menu_option {
+    padding: 0.1em;
+}
+
+.primary_menu_option {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.primary_menu_option:hover {
+    background-color: aqua;
+}
+
+#TitleScreen .side_menu {
+    background-color: aqua;
+    filter: brightness(1);
+    max-width: 0vw;
+    overflow: hidden;
+    white-space:nowrap;
+}
+
+.side_menu .menu_option:hover {
+    filter: brightness(0.5);
+}
+
+#menu:has(#primary_option_play:hover) #extension_option_play { max-width: none; }
+#extension_option_play:hover { max-width: 100vw; }
+#menu:has(#extension_option_play:hover) #primary_option_play { background-color: aqua; }
+
+#menu:has(#primary_option_settings:hover) #extension_option_settings { max-width: none; }
+#extension_option_settings:hover { max-width: 100vw; }
+#menu:has(#extension_option_settings:hover) #primary_option_settings { background-color: aqua; }

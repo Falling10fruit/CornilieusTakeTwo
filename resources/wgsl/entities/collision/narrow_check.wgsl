@@ -78,7 +78,6 @@ fn parse_velocity (bits : u32) -> f32 {
     let entity_0_global_position = (entity_0_chunk_position << vec2u(13, 13)) + entity_0_local_position;
     let entity_0_cosin = cosin_lut[entity_0_vector.y & 0x1FFFu];
     let entity_0_velocity = vec2f(parse_velocity(entity_0_vector.z >> 22), parse_velocity((entity_0_vector.z >> 12) & 0x3FFu));
-    let entity_0_line_of_symmetry =  
     
     let entity_1_vector = entities_buffer_0[colliding_entities_vector.y];
     let entity_1_type = entity_1_vector.x >> 23;

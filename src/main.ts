@@ -1,3 +1,8 @@
+import { render } from "solid-js/web";
+import { App } from "./index.tsx";
+const root = document.getElementById("root")
+if (root) render(App, root);
+
 import { setUpGPU } from "./ts/prerequisites/setUpGPU";
 import { preload } from "./preload";
 
@@ -14,7 +19,7 @@ import { generateWorldToBuffer } from "./ts/compute/generateWorldShader";
 
 import { createPlaceholderEntities } from "./ts/compute/computeEntities";
 
-import { render } from "./ts/render/render";
+import { draw } from "./ts/render/render"; //
 import { compute, setUpComputePass } from "./ts/compute/compute";
 
 const { device, ctx } = await setUpGPU();
@@ -40,4 +45,4 @@ await Promise.all([
 ]);
 
 compute();
-render();
+draw();

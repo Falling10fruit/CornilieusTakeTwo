@@ -92,16 +92,27 @@ declare global {
                  * 
                  * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
                 entities_buffer_1: GPUBuffer | null,
-                /**
-                 * links entity type to entity data stored in entity_data_buffer*/
-                entity_index_buffer: GPUBudder | null,
+
                 /**
                  * A buffer of struct EntityDataStruct defined as:
-                 * ```
                  * 
+                 * 
+                 * ```wgsl
+                 * struct EntityData {
+                 *     node_count: u32,
+                 *     node_pointer: u32,
+                 *     center: vec2f,
+                 *     dimensions: vec2f,
+                 *     mass: f32,
+                 *     default_sprite: u32
+                    }
                  * ```
                  */
-                entity_data_buffer: GPUBufer | null,
+                entity_type_data_buffer: GPUBufer | null,
+                /**
+                 * A buffer of vec2f indexed by the node pointers in the entity_data buffer
+                 */
+                entity_nodes_buffer : GPUBuffer | null
             }
         };
 

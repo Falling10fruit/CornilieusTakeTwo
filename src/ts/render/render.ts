@@ -23,8 +23,8 @@ function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
 const debugging_time = false; 
 /** The function that renders the entire frame.
  * 
- * Implementation at {@link render} */
-function render () {
+ * Implementation at {@link draw} */
+function draw () {
     controlCamera(); // comment this out later
 
     if (window.camera.uniformBuffer == null) { return window.fail({ title: `camera buffer not set`, message: `uniform buffer is null` as string})}
@@ -78,7 +78,7 @@ function render () {
             window.debug.unmapped_buffers.push(mapping_buffer);
         });
     }
-    requestAnimationFrame(render) // eventually transfer to webworkers
+    requestAnimationFrame(draw) // eventually transfer to webworkers
 }
 
 function controlCamera() {
@@ -92,4 +92,4 @@ function controlCamera() {
     if (window.keyIsDown.ArrowRight) window.camera.rotation -= Math.PI/180;
 }
 
-export { setUpRender, render }
+export { setUpRender, draw }

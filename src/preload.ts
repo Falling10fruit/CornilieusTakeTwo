@@ -28,6 +28,8 @@ async function preload (parameters: { device: GPUDevice }) {
             current_entity_buffer_is: 0,
             entities_buffer_0: null,
             entities_buffer_1: null,
+            entity_type_data_buffer: null,
+            entity_nodes_buffer: null
         }
     };
 
@@ -54,9 +56,6 @@ async function preload (parameters: { device: GPUDevice }) {
     }
 
     window.keyIsDown = {};
-
-    const key_channel = new Channel();
-    // invoke(`key_stroke_stream`);
 
     window.onkeyup = (e) => { window.keyIsDown[e.key] = false; }
     window.onkeydown = (event) => {

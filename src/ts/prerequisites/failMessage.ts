@@ -27,7 +27,6 @@ function displayMessage (parameters: { title: string, message: string }) {
     
     errorBox.style.visibility = "visible";
     console.error(`${title}: ${message}`);
-
 }
 
 function closeBox () {

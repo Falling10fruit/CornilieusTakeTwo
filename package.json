@@ -15,7 +15,8 @@
   ],
   "dependencies": {
     "@tauri-apps/api": "^2",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "solid-js": "^1.9.13"
   },
   "author": "Falling10fruit",
   "license": "ISC",
@@ -23,7 +24,8 @@
     "@tauri-apps/cli": "^2.8.3",
     "@webgpu/types": "^0.1.64",
     "typescript": "^5.9.2",
-    "vite": "^7.1.4",
+    "vite": "^7.3.5",
+    "vite-plugin-solid": "^2.11.12",
     "vitest": "^4.0.18"
   }
 }
