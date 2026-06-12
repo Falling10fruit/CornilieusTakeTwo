@@ -1,5 +1,6 @@
-#TitleScreen {
+main {
     height: 100vh;
+    width: min-content;
     font-family: sans-serif;
 
     display: flex;
@@ -8,19 +9,24 @@
     align-items: center;
 }
 
-#TitleScreen header h1 {
+header h1 {
     margin: 0;
     font-size: 5em;
 }
 
-#TitleScreen header p {
+header p {
     margin: 0;
     text-align: right;
 }
 
-#TitleScreen #menu { display: flex; }
-#TitleScreen #menu .side_menu { transition: filter 1s, max-width 0.5s; }
-#TitleScreen #menu:hover .side_menu { transition: filter 1s, max-width 0s; }
+#menu {
+    display: flex;
+    align-self: flex-start;
+    padding: 0px 30vw;
+}
+
+#menu .side_menu { transition: filter 1s, max-width 0.5s; }
+#menu:hover .side_menu { transition: filter 1s, max-width 0s; }
 
 .menu_option {
     padding: 0.1em;
@@ -35,7 +41,7 @@
     background-color: aqua;
 }
 
-#TitleScreen .side_menu {
+.side_menu {
     background-color: aqua;
     filter: brightness(1);
     max-width: 0vw;

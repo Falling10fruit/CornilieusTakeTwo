@@ -2,7 +2,7 @@ import { Scenes, set_current_scene } from "..";
 
 export default function TitleScreen () {
     return (
-        <main id="TitleScreen">
+        <main>
             <header>
                 <h1>Cornilieus</h1>
                 <p>v0.0.1</p>
