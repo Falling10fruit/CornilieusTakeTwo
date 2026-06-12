@@ -20,19 +20,13 @@ header h1 {
     font-size: 5em;
 }
 
-header p {
-    margin: 0;
-    text-align: right;
-}
+p { margin: 0; }
 
 #menu {
     display: flex;
     align-self: flex-start;
     padding: 0px 25px;
 }
-
-#menu .side_menu { transition: filter 1s, transform 0.5s; }
-#menu:hover .side_menu { transition: filter 1s, transform 0s; }
 
 .menu_option {
     padding: 0.1em;
@@ -41,7 +35,6 @@ header p {
 .primary_menu_option {
     cursor: pointer;
     transition: all 0.2s;
-    display: flex;
     position: relative;
 }
 
@@ -49,22 +42,21 @@ header p {
     background-color: aqua;
 }
 
+.menu_option:hover > p {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
 .side_menu {
     position: absolute;
     top: 0px;
     left: 100%;
     transform: scaleX(0%) translateX(-50%);
+    min-height: 100%;
 
     background-color: aqua;
     filter: brightness(1);
-    overflow: hidden;
     white-space:nowrap;
 }
 
-.side_menu .menu_option:hover {
-    filter: brightness(0.5);
-}
-
-.menu_option:hover .side_menu { transform: scaleX(100%) translateX(0%); }
-.side_menu:hover { transform: scaleX(100%) translateX(0%); }
+.menu_option:hover > .side_menu { transform: scaleX(100%) translateX(0%); }
 .menu_option:has(.side_menu:hover) { background-color: aqua; }
