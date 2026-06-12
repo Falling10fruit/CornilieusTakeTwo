@@ -1,8 +1,8 @@
-import { Scenes, set_current_scene } from "..";
+import { Screens, set_current_scene } from "..";
 
 export default function CreditsScreen () {
     return (
-        <main id="CreditsScreen">
+        <main>
             <p>
                     ### WGSL Simplex Noise 2D
                 <br />* **Authors:** Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing
@@ -25,7 +25,7 @@ export default function CreditsScreen () {
                 <br />* **License:** MIT License
             </p>
 
-            <button onClick={() => set_current_scene(Scenes.TITLE_SCREEN)}>back to welcome screen</button>
+            <button onClick={() => set_current_scene(Screens.WELCOME_SCREEN)}>back to welcome screen</button>
         </main>
     );
 }
