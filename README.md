@@ -10,9 +10,3 @@ A massive side view factory 2d physics game where everything is an entity and in
 * Adapted from Daniel Shiffman / The Coding Train
 * **Original tutorial:** https://youtu.be/dSK-MW-zuAc
 * **License:** GNU Lesser General Public License (LGPL v2.1)
-
-### 2D Simplex Noise / Kogge-Stone Parallel Prefix
-* **Concept:** Kogge-Stone Parallel Prefix Layout (Peter M. Kogge, Harold S. Stone)
-* **Code Authors:** Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing
-* **Source Implementation:** [GitHub Gist by munrocket](https://github.com)
-* **License:** MIT License
