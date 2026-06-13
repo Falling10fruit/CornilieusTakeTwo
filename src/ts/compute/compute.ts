@@ -57,7 +57,6 @@ function compute() {
         device.queue.submit([commandEncoder.finish()]);
     }
     
-    console.log("will request animation frame", debugging_loops > 0 || !debugging_time);
     if (debugging_loops > 0 || !debugging_time) {
         debugging_loops--;
         window.world.entities.current_entity_buffer_is = (window.world.entities.current_entity_buffer_is == 0) ? 1 : 0;

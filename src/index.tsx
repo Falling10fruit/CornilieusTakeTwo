@@ -8,10 +8,11 @@ enum Screens {
 }
 const [current_scene, set_current_scene] = createSignal(Screens.WELCOME_SCREEN);
 
+const switched_stylesheet = document.getElementById("switched_stylesheet") as HTMLLinkElement;
+createEffect(() => { switched_stylesheet.href = `/src/css/${current_scene()}.css` });
+
 function App ()  {
     return (<>
-        <link rel="stylesheet" type="text/css" href={`/src/css/${current_scene()}.css`}></link>
-
         <Switch fallback={<TitleScreen />}>
             <Match when={current_scene() === Screens.WELCOME_SCREEN}>
                 <TitleScreen />

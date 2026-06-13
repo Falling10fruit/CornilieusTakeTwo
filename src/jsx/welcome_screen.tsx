@@ -60,12 +60,20 @@ export default function TitleScreen () {
                                     ></input>
                                 </div>
                             </div>
-                            <div class="menu_option"><p>controls</p></div>
+
+                            <div class="menu_option"><p>controls</p>
+                                <div class="side_menu">
+                                    <div></div>
+                                </div>
+                            </div>
+                            
                             <div class="menu_option"><p>diagnostic data</p>
                                 <div class="side_menu">
-                                    <label>fps</label><button>off</button>
+                                    <label>fps</label>
+                                    <input type="checkbox" id="fps_checkbox"></input>
                                     <br />
-                                    <label>ping (multiplayer only)</label><button>off</button>
+                                    <label>ping (multiplayer only)</label>
+                                    <input type="checkbox" id="ping_checkbox"></input>
                                 </div>
                             </div>
                         </div>
