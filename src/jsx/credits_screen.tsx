@@ -1,4 +1,4 @@
-import { Screens, set_current_scene } from "..";
+import { Screens, set_current_screen } from "..";
 
 export default function CreditsScreen () {
     return (
@@ -25,7 +25,7 @@ export default function CreditsScreen () {
                 <br />* **License:** MIT License
             </p>
 
-            <button onClick={() => set_current_scene(Screens.WELCOME_SCREEN)}>back to welcome screen</button>
+            <button onClick={() => set_current_screen(Screens.WELCOME_SCREEN)}>back to welcome screen</button>
         </main>
     );
 }

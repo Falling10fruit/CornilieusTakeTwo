@@ -1,0 +1,36 @@
+main {
+    width: 100vw;
+}
+
+#inventory {
+    display: flex;
+}
+
+.inventory_item {
+    position: relative;
+    width: 25px;
+    aspect-ratio: 1/1;
+}
+
+.inventory_item input {
+    position: absolute;
+    width: 100%;
+    aspect-ratio: 1/1;
+    z-index: 7;
+    margin: 0px;
+    opacity: 0;
+}
+
+.inventory_item img {
+    position: absolute;
+    width: 100%;
+    aspect-ratio: 1/1;
+    z-index: 6;
+    border: 1px solid black;
+    object-fit: scale-down;
+}
+
+.inventory_item:has(input:checked) img {
+    border: 2px solid black;
+
+}

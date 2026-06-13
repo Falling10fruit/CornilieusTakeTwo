@@ -1,4 +1,4 @@
-import { Screens, set_current_scene } from ".."
+import { Screens, set_current_screen } from ".."
 
 export default function TitleScreen () {
     return (
@@ -17,7 +17,10 @@ export default function TitleScreen () {
                             <div class="menu_option"><p>campaign</p>
                             
                                 <div class="side_menu">
-                                    <div class="menu_option"><p>new run</p></div>
+                                    <div
+                                        class="menu_option"
+                                        onClick={() => set_current_screen(Screens.PLAY_SCREEN)}
+                                    ><p>new run</p></div>
                                     <div class="menu_option"><p>save 1</p></div>
                                     <div class="menu_option"><p>save 2</p></div>
                                     <div class="menu_option"><p>save 3</p></div>
@@ -82,7 +85,7 @@ export default function TitleScreen () {
                     <div
                         class="menu_option primary_menu_option"
                         id="primary_option_credits"
-                        onClick={() => set_current_scene(Screens.CREDITS_SCREEN)}
+                        onClick={() => set_current_screen(Screens.CREDITS_SCREEN)}
                     ><p>credits</p></div>
                 </div>
 
