@@ -1,7 +1,7 @@
 import { createSignal, createEffect, Switch, Match } from "solid-js";
-import TitleScreen from "./jsx/welcome_screen.tsx";
-import CreditsScreen from "./jsx/credits_screen.tsx";
-import PlayScreen from "./jsx/play_screen.tsx";
+import TitleScreen from "./tsx/welcome_screen.tsx";
+import CreditsScreen from "./tsx/credits_screen.tsx";
+import PlayScreen from "./tsx/play_screen.tsx";
 
 enum Screens {
     WELCOME_SCREEN = "welcome_screen",

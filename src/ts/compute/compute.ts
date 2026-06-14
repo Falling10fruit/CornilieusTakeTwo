@@ -45,8 +45,8 @@ function compute() {
                 // print_bits(8388802);
                 // console.log("debug buffer");
                 // print_bits((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
-                console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
-                // console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
+                // console.log((new Uint32Array(mapping_buffer.getMappedRange()))[0]);
+                console.log((new Float32Array(mapping_buffer.getMappedRange()))[0]);
                 // console.log((new Int32Array(mapping_buffer.getMappedRange()))[0]);
                 mapping_buffer.unmap();
                 

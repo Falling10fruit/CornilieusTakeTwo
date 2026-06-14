@@ -28,7 +28,7 @@ const entity_sub_int_rotation_velocity = vec2u(84, 95);
 @group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
-@group(2) @binding(0) var<storage, read_write> debug_buffer : u32; // ##DEBUG_TYPE##
+@group(2) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##
 @group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
 @group(2) @binding(2) var<storage, read>       world_data : array<u32>;
 
@@ -174,7 +174,7 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 fn serialize_to_10_bit (number : f32) -> u32 {
     let ieee_754 = bitcast<u32>(number);
     let sign = ieee_754 >> 31;
-    let exponent = bitcast<u32>(clamp(bitcast<i32>((ieee_754 >> 23) & 0xFFu) - 120, 0, 31));
+    let exponent = bitcast<u32>(clamp(bitcast<i32>((ieee_754 >> 23) & 0xFFu) - 119, 0, 31));
     let rounding = (ieee_754 >> 18) & 1u;
     let mantissa = ((ieee_754 >> 19) & 0xFu) + rounding;
 
@@ -186,7 +186,7 @@ fn parse_from_10_bit (bits : u32) -> f32 {
     let exponent = (bits >> 4) & 0x1Fu;
     let mantissa = bits & 0xFu;
     
-    return bitcast<f32>((sign_bit << 31) + ((exponent + 120) << 23) + (mantissa << 19));
+    return bitcast<f32>((sign_bit << 31) + ((exponent + 119) << 23) + (mantissa << 19));
 }
 
 fn update_entity_position () {
@@ -280,9 +280,7 @@ const sprite_index_map = SpriteIndexMapStruct(
     
         do_the_physics();
 
-        // if (entity_index == 1) {
-        //     debug_buffer = global_invocation_id.x;
-        // }
+        // if (entity_index == 1) { debug_buffer = x_position; }
 
         //   33554432                         65536                   127          127          511     
         //  sprite index                     chunk index             x pos        y pos       rotation
