@@ -92,6 +92,11 @@ declare global {
                  * 
                  * The x and y determine the position of the chunk and and z axis holds all the entities within that chunk */
                 entities_buffer_1: GPUBuffer | null,
+                /**
+                 * An additional buffer containing data for whatever operation is currently done
+                 * i.e. indicies of colliding entities during narrow phase collision
+                 */
+                meta_buffer: GPUBuffeer | null,
 
                 /**
                  * A buffer of struct EntityDataStruct defined as:
@@ -108,11 +113,11 @@ declare global {
                     }
                  * ```
                  */
-                entity_type_data_buffer: GPUBufer | null,
+                type_data_buffer: GPUBufer | null,
                 /**
                  * A buffer of vec2f indexed by the node pointers in the entity_data buffer
                  */
-                entity_nodes_buffer : GPUBuffer | null
+                node_data_buffer : GPUBuffer | null
             }
         };
 

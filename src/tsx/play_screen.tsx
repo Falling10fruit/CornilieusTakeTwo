@@ -2,8 +2,6 @@ import { For } from "solid-js"
 import placeholder_image from "../placeholder.png"
 import { Screens, set_current_screen } from ".."
 
-
-
 export default function PlayScreen () {
     return (<main>
         <div id="inventory">

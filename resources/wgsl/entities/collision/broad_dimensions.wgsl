@@ -1,3 +1,4 @@
+@group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
@@ -10,6 +11,7 @@ struct EntityData {
     default_sprite: u32
 }
 @group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
+@group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 
 override WORLD_HEIGHT : u32; // in terms of chunks
 override WORLD_WIDTH : u32; 

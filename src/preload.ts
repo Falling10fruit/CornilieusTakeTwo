@@ -28,8 +28,9 @@ async function preload (parameters: { device: GPUDevice }) {
             current_entity_buffer_is: 0,
             entities_buffer_0: null,
             entities_buffer_1: null,
-            entity_type_data_buffer: null,
-            entity_nodes_buffer: null
+            meta_buffer: null,
+            type_data_buffer: null,
+            node_data_buffer: null
         }
     };
 

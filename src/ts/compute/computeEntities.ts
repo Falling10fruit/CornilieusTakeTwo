@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Entity } from "../entities/baseEntity.ts"
 import { print_bits } from "../../bit_utils.ts";
-import { computeInputs } from "./playerInput.ts";
+import entity_type_data from "../../json/entities/entities.json"
+import sprite_indicies from "../../json/sprites/sprite_indicies.json"
 
 let device: GPUDevice;
 let pipeline: GPUComputePipeline;
@@ -88,7 +89,6 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
 
-
     bindGroup_additionalData = device.createBindGroup({
         label: `compute entities additional data bind group`,
         layout: pipeline.getBindGroupLayout(2),
@@ -97,7 +97,44 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
             { binding: 1, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
             { binding: 2, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
         ]
-    })
+    });
+
+    write_entity_type_data();
+}
+
+function write_entity_type_data () {
+    // struct EntityData {
+    //     node_count: u32,
+    //     node_pointer: u32,
+    //     center: vec2f,
+    //     dimensions: vec2f,
+    //     mass: f32,
+    //     default_sprite: u32
+    // }
+    const entity_type_data_array = new ArrayBuffer(entity_type_data.length * 8 * 4);
+    const entity_type_data_array_u32 = new Uint32Array(entity_type_data_array);
+    const entity_type_data_array_f32 = new Float32Array(entity_type_data_array);
+
+    let prefix_count = 0;
+    const node_pointer_indicies = entity_type_data.map((current_type_data) => {
+        const temp = prefix_count;
+        prefix_count += current_type_data.nodes.length;
+        return temp;
+    });
+    
+    for (let i = 0; i < entity_type_data.length; i++) {
+        const current_type_data = entity_type_data[i];
+        entity_type_data_array_u32[i * 8 * 4 + 0 ] = current_type_data.nodes.length;
+        entity_type_data_array_u32[i * 8 * 4 + 4 ] = node_pointer_indicies[i];
+        entity_type_data_array_f32[i * 8 * 4 + 8 ] = current_type_data.center[0];
+        entity_type_data_array_f32[i * 8 * 4 + 12] = current_type_data.center[1];
+        entity_type_data_array_f32[i * 8 * 4 + 16] = current_type_data.dimensions[0];
+        entity_type_data_array_f32[i * 8 * 4 + 20] = current_type_data.dimensions[1];
+        entity_type_data_array_f32[i * 8 * 4 + 24] = current_type_data.mass;
+        entity_type_data_array_u32[i * 8 * 4 + 28] = sprite_indicies[current_type_data.default_sprite as keyof typeof sprite_indicies] ?? 0;
+    }
+
+    device.queue.writeBuffer(window.world.entities.type_data_buffer, 0, entity_type_data_array, 0, entity_type_data_array.byteLength);
 }
 
 async function loadComputeShader(device: GPUDevice) {

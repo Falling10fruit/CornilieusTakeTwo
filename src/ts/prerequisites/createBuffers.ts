@@ -1,3 +1,5 @@
+import entity_type_data from "../../json/entities/entities.json"
+
 let device: GPUDevice;
 
 function createBuffers(parameters: { device: GPUDevice }) {
@@ -104,29 +106,43 @@ function createEntityBuffers() {
         label: `entities indicies buffer`,
         size: window.world.NO_OF_ENTITIES * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    }); 
-    window.world.entities.entities_indicies = entities_indicies;
+    }); window.world.entities.entities_indicies = entities_indicies;
 
     const chunk_indicies = device.createBuffer({
         label: `chunk indicies buffer`,
         size: window.world.NO_OF_ENTITIES * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    });
-    window.world.entities.chunk_indicies = chunk_indicies;
+    }); window.world.entities.chunk_indicies = chunk_indicies;
 
     const buffer_0 = device.createBuffer({
         label: `entities texture 0`,
         size: window.world.NO_OF_ENTITIES * 4 * 7,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
-    window.world.entities.entities_buffer_0 = buffer_0;
+    }); window.world.entities.entities_buffer_0 = buffer_0;
     
     const buffer_1 = device.createBuffer({
-        label: `entities texture 0`,
+        label: `entities buffer 1`,
         size: window.world.NO_OF_ENTITIES * 4 * 7,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
-    });
-    window.world.entities.entities_buffer_1 = buffer_1;
+    }); window.world.entities.entities_buffer_1 = buffer_1;
+
+    const meta_buffer = device.createBuffer({
+        label: `entities meta buffer`,
+        size: window.world.NO_OF_ENTITIES * 4 * 7,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    }); window.world.entities.meta_buffer = meta_buffer;
+
+    const type_data_buffer = device.createBuffer({
+        label: `entity type data buffer`,
+        size: entity_type_data.length * 32,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    }); window.world.entities.type_data_buffer = type_data_buffer;
+    
+    const node_data_buffer = device.createBuffer({
+        label: `entity node data buffer`,
+        size: entity_type_data.reduce((prev, current) => prev + current.nodes.length, 0) * 4 * 2,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+    }); window.world.entities.node_data_buffer = node_data_buffer;
 }
 
 function createInputBuffers () {

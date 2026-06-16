@@ -121,8 +121,8 @@ async function setUpGenerateWorld (parameters: { device: GPUDevice }) {
                 if (carving < 0.4) { tileData.hitPoints = 0u; }
 
                 let tileIndex : u32 = global_invocation_id.x + global_invocation_id.y * dispatchSize.x * 8;
-                sWorldData[tileIndex] = ((tileData.id        & 3u ) << 30)  +
-                                        ((tileData.hitPoints & 31u) << 25);
+                sWorldData[tileIndex] = ((tileData.id        & 3u   ) << 30) +
+                                        ((tileData.hitPoints & 0x1Fu) << 25);
 
                 // sWorldData[tileIndex] = global_invocation_id.x;
                 

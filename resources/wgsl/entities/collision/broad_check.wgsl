@@ -11,6 +11,7 @@ struct EntityData {
     default_sprite: u32
 }
 @group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
+@group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 
 @group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
 @group(2) @binding(1) var<storage, read_write> hilbert_curve : array<u32>;

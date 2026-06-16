@@ -2,8 +2,12 @@
     {
         "entity_id": "empty",
         "description": "type 0 means no entity",
+        "dimensions": [0, 0],
+        "center": [0, 0],
         "mass": 0,
-        "nodes": []
+        "nodes": [],
+        "joints": [],
+        "default_sprite": "john_looking_right"
     }, {
         "entity_id": "john",
         "description": "test character",
