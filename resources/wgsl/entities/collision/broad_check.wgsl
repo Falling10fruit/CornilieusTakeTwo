@@ -1,6 +1,7 @@
-@group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
 struct EntityData {
     node_count: u32,
@@ -13,8 +14,10 @@ struct EntityData {
 @group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
 @group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 
-@group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
-@group(2) @binding(1) var<storage, read_write> hilbert_curve : array<u32>;
+@group(2) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
+@group(2) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
+@group(2) @binding(2) var<storage, read_write> hilbert_curve : array<u32>;
+@group(2) @binding(3) var<storage, read>       world_data : array<u32>;
 
 override WORLD_WIDTH_IN_CHUNKS : u32; 
 override WORLD_HEIGHT_IN_CHUNKS : u32;

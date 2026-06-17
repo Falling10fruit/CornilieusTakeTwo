@@ -2,7 +2,7 @@ import { Screens, set_current_screen } from "..";
 
 export default function CreditsScreen () {
     return (
-        <main>
+        <main id="credits_screen">
             <p>
                     ### WGSL Simplex Noise 2D
                 <br />* **Authors:** Ian McEwan, Stefan Gustavson, Munrocket, Johan Helsing

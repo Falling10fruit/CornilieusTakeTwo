@@ -1,65 +1,58 @@
-#root {
-    cursor: default;
-    user-select: none;
-
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
-
-main {
+#welcome_screen {
     height: 100vh;
     width: min-content;
     font-family: sans-serif;
+    cursor: default;
+    user-select: none;
 
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+
+    header h1 {
+        margin: 0;
+        font-size: 5em;
+    }
+
+    p { margin: 0; }
+
+    #menu {
+        display: flex;
+        align-self: flex-start;
+        padding: 0px 25px;
+    }
+
+    .menu_option {
+        padding: 0.1em;
+    }
+
+    .primary_menu_option {
+        cursor: pointer;
+        transition: all 0.2s;
+        position: relative;
+    }
+
+    .primary_menu_option:hover {
+        background-color: aqua;
+    }
+
+    .menu_option:hover > p {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    .side_menu {
+        position: absolute;
+        top: 0px;
+        left: 100%;
+        transform: scaleX(0%) translateX(-50%);
+        min-height: 100%;
+
+        background-color: aqua;
+        filter: brightness(1);
+        white-space:nowrap;
+    }
+
+    .menu_option:hover > .side_menu { transform: scaleX(100%) translateX(0%); }
+    .menu_option:has(.side_menu:hover) { background-color: aqua; }
 }
-
-header h1 {
-    margin: 0;
-    font-size: 5em;
-}
-
-p { margin: 0; }
-
-#menu {
-    display: flex;
-    align-self: flex-start;
-    padding: 0px 25px;
-}
-
-.menu_option {
-    padding: 0.1em;
-}
-
-.primary_menu_option {
-    cursor: pointer;
-    transition: all 0.2s;
-    position: relative;
-}
-
-.primary_menu_option:hover {
-    background-color: aqua;
-}
-
-.menu_option:hover > p {
-    background-color: rgba(0, 0, 0, 0.1);
-}
-
-.side_menu {
-    position: absolute;
-    top: 0px;
-    left: 100%;
-    transform: scaleX(0%) translateX(-50%);
-    min-height: 100%;
-
-    background-color: aqua;
-    filter: brightness(1);
-    white-space:nowrap;
-}
-
-.menu_option:hover > .side_menu { transform: scaleX(100%) translateX(0%); }
-.menu_option:has(.side_menu:hover) { background-color: aqua; }

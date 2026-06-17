@@ -1,6 +1,7 @@
-@group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
 struct EntityData {
     node_count: u32,
@@ -13,13 +14,15 @@ struct EntityData {
 @group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
 @group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 
+@group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
+@group(2) @binding(1) var<storage, read_write> hilbert_curve : array<u32>;
+
 override WORLD_HEIGHT : u32; // in terms of chunks
 override WORLD_WIDTH : u32; 
 override CHUNK_WIDTH : u32;
 override LOCAL_POSITION_PRECISION : u32; // i think it was 4096 subdivisions of 1 pixel, idk :)
 var<workgroup> entity_redix : array<u32, 32>;
 
-@group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
 const bounding_corner_signs : array<vec2u, 4> = array(
     vec2u(0u, 0u),
     vec2u(0u, 0x80000000u),

@@ -10,9 +10,6 @@ enum Screens {
 }
 const [current_screen, set_current_screen] = createSignal(Screens.WELCOME_SCREEN);
 
-const switched_stylesheet = document.getElementById("switched_stylesheet") as HTMLLinkElement;
-createEffect(() => { switched_stylesheet.href = `/src/css/${current_screen()}.css` });
-
 function App ()  {
     return (<>
         <Switch fallback={<TitleScreen />}>

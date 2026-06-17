@@ -2,7 +2,7 @@ import { Screens, set_current_screen } from ".."
 
 export default function TitleScreen () {
     return (
-        <main>
+        <main id="welcome_screen">
             <header>
                 <h1>Cornilieus</h1>
                 <p style="text-align: right">v0.0.1</p>

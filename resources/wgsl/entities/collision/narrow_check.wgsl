@@ -3,13 +3,10 @@
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 
 // 2^10 -> 1023          2^12 -> 4095
-
-@group(0) @binding(0) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(1) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer_1 : array<vec4u>;
-
-override world_width_in_chunks : u32; 
-override world_height_in_chunks : u32;
+@group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
 struct EntityData {
     node_count: u32,
@@ -24,6 +21,9 @@ struct EntityData {
 
 @group(2) @binding(0) var<storage, read> cosin_lut : array<vec2f>;
 @group(2) @binding(1) var<storage, read_write> hilbert_curve : array<u32>;
+
+override world_width_in_chunks : u32; 
+override world_height_in_chunks : u32;
 
 override entity_type_count : u32 = 5;
 var<workgroup> entity_type_data_lds : array<EntityData, entity_type_count>;

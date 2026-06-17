@@ -28,10 +28,6 @@ const entity_sub_int_rotation_velocity = vec2u(84, 95);
 @group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 
-@group(2) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##
-@group(2) @binding(1) var<uniform>             world_dimensions : vec2u;
-@group(2) @binding(2) var<storage, read>       world_data : array<u32>;
-
 struct EntityData {
     node_count: u32,
     node_pointer: u32,
@@ -40,11 +36,18 @@ struct EntityData {
     mass: f32,
     default_sprite: u32
 }
-@group(3) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
-@group(3) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
+@group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
+@group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 
-const CHUNK_LENGTH : u32 = 8;
-const POS_CHUNK_RATIO = f32(8192 / (CHUNK_LENGTH * 16));
+@group(2) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##
+@group(2) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
+@group(2) @binding(2) var<storage, read_write> hilbert_curve : array<u32>;
+@group(2) @binding(3) var<storage, read>       world_data : array<u32>;
+
+override WORLD_WIDTH_IN_CHUNKS : u32; 
+override WORLD_HEIGHT_IN_CHUNKS : u32;
+override CHUNK_LENGTH : u32;
+override POS_CHUNK_RATIO : f32 = f32(8192 / (CHUNK_LENGTH * 16));
 
 var<private> entity_vector : vec4u;
 var<private> other_entity_vector : vec4u;
@@ -161,7 +164,7 @@ fn update_entity_position () {
     
     set_sub_integer_entity(entity_sub_int_x_position, serialized_x_position);
     set_sub_integer_entity(entity_sub_int_y_position, serialized_y_position);
-    set_sub_integer_entity(entity_sub_int_chunk, chunk_x + chunk_y * world_dimensions.x);
+    set_sub_integer_entity(entity_sub_int_chunk, chunk_x + chunk_y * WORLD_WIDTH_IN_CHUNKS);
 }
 
 // 0 10 101010101
@@ -178,7 +181,7 @@ fn get_rotation_vel () -> f32 {
 }
 
 // Using groups because I'm too lazy to offset everything when i insert something new
-@group(1) @binding(0) var<storage, read_write> sprites_target : array<vec2u>;
+@group(3) @binding(0) var<storage, read_write> sprites_target : array<vec2u>;
 struct SpriteIndexMapStruct {
     // player_looking_right: u32,
     // player_looking_left: u32,
@@ -224,8 +227,8 @@ const sprite_index_map = SpriteIndexMapStruct(
         chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
         current_entity_data = entity_type_data[entity_type];
         current_sprite = current_entity_data.default_sprite;
-        chunk_x = chunk_index % world_dimensions.x;
-        chunk_y = chunk_index / world_dimensions.x;
+        chunk_x = chunk_index % WORLD_WIDTH_IN_CHUNKS;
+        chunk_y = chunk_index / WORLD_WIDTH_IN_CHUNKS;
 
         parse_local_position();
         global_position = local_position + vec2f(f32(chunk_x), f32(chunk_y * 16 * CHUNK_LENGTH));
@@ -245,7 +248,7 @@ const sprite_index_map = SpriteIndexMapStruct(
         //  sprite index                     chunk index             x pos        y pos       rotation
         // 01010101 01010101 01010101 0 ] [ 1010101 |  01010101 0 ] [ 1010101 ] [ 0101010 ] [ 101010101 ]
         let serialized_position = vec2u(global_position);
-        let chunk_index = (serialized_position.x >> 7) + world_dimensions.x * (serialized_position.y >> 7);
+        let chunk_index = (serialized_position.x >> 7) + WORLD_WIDTH_IN_CHUNKS * (serialized_position.y >> 7);
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         let target_sprite_vector = vec2u(
             (current_sprite << 7) + (chunk_index >> 9),
@@ -262,20 +265,25 @@ fn handle_collision(collider : u32) {
 }
 
 fn do_the_physics() {
-    let world_dimensions_pixels = vec2f(world_dimensions << vec2u(7, 7));
+    let world_width_in_chunks_cast_shift = countLeadingZeros(WORLD_WIDTH_IN_CHUNKS) + 1;
+    let world_height_in_chunks_cast_shift = countLeadingZeros(WORLD_HEIGHT_IN_CHUNKS) + 1;
+    let world_dimension_in_chunks_cast_shift = vec2u(world_width_in_chunks_cast_shift, world_height_in_chunks_cast_shift);
+    let exponent = vec2u(166, 166) - world_dimension_in_chunks_cast_shift;
+    let mantissa = vec2u(WORLD_WIDTH_IN_CHUNKS, WORLD_HEIGHT_IN_CHUNKS) << world_dimension_in_chunks_cast_shift;
+    let world_dimensions_in_pixels = bitcast<vec2f>((exponent << vec2u(23, 23)) + (mantissa >> vec2u(9, 9)));
 
     global_position.x += x_velocity;
     x_velocity *= 0.97;
 
-    x_velocity = select(x_velocity, 0.0, global_position.x < 0.0 || global_position.x > world_dimensions_pixels.x);
-    global_position.x = clamp(global_position.x, 0, world_dimensions_pixels.x);
+    x_velocity = select(x_velocity, 0.0, global_position.x < 0.0 || global_position.x > world_dimensions_in_pixels.x);
+    global_position.x = clamp(global_position.x, 0, world_dimensions_in_pixels.x);
     
     global_position.y += y_velocity;
     y_velocity -= 0.0981;
     y_velocity *= 0.97;
     
-    y_velocity = select(y_velocity, 0.0, global_position.y < 0.0 || global_position.y > world_dimensions_pixels.y);
-    global_position.y = clamp(global_position.y, 0.0, world_dimensions_pixels.y);
+    y_velocity = select(y_velocity, 0.0, global_position.y < 0.0 || global_position.y > world_dimensions_in_pixels.y);
+    global_position.y = clamp(global_position.y, 0.0, world_dimensions_in_pixels.y);
 
     set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
     set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));

@@ -3,7 +3,7 @@ import placeholder_image from "../placeholder.png"
 import { Screens, set_current_screen } from ".."
 
 export default function PlayScreen () {
-    return (<main>
+    return (<main id="play_screen">
         <div id="inventory">
             <For each={Array.from({ length: 10 })}>
                 {(_, index) =>
