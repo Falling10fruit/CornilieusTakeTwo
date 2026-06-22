@@ -7,9 +7,10 @@ async function preload (parameters: { device: GPUDevice }) {
     eyedropper.type = "color";
 
     window.world = {
+        seed: 43758.5453,
         width: 80, // These
         height: 60,
-        seed: 43758.5453,
+        chunk_hilbert_curve_buffer: null,
         storageBuffer: null,
         dimensionsUniform: null,
         NO_OF_SPRITES: 2**15,
@@ -22,6 +23,8 @@ async function preload (parameters: { device: GPUDevice }) {
         playerInputBufferMapped: null,
 
         entities: {
+            type_data_buffer: null,
+            node_data_buffer: null,
             indirect_count_buffer: null,
             entities_indicies: null,
             chunk_indicies: null,
@@ -29,8 +32,6 @@ async function preload (parameters: { device: GPUDevice }) {
             entities_buffer_0: null,
             entities_buffer_1: null,
             meta_buffer: null,
-            type_data_buffer: null,
-            node_data_buffer: null
         }
     };
 

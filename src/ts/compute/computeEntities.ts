@@ -10,36 +10,38 @@ let bindGroup_entities_0: GPUBindGroup;
 let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
 let bindGroup_additionalData: GPUBindGroup;
-let NO_OF_DISPATCHES: number;
 
 async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
     device = parameters.device;
-    NO_OF_DISPATCHES = Math.ceil(window.world.NO_OF_SPRITES / 256);
 
     const computeModule = await loadComputeShader(device) as GPUShaderModule;
     const bindGroupLayout_entities = device.createBindGroupLayout({
         label: `compute entities data bind group layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entities indicies (creation order -> index in buffer)
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // chunk indicies (chunk no. -> index of first entity in chunk)
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 0
-            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // entity buffer 1
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // entity type data
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // entity node data
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // entities indicies (creation order -> index in buffer)
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // chunk indicies (chunk no. -> index of first entity in chunk)
+            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // entity buffer 0
+            { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // entity buffer 1
+            { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // entity meta buffer
+        ]
+    });
+    
+    const bindGroupLayout_additionalData = device.createBindGroupLayout({
+        label: `compute entities additional data bind group layout`,
+        entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // debug buffer to transfer one u32 fromt the gpu
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // vec2u(cos, sin) look up table
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // hilbert curve table
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // world data
         ]
     });
     
     const bindGroupLayout_targetSprites = device.createBindGroupLayout({
         label: `compute entities sprites bind group layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }} as GPUBindGroupLayoutEntry, // target sprites buffer
-        ]
-    });
-    
-    const bindGroupLayout_additionalData = device.createBindGroupLayout({
-        label: `compute entities player input bind group layout`,
-        entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}           as GPUBindGroupLayoutEntry, // debug buffer to transfer one u32 fromt the gpu
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" }}           as GPUBindGroupLayoutEntry, // world dimensions in blocks not chunks
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }} as GPUBindGroupLayoutEntry, // world data
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}, // target sprites buffer
         ]
     });
 
@@ -55,37 +57,54 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         }),
         compute: {
             module: computeModule,
-            entryPoint: `cShader`
+            entryPoint: `cShader`,
+            constants: {
+                "WORLD_WIDTH_IN_CHUNKS": window.world.width,
+                "WORLD_HEIGHT_IN_CHUNKS": window.world.height,
+                "CHUNK_LENGTH": 8
+            }
         }
     });
-  
+
+    if (window.world.entities.type_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.type_data_buffer  is null" });
+    if (window.world.entities.node_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.node_data_buffer  is null"} );
+    if (window.world.entities.entities_indicies == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_indicies is null" });
+    if (window.world.entities.chunk_indicies    == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.chunk_indicies    is null" });
+    if (window.world.entities.entities_buffer_0 == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_0 is null" });
+    if (window.world.entities.entities_buffer_1 == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_1 is null" });
+    if (window.world.entities.meta_buffer       == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.meta_buffer       is null" });
+    if (window.debug.buffer                     == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.debug.buffer                     is null" });
+    if (window.cosin_lut_buffer                 == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.cosin_lut_buffer                 is null" });
+    if (window.world.chunk_hilbert_curve_buffer == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.chunk_hilbert_curve_buffer is null" });
+    if (window.world.storageBuffer              == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.storageBuffer              is null" });
+    if (window.spritesBuffer.target             == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.spritesBuffer.target             is null" });
+
     bindGroup_entities_0 = device.createBindGroup({
         label: `compute entities data 0 - 1 bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.world.entities.entities_indicies }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.world.entities.chunk_indicies }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.world.entities.entities_buffer_0 }} as GPUBindGroupEntry,
-            { binding: 3, resource: { buffer: window.world.entities.entities_buffer_1 }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.world.entities.type_data_buffer  }},
+            { binding: 1, resource: { buffer: window.world.entities.node_data_buffer  }},
+            { binding: 2, resource: { buffer: window.world.entities.entities_indicies }},
+            { binding: 3, resource: { buffer: window.world.entities.chunk_indicies    }},
+            { binding: 4, resource: { buffer: window.world.entities.entities_buffer_0 }},
+            { binding: 5, resource: { buffer: window.world.entities.entities_buffer_1 }},
+            { binding: 6, resource: { buffer: window.world.entities.meta_buffer       }},
         ]
     });
     
+    
     bindGroup_entities_1 = device.createBindGroup({
-        label: `compute entities data 1 - 0 bind group`,
+        label: `compute entities data 0 - 1 bind group`,
         layout: pipeline.getBindGroupLayout(0),
         entries: [
-            { binding: 0, resource: { buffer: window.world.entities.entities_indicies }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.world.entities.chunk_indicies }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.world.entities.entities_buffer_1 }} as GPUBindGroupEntry,
-            { binding: 3, resource: { buffer: window.world.entities.entities_buffer_0 }} as GPUBindGroupEntry,
-        ]
-    });
-
-    bindGroup_targetSprites = device.createBindGroup({
-        label: `compute entities target sprites bind group`,
-        layout: pipeline.getBindGroupLayout(1),
-        entries: [
-            { binding: 0, resource: { buffer: window.spritesBuffer.target }} as GPUBindGroupEntry,
+            { binding: 0, resource: { buffer: window.world.entities.type_data_buffer  }},
+            { binding: 1, resource: { buffer: window.world.entities.node_data_buffer  }},
+            { binding: 2, resource: { buffer: window.world.entities.entities_indicies }},
+            { binding: 3, resource: { buffer: window.world.entities.chunk_indicies    }},
+            { binding: 4, resource: { buffer: window.world.entities.entities_buffer_1 }},
+            { binding: 5, resource: { buffer: window.world.entities.entities_buffer_0 }},
+            { binding: 6, resource: { buffer: window.world.entities.meta_buffer       }},
         ]
     });
 
@@ -93,9 +112,18 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         label: `compute entities additional data bind group`,
         layout: pipeline.getBindGroupLayout(2),
         entries: [
-            { binding: 0, resource: { buffer: window.debug.buffer            }} as GPUBindGroupEntry,
-            { binding: 1, resource: { buffer: window.world.dimensionsUniform }} as GPUBindGroupEntry,
-            { binding: 2, resource: { buffer: window.world.storageBuffer     }} as GPUBindGroupEntry
+            { binding: 0, resource: { buffer: window.debug.buffer                     }},
+            { binding: 1, resource: { buffer: window.cosin_lut_buffer                 }},
+            { binding: 2, resource: { buffer: window.world.chunk_hilbert_curve_buffer }},
+            { binding: 3, resource: { buffer: window.world.storageBuffer              }},
+        ]
+    });
+    
+    bindGroup_targetSprites = device.createBindGroup({
+        label: `compute entities target sprites bind group`,
+        layout: pipeline.getBindGroupLayout(1),
+        entries: [
+            { binding: 0, resource: { buffer: window.spritesBuffer.target }},
         ]
     });
 

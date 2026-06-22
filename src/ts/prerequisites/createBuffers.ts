@@ -11,6 +11,7 @@ function createBuffers(parameters: { device: GPUDevice }) {
 }
 
 function createComputeBuffers() {
+    create_cosin_lut();
     createEntityBuffers();
     createInputBuffers();
 }
@@ -143,6 +144,21 @@ function createEntityBuffers() {
         size: entity_type_data.reduce((prev, current) => prev + current.nodes.length, 0) * 4 * 2,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     }); window.world.entities.node_data_buffer = node_data_buffer;
+}
+
+function create_cosin_lut() {
+    const cosin_lut_array = new Float32Array(2 * 2**13);
+    const bit_radian_ratio = 2 * Math.PI / 2**13;
+    for (let i = 0; i < 2**13; i++) {
+        cosin_lut_array[i * 2 + 0] = Math.cos(i * bit_radian_ratio);
+        cosin_lut_array[i * 2 + 1] = Math.sin(i * bit_radian_ratio);
+    }
+
+    window.cosin_lut_buffer = device.createBuffer({
+        label: `cosin lut`,
+        size: cosin_lut_array.byteLength,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+    }); device.queue.writeBuffer(window.cosin_lut_buffer, 0, cosin_lut_array, 0, cosin_lut_array.byteLength);
 }
 
 function createInputBuffers () {

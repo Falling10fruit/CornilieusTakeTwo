@@ -23,11 +23,6 @@ const entity_sub_int_rotation_velocity = vec2u(84, 95);
 //                                  2^6 = 64
 // 01010101 01010101 01010101 01 010101
 
-@group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;
-@group(0) @binding(1) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(3) var<storage, read_write> entities_buffer_1 : array<vec4u>;
-
 struct EntityData {
     node_count: u32,
     node_pointer: u32,
@@ -36,13 +31,19 @@ struct EntityData {
     mass: f32,
     default_sprite: u32
 }
-@group(1) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
-@group(1) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
+@group(0) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
+@group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
+@group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(6) var<storage, read_write> entities_meta_buffer : array<vec4u>;
 
-@group(2) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##
-@group(2) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
-@group(2) @binding(2) var<storage, read_write> hilbert_curve : array<u32>;
-@group(2) @binding(3) var<storage, read>       world_data : array<u32>;
+
+@group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##
+@group(1) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
+@group(1) @binding(2) var<storage, read>       hilbert_curve : array<u32>;
+@group(1) @binding(3) var<storage, read>       world_data : array<u32>;
 
 override WORLD_WIDTH_IN_CHUNKS : u32; 
 override WORLD_HEIGHT_IN_CHUNKS : u32;

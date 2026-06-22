@@ -58,11 +58,12 @@ declare global {
          * ```
          * Initialized at {@link window.world} */
         world: {
+            seed: number;
             /** In terms of chunks (as of 2025, a chunk is 8 by 8) */
             width: number;
             /** In terms of chunks (as of 2025, a chunk is 8 by 8) */
             height: number;
-            seed: number;
+            chunk_hilbert_curve_buffer: null | GPUBuffer;
             storageBuffer: worldBuffer | null;
             dimensionsUniform: GPUBuffer | null;
             NO_OF_SPRITES: number;
@@ -75,6 +76,26 @@ declare global {
             playerInputBufferMapped : GPUBuffer | null;
 
             entities: {
+                /**
+                 * A buffer of struct EntityDataStruct defined as:
+                 * 
+                 * 
+                 * ```wgsl+
+                 * struct EntityData {
+                 *     node_count: u32,
+                 *     node_pointer: u32,
+                 *     center: vec2f,
+                 *     dimensions: vec2f,
+                 *     mass: f32,
+                 *     default_sprite: u32
+                    }
+                    * ```
+                    */
+                type_data_buffer: GPUBufer | null,
+                /**
+                 * A buffer of vec2f indexed by the node pointers in the entity_data buffer
+                 */
+                node_data_buffer : GPUBuffer | null
                 indirect_count_buffer: GPUBuffer | null,
                 /** which sprites are which entities */
                 entities_indicies: GPUBuffer | null,
@@ -97,27 +118,6 @@ declare global {
                  * i.e. indicies of colliding entities during narrow phase collision
                  */
                 meta_buffer: GPUBuffeer | null,
-
-                /**
-                 * A buffer of struct EntityDataStruct defined as:
-                 * 
-                 * 
-                 * ```wgsl
-                 * struct EntityData {
-                 *     node_count: u32,
-                 *     node_pointer: u32,
-                 *     center: vec2f,
-                 *     dimensions: vec2f,
-                 *     mass: f32,
-                 *     default_sprite: u32
-                    }
-                 * ```
-                 */
-                type_data_buffer: GPUBufer | null,
-                /**
-                 * A buffer of vec2f indexed by the node pointers in the entity_data buffer
-                 */
-                node_data_buffer : GPUBuffer | null
             }
         };
 
@@ -172,6 +172,8 @@ declare global {
 
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;
+
+        cosin_lut_buffer: GPUBuffer | null;
 
         /** Shows the error box with the given message and heading.
          * 
