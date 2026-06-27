@@ -52,7 +52,14 @@ const bounding_corner_signs : array<vec2u, 4> = array(
         max_width = max(max_width, abs(rotated_edge.x));
         max_height = max(max_height, abs(rotated_edge.y));
     }
-    let broad_dimensions = vec2u(bitcast<u32>(max_width), bitcast<u32>(max_height));
+
+    // We also sneak in the gjk bounding count to speed up the gjk histogram part :)) we didnt need much precision to store the number 5 anyways :P
+    let gjk_bounding_count_0 = ((entity_type_data.gjk_bounds_count - 1) & 3u); // the first 2 bits of the number
+    let gjk_bounding_count_1 = ((entity_type_data.gjk_bounds_count - 1) >> 2); 
+    let broad_dimensions = vec2u(
+        bitcast<u32>(max_width) & 0xFFFFFFFCu + gjk_bounding_count_0,
+        bitcast<u32>(max_height) & 0xFFFFFFFCu + gjk_bounding_count_1
+    );
     
     let entity_chunk_index = (entity_vector.x >> 7) & 0xFFu;
     let entity_chunk_position = vec2u(entity_chunk_index % WORLD_WIDTH, entity_chunk_index / WORLD_WIDTH);

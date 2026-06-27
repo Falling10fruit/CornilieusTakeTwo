@@ -54,8 +54,7 @@ var<private> insert_entity_index_pointer : u32;
     colliding_entity_indicies[7] = global_invocation_id.x;
     let entity_broad_vector = entities_buffer_1[global_invocation_id.x];
 
-    let this_center = vec2f(entity_broad_vector.xy) / 4096.0;
-    let this_extent = bitcast<vec2f>(entity_broad_vector.zy);
+    let this_extent = bitcast<vec2f>(entity_broad_vector.zw & vec2u(0xFFFFFFFCu, 0xFFFFFFFCu));
 
     let entity_chunk_position = entity_broad_vector.xy >> vec2u(13, 13);
     let local_position_bias = ((entity_broad_vector.xy & vec2u(0x1000u, 0x1000u)) >> vec2u(12, 12));
@@ -75,9 +74,13 @@ var<private> insert_entity_index_pointer : u32;
         for (var other_entity_index = current_chunk_first_entity_index; other_entity_index < next_chunk_first_entity_index; other_entity_index++) {
             if (other_entity_index != global_invocation_id.x) {
                 let other_entity_broad_vector = entities_buffer_1[other_entity_index];
-                let other_extent = bitcast<vec2f>(other_entity_broad_vector.yz);
-                let other_center = vec2f(other_entity_broad_vector.xy) / 4096.0;
-                let delta_center = other_center - this_center;
+                
+                let other_gjk_boundaries_count = (other_entity_broad_vector.z & 3u) + ((other_entity_broad_vector.w & 3u) << 2);
+                let other_extent = bitcast<vec2f>(other_entity_broad_vector.zw & vec2u(0xFFFFFFFCu, 0xFFFFFFFCu));
+
+                let delta_center_u32 = other_entity_broad_vector.xy - entity_broad_vector.xy;
+                let delta_center = bitcast<vec2f>(delta_center_u32) / 4096.0;
+
                 let distance_cmp = delta_center <= (other_extent + this_extent);
                 let delta_squared = delta_center * delta_center;
                 let this_distance_squared = delta_squared.x + delta_squared.y;
@@ -85,12 +88,15 @@ var<private> insert_entity_index_pointer : u32;
                 if (distance_cmp.x && distance_cmp.y && this_distance_squared < colliding_entity_distances_squared[7]) {
                     var insert_entity_at_index: u32 = 7;
                     for (var i : u32 = 0; i < 7; i++) {
-                        let index = colliding_entity_indicies[i] >> 29;
+                        let index = (colliding_entity_indicies[i] >> 28) & 0x7u;
                         let distance_squared = colliding_entity_distances_squared[index];
                         insert_entity_at_index = select(insert_entity_at_index, i, this_distance_squared < distance_squared);
                     }
 
-                    colliding_entity_indicies[insert_entity_at_index] = (insert_entity_at_index << 29) + other_entity_index;
+                    colliding_entity_indicies[insert_entity_at_index] =
+                        (insert_entity_at_index << 28) +
+                        (other_gjk_boundaries_count << 24) +
+                        other_entity_index;
                     colliding_entity_distances_squared[7] = this_distance_squared;
                     
                     for (var i = 0; i < 7; i++) {
@@ -105,16 +111,16 @@ var<private> insert_entity_index_pointer : u32;
     }
 
     entities_buffer_meta[global_invocation_id.x * 2] = vec4u(
-        colliding_entity_distances_squared[0],
-        colliding_entity_distances_squared[1],
-        colliding_entity_distances_squared[2],
-        colliding_entity_distances_squared[3]
-    ) & vec4u(0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu);
-    
+        colliding_entity_indicies[0] + (((entity_broad_vector.z >> 1) & 1u) << 31),
+        colliding_entity_indicies[1] + ((entity_broad_vector.z & 1u)        << 31),
+        colliding_entity_indicies[2] + (((entity_broad_vector.w >> 1) & 1u) << 31),
+        colliding_entity_indicies[3] + ((entity_broad_vector.w & 1u)        << 31) 
+    );
+
     entities_buffer_meta[global_invocation_id.x * 2 + 1] = vec4u(
-        colliding_entity_distances_squared[4],
-        colliding_entity_distances_squared[5],
-        colliding_entity_distances_squared[6],
-        colliding_entity_distances_squared[7]
-    ) & vec4u(0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu);
+        colliding_entity_indicies[4],
+        colliding_entity_indicies[5],
+        colliding_entity_indicies[6],
+        colliding_entity_indicies[7]
+    );
 }
