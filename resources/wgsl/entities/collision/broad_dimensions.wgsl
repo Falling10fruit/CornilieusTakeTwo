@@ -1,6 +1,6 @@
 struct EntityData {
-    node_count: u32,
-    node_pointer: u32,
+    gjk_bounds_dictionary_pointer: u32,
+    gjk_bounds_count: u32,
     center: vec2f,
     dimensions: vec2f,
     mass: f32,
@@ -12,6 +12,7 @@ struct EntityData {
 @group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(4) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(6) var<storage, read_write> entities_buffer_meta : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
 @group(1) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;

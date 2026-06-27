@@ -34,7 +34,7 @@ pub async fn get_sprite_compute_shader(handle: tauri::AppHandle) -> Result<Strin
 }
 
 #[tauri::command]
-pub async fn get_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+pub async fn get_base_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
     let shader_source = get_file_as_string(handle, "wgsl/entities/entities_linked.wgsl");
 
     match shader_source {

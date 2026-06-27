@@ -32,7 +32,19 @@ pub fn run() {
       Ok(())
     })
     .invoke_handler(tauri::generate_handler![
-      get_shaders::get_entity_compute_shader,
+      get_shaders::get_base_entity_compute_shader,
+      
+      // entity collisions
+      get_shaders::get_broad_dimensions_entity_compute_shader,
+      get_shaders::get_broad_check_entity_compute_shader,
+      get_shaders::get_gjk_entity_compute_shader,
+
+      // entity sorting
+      get_shaders::get_sort_count_entity_compute_shader,
+      get_shaders::get_sort_prefix_workgroup_entity_compute_shader,
+      get_shaders::get_sort_prefix_chunk_entity_compute_shader,
+      get_shaders::get_sort_rescatter_entity_compute_shader,
+
       get_shaders::get_sprite_vertex_shader,
       get_shaders::get_sprite_fragment_shader,
       get_shaders::get_sprite_compute_shader,

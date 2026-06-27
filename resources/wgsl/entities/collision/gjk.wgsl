@@ -5,8 +5,8 @@
 // 2^10 -> 1023          2^12 -> 4095
 
 struct EntityData {
-    node_count: u32,
-    node_pointer: u32,
+    gjk_bounds_dictionary_pointer: u32,
+    gjk_bounds_count: u32,
     center: vec2f,
     dimensions: vec2f,
     mass: f32,
@@ -18,6 +18,7 @@ struct EntityData {
 @group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(4) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(6) var<storage, read_write> entities_buffer_meta : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
 @group(1) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
@@ -31,25 +32,6 @@ override entity_type_count : u32 = 5;
 var<workgroup> entity_type_data_lds : array<EntityData, entity_type_count>;
 override entity_nodes_count : u32 = 31; //idk I just added the total number of nodes I counted, pls replace with a proper number?
 var<workgroup> entity_nodes_lds : array<vec2f, entity_nodes_count>;
-
-fn rotate_node(node : vec2f, cosin : vec2f) -> vec2f {
-    return vec2f(
-        node.x * cosin.x - node.y * cosin.y,
-        node.x * cosin.y + node.y * cosin.x
-    );
-}
-
-fn cross_2d(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
-    return vec_0.x * vec_1.y - vec_1.x * vec_0.y;
-}
-
-fn parse_velocity (bits : u32) -> f32 {
-    let sign_bit = bits >> 9;
-    let exponent = (bits >> 4) & 0x1Fu;
-    let mantissa = bits & 0xFu;
-    
-    return bitcast<f32>((sign_bit << 31) + ((exponent + 120) << 23) + (mantissa << 19));
-}
 
 @compute @workgroup_size(256) fn main(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
@@ -69,7 +51,7 @@ fn parse_velocity (bits : u32) -> f32 {
     let this_entity_cosin = cosin_lut[this_entity_vector.y & 0x1FFFu];
     let this_entity_velocity = vec2f(parse_velocity(this_entity_vector.z >> 22), parse_velocity((this_entity_vector.z >> 12) & 0x3FFu));
 
-    let colliding_entities_vector = entities_buffer_1[global_invocation_id.x];
+    let colliding_entities_vector = entities_buffer_meta[global_invocation_id.x];
 
     let entity_0_vector = entities_buffer_0[colliding_entities_vector.x];
     let entity_0_type = entity_0_vector.x >> 23;
@@ -126,4 +108,23 @@ fn parse_velocity (bits : u32) -> f32 {
             let intersection_success = 0.0 >= lambda && lambda <= 1.0;
         }
     }
+}
+
+fn rotate_node(node : vec2f, cosin : vec2f) -> vec2f {
+    return vec2f(
+        node.x * cosin.x - node.y * cosin.y,
+        node.x * cosin.y + node.y * cosin.x
+    );
+}
+
+fn cross_2d(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
+    return vec_0.x * vec_1.y - vec_1.x * vec_0.y;
+}
+
+fn parse_velocity (bits : u32) -> f32 {
+    let sign_bit = bits >> 9;
+    let exponent = (bits >> 4) & 0x1Fu;
+    let mantissa = bits & 0xFu;
+    
+    return bitcast<f32>((sign_bit << 31) + ((exponent + 120) << 23) + (mantissa << 19));
 }

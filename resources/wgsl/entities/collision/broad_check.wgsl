@@ -1,6 +1,6 @@
 struct EntityData {
-    node_count: u32,
-    node_pointer: u32,
+    gjk_bounds_dictionary_pointer: u32,
+    gjk_bounds_count: u32,
     center: vec2f,
     dimensions: vec2f,
     mass: f32,
@@ -12,6 +12,7 @@ struct EntityData {
 @group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(4) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(6) var<storage, read_write> entities_buffer_meta : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
 @group(1) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
@@ -28,21 +29,29 @@ const chunk_offsets : array<vec2u, 4> = array(
     vec2u(0, 0),
 );
 
-var<private> colliding_entity_distances_squared : vec4f;
-var<private> colliding_entity_indexes : vec4u;
+var<private> colliding_entity_distances_squared : array<f32, 8>;
+var<private> colliding_entity_indicies : array<u32, 8>;
 var<private> insert_entity_index_pointer : u32;
 
 @compute @workgroup_size(32) fn main(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    colliding_entity_distances_squared.x = bitcast<f32>(0x7FFFFFFFu);
-    colliding_entity_distances_squared.y = bitcast<f32>(0x7FFFFFFEu);
-    colliding_entity_distances_squared.z = bitcast<f32>(0x7FFFFFFDu);
-    colliding_entity_distances_squared.w = bitcast<f32>(0x7FFFFFFCu);
-    colliding_entity_indexes.x = (0 << 30) + global_invocation_id.x;
-    colliding_entity_indexes.y = (1 << 30) + global_invocation_id.x;
-    colliding_entity_indexes.z = (2 << 30) + global_invocation_id.x;
-    colliding_entity_indexes.w = (3 << 30) + global_invocation_id.x;
+    colliding_entity_distances_squared[0] = bitcast<f32>(0x7FFFFFF8u);
+    colliding_entity_distances_squared[1] = bitcast<f32>(0x7FFFFFF9u);
+    colliding_entity_distances_squared[2] = bitcast<f32>(0x7FFFFFFAu);
+    colliding_entity_distances_squared[3] = bitcast<f32>(0x7FFFFFFBu);
+    colliding_entity_distances_squared[4] = bitcast<f32>(0x7FFFFFFCu);
+    colliding_entity_distances_squared[5] = bitcast<f32>(0x7FFFFFFDu);
+    colliding_entity_distances_squared[6] = bitcast<f32>(0x7FFFFFFEu);
+    colliding_entity_distances_squared[7] = bitcast<f32>(0x7FFFFFFFu);
+    colliding_entity_indicies[0] = global_invocation_id.x;
+    colliding_entity_indicies[1] = global_invocation_id.x;
+    colliding_entity_indicies[2] = global_invocation_id.x;
+    colliding_entity_indicies[3] = global_invocation_id.x;
+    colliding_entity_indicies[4] = global_invocation_id.x;
+    colliding_entity_indicies[5] = global_invocation_id.x;
+    colliding_entity_indicies[6] = global_invocation_id.x;
+    colliding_entity_indicies[7] = global_invocation_id.x;
     let entity_broad_vector = entities_buffer_1[global_invocation_id.x];
 
     let this_center = vec2f(entity_broad_vector.xy) / 4096.0;
@@ -71,52 +80,41 @@ var<private> insert_entity_index_pointer : u32;
                 let delta_center = other_center - this_center;
                 let distance_cmp = delta_center <= (other_extent + this_extent);
                 let delta_squared = delta_center * delta_center;
-                let dist_squared = delta_squared.x + delta_squared.y;
+                let this_distance_squared = delta_squared.x + delta_squared.y;
 
-                if (distance_cmp.x && distance_cmp.y && dist_squared < colliding_entity_distances_squared.x) {
-                    colliding_entity_distances_squared.x = dist_squared;
+                if (distance_cmp.x && distance_cmp.y && this_distance_squared < colliding_entity_distances_squared[7]) {
+                    var insert_entity_at_index: u32 = 7;
+                    for (var i : u32 = 0; i < 7; i++) {
+                        let index = colliding_entity_indicies[i] >> 29;
+                        let distance_squared = colliding_entity_distances_squared[index];
+                        insert_entity_at_index = select(insert_entity_at_index, i, this_distance_squared < distance_squared);
+                    }
+
+                    colliding_entity_indicies[insert_entity_at_index] = (insert_entity_at_index << 29) + other_entity_index;
+                    colliding_entity_distances_squared[7] = this_distance_squared;
                     
-                    let temp_0 = colliding_entity_distances_squared.x;
-                    let temp_1 = colliding_entity_distances_squared.y;
-                    colliding_entity_distances_squared.x = max(temp_0, temp_1);
-                    colliding_entity_distances_squared.y = min(temp_0, temp_1);
-
-                    let temp_2 = colliding_entity_distances_squared.y;
-                    let temp_3 = colliding_entity_distances_squared.z;
-                    colliding_entity_distances_squared.y = max(temp_2, temp_3);
-                    colliding_entity_distances_squared.z = min(temp_2, temp_3);
-                    
-                    let temp_4 = colliding_entity_distances_squared.z;
-                    let temp_5 = colliding_entity_distances_squared.w;
-                    colliding_entity_distances_squared.z = max(temp_4, temp_5);
-                    colliding_entity_distances_squared.w = min(temp_4, temp_5);
-
-                    //     index at dist squared    index at colliding entities
-                    //          0101                    0101
-                    // From the least significant bit on the right
-                    let entity_0_dist_squared_index = colliding_entity_indexes.x >> 30;
-                    let dist_squared_of_entity_0 = colliding_entity_distances_squared[entity_0_dist_squared_index];
-                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_0_dist_squared_index << 4) + 0, dist_squared < dist_squared_of_entity_0);
-
-                    let entity_1_dist_squared_index = colliding_entity_indexes.y >> 30;
-                    let dist_squared_of_entity_1 = colliding_entity_distances_squared[entity_1_dist_squared_index];
-                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_1_dist_squared_index << 4) + 1, dist_squared < dist_squared_of_entity_1);
-                    
-                    let entity_2_dist_squared_index = colliding_entity_indexes.z >> 30;
-                    let dist_squared_of_entity_2 = colliding_entity_distances_squared[entity_2_dist_squared_index];
-                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_2_dist_squared_index << 4) + 2, dist_squared < dist_squared_of_entity_2);
-                    
-                    let entity_3_dist_squared_index = colliding_entity_indexes.w >> 30;
-                    let dist_squared_of_entity_3 = colliding_entity_distances_squared[entity_3_dist_squared_index];
-                    insert_entity_index_pointer = select(insert_entity_index_pointer, (entity_3_dist_squared_index << 4) + 3, dist_squared < dist_squared_of_entity_3);
-
-                    colliding_entity_indexes[insert_entity_index_pointer & 3u] = (((insert_entity_index_pointer >> 4) & 3u) << 30) + other_entity_index;
+                    for (var i = 0; i < 7; i++) {
+                        let temp_0 = colliding_entity_distances_squared[i];
+                        let temp_1 = colliding_entity_distances_squared[i + 1];
+                        colliding_entity_distances_squared[i] = min(temp_0, temp_1);
+                        colliding_entity_distances_squared[i + 1] = max(temp_0, temp_1);
+                    }
                 }
             }
         }
     }
 
-    workgroupBarrier();
-
-    entities_buffer_1[global_invocation_id.x] = colliding_entity_indexes & vec4u(0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu);
+    entities_buffer_meta[global_invocation_id.x * 2] = vec4u(
+        colliding_entity_distances_squared[0],
+        colliding_entity_distances_squared[1],
+        colliding_entity_distances_squared[2],
+        colliding_entity_distances_squared[3]
+    ) & vec4u(0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu);
+    
+    entities_buffer_meta[global_invocation_id.x * 2 + 1] = vec4u(
+        colliding_entity_distances_squared[4],
+        colliding_entity_distances_squared[5],
+        colliding_entity_distances_squared[6],
+        colliding_entity_distances_squared[7]
+    ) & vec4u(0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu, 0x3FFFFFFFu);
 }

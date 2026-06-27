@@ -5,7 +5,8 @@ import entity_type_data from "../../json/entities/entities.json"
 import sprite_indicies from "../../json/sprites/sprite_indicies.json"
 
 let device: GPUDevice;
-let pipeline: GPUComputePipeline;
+let sort_entity
+let base_pipeline: GPUComputePipeline;
 let bindGroup_entities_0: GPUBindGroup;
 let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
@@ -14,7 +15,9 @@ let bindGroup_additionalData: GPUBindGroup;
 async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
     device = parameters.device;
 
-    const computeModule = await loadComputeShader(device) as GPUShaderModule;
+
+    const base_computeModule = await load_base_entity_shader(device) as GPUShaderModule;
+    const sort_computeModule = await sort_base_entity_shader(device) as GPUShaderModule;
     const bindGroupLayout_entities = device.createBindGroupLayout({
         label: `compute entities data bind group layout`,
         entries: [
@@ -45,10 +48,10 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
 
-    pipeline = await device.createComputePipelineAsync({
-        label: `compute entities pipeline`,
+    base_pipeline = await device.createComputePipelineAsync({
+        label: `compute entities base_pipeline`,
         layout: device.createPipelineLayout({
-            label: `compute entities pipeline layout`,
+            label: `compute entities base_pipeline layout`,
             bindGroupLayouts: [
                 bindGroupLayout_entities,
                 bindGroupLayout_targetSprites,
@@ -56,7 +59,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
             ]
         }),
         compute: {
-            module: computeModule,
+            module: base_computeModule,
             entryPoint: `cShader`,
             constants: {
                 "WORLD_WIDTH_IN_CHUNKS": window.world.width,
@@ -66,11 +69,11 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         }
     });
 
-    if (window.world.entities.type_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.type_data_buffer  is null" });
-    if (window.world.entities.node_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.node_data_buffer  is null"} );
-    if (window.world.entities.entities_indicies == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_indicies is null" });
-    if (window.world.entities.chunk_indicies    == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.chunk_indicies    is null" });
-    if (window.world.entities.entities_buffer_0 == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_0 is null" });
+    if (window.world.entities.type_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities base_pipeline creation", message: "GPUBuffer window.world.entities.type_data_buffer  is null" });
+    if (window.world.entities.node_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities base_pipeline creation", message: "GPUBuffer window.world.entities.node_data_buffer  is null"} );
+    if (window.world.entities.entities_indicies == null) return window.fail({ title: "Buffer unavailable during entities base_pipeline creation", message: "GPUBuffer window.world.entities.entities_indicies is null" });
+    if (window.world.entities.chunk_indicies    == null) return window.fail({ title: "Buffer unavailable during entities base_pipeline creation", message: "GPUBuffer window.world.entities.chunk_indicies    is null" });
+    if (window.world.entities.entities_buffer_0 == null) return window.fail({ title: "Buffer unavailable during entities base_entity_pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_0 is null" });
     if (window.world.entities.entities_buffer_1 == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_1 is null" });
     if (window.world.entities.meta_buffer       == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.meta_buffer       is null" });
     if (window.debug.buffer                     == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.debug.buffer                     is null" });
@@ -165,7 +168,13 @@ function write_entity_type_data () {
     device.queue.writeBuffer(window.world.entities.type_data_buffer, 0, entity_type_data_array, 0, entity_type_data_array.byteLength);
 }
 
-async function loadComputeShader(device: GPUDevice) {
+async function load_base_entity_shader(device: GPUDevice) {
+    const computeShaderSource = await invoke("get_entity_compute_shader").catch((e) => { return e });
+    if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
+    return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
+}
+
+async function sort_base_entity_shader(device: GPUDevice) {
     const computeShaderSource = await invoke("get_entity_compute_shader").catch((e) => { return e });
     if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
     return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
@@ -207,15 +216,15 @@ async function createPlaceholderEntities() {
 }
 
 function computeEntities(pass: GPUComputePassEncoder) {
-    pass.setPipeline(pipeline);
+    pass.setPipeline(base_pipeline);
     if (window.world.entities.current_entity_buffer_is == 0) {
         pass.setBindGroup(0, bindGroup_entities_0);
     } else {
         pass.setBindGroup(0, bindGroup_entities_1);
     }
 
-    pass.setBindGroup(1, bindGroup_targetSprites);
-    pass.setBindGroup(2, bindGroup_additionalData);
+    pass.setBindGroup(1, bindGroup_additionalData);
+    pass.setBindGroup(2, bindGroup_targetSprites);
     
     if (window.world.entities.indirect_count_buffer == null) return window.fail({ title: "indirect buffer missing", message: "while computing entities"});
     pass.dispatchWorkgroupsIndirect(window.world.entities.indirect_count_buffer, 0);
