@@ -9,7 +9,7 @@
 //01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 
 @group(0) @binding(0) var<storage> entity_buffer_0 : array<vec4u>;
-@group(0) @binding(1) var<storage> entity_buffer_1 : array<vec4u>;
+@group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 struct AtomicCount {
     count: atomic<u32>,
     prefix_sum: atomic<u32>
@@ -66,8 +66,5 @@ var<workgroup> previous_prefix_1 : vec4u;
         let chunk_offset = byte_count[chunk_byte].prefix_sum;
         let local_offset = local_rank[local_invocation_index][chunk_byte];
         entity_buffer_1[chunk_offset + local_offset] = entity_data;
-        workgroupBarrier();
     }
-
-    
 }

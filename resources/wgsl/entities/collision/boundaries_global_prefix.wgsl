@@ -25,43 +25,36 @@ struct EntityData {
 @group(1) @binding(2) var<storage, read_write> hilbert_curve : array<u32>;
 @group(1) @binding(3) var<storage, read>       world_data : array<u32>;
 
-override phase : u32; // 0 for the first half and 1 for the second
+var<workgroup> local_array : array<u32, 2048>;
 
 @compute @workgroup_size(256) fn main(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
-    let meta_buffer_0 = entities_buffer_meta[local_id * 2];
-    let meta_buffer_1 = entities_buffer_meta[local_id * 2 + 1];
+    for (var i : u32 = 0; i < 8; i++) {
+        let index = local_id + i * 256;
+        local_array[index] = entities_buffer_1[index].w;
+    } workgroupBarrier();
 
-    let gjk_checks_count_0 = 
-        ((meta_buffer_0.x >> 28) & 0xFu) + 
-        ((meta_buffer_0.y >> 28) & 0xFu) + 
-        ( // the this_entity gjk boundaries count
-            (meta_buffer_0.x >> 31) + 
-            (meta_buffer_0.y >> 31) + 
-            (meta_buffer_0.z >> 31) + 
-            (meta_buffer_0.w >> 31) + 
-            (meta_buffer_1.x >> 31) + 
-            (meta_buffer_1.y >> 31) + 
-            (meta_buffer_1.z >> 31) + 
-            (meta_buffer_1.w >> 31)
-        );
-    let gjk_checks_count_1 = ((meta_buffer_0.z >> 28) & 0xFu) + ((meta_buffer_0.w >> 28) & 0xFu);
-    let gjk_checks_count_2 = ((meta_buffer_1.x >> 28) & 0xFu) + ((meta_buffer_1.y >> 28) & 0xFu);
-    let gjk_checks_count_3 = ((meta_buffer_1.z >> 28) & 0xFu) + ((meta_buffer_1.w >> 28) & 0xFu);
+    for (var stride : u32 = 1; stride < 2048; stride <<= 1) {
+        var temp : u32;
+        for (var i : u32 = 0; i < 8; i++) {
+            let index = local_id + i * 256;
+            if (index > stride) { temp = local_array[index - stride]; }
+        } workgroupBarrier();
 
-    let offset = arrayLength(&entities_buffer_1)/2 * (1 - phase);
-    entities_buffer_1[offset + local_id] = vec4u(gjk_checks_count_0, gjk_checks_count_1, gjk_checks_count_2, gjk_checks_count_3);
-}
+        for (var i : u32 = 0; i < 8; i++) {
+            let index = local_id + i * 256;
+            if (index > stride) { temp = local_array[index - stride];}
+        } workgroupBarrier();
 
-fn rotate_node(node : vec2f, cosin : vec2f) -> vec2f {
-    return vec2f(
-        node.x * cosin.x - node.y * cosin.y,
-        node.x * cosin.y + node.y * cosin.x
-    );
-}
+    } workgroupBarrier();
 
-fn cross_2d(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
-    return vec_0.x * vec_1.y - vec_1.x * vec_0.y;
+    for (var i : u32 = 0; i < 8; i++) {
+        let index = local_id + i * 256;
+
+        if (index != 0) {
+            entities_buffer_1[(index - 1) * 8912 + 1].w = local_array[index - 1];
+        }
+    }
 }
