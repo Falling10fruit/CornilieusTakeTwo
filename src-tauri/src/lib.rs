@@ -22,6 +22,13 @@ pub fn run() {
       data.current_player_inputs = handle_input::InputFormat::default();
       data.inputs =  vec![0_u32, 0_u32, 0_u32, 0_u32];
 
+      tauri::async_runtime::spawn(async move {
+        loop {
+          use tokio::time::{sleep, Duration};
+          sleep(Duration::from_secs_f32(1.0)).await;
+        }
+      });
+
       if cfg!(debug_assertions) {
         app.handle().plugin(
           tauri_plugin_log::Builder::default()
