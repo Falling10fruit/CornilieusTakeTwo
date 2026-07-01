@@ -28,7 +28,7 @@ override PREFIX_CHUNK_WIDTH : u32 = 4096u >> (24 - ENTITY_COUNT_LOG2);
 
 // 512 * 512 = 262,144 total workgroups please (for a total of 2^23 threads)
 // the y direction will be used to scale the algorithm
-@comgpute @workroup_size(32) fn individual_boundaries_count(
+@compute @workgroup_size(32) fn individual_boundaries_count(
     @builtin(global_invocation_id) global_invocation_id : vec3u
 ) {
     let global_index = global_invocation_id.x + global_invocation_id.y * 512 * 32;
@@ -38,7 +38,7 @@ override PREFIX_CHUNK_WIDTH : u32 = 4096u >> (24 - ENTITY_COUNT_LOG2);
     let gjk_counts = ((data_vector >> vec4u(24, 24, 24, 24)) & vec4u(0xFu, 0xFu, 0xFu, 0xFu));
 
     entities_buffer_meta[index_offset + global_index] = vec4u(
-        gjk_counts.x + gjk_counts.y + gjk_counts.z + gjk_counts.w + (data_vector.x >> 28),
+        (gjk_counts.x + gjk_counts.y + gjk_counts.z + gjk_counts.w) * (data_vector.x >> 28),
         0, 0, 0
     );
 }
@@ -110,7 +110,7 @@ var<private> accumulated_sum : u32 = 0;
     @builtin(local_invocation_index) local_id : u32
 ) {
     let index_offset = arrayLength(&entities_buffer_meta) / 2;
-    global_offset = select(entities_buffer_meta[index_offset + workgroup_id.x - 1], 0, workgroup_id.x == 0);
+    global_offset = entities_buffer_meta[index_offset + workgroup_id.x].y;
 
     for (var i : u32 = 0; i < PRIVATE_LENGTH; i++) {
         let global_index = workgroup_id.x + i;
