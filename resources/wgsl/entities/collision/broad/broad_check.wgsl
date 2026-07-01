@@ -103,10 +103,12 @@ var<private> insert_entity_index_pointer : u32;
         }
     }
 
-    entities_buffer_meta[global_invocation_id.x] = vec4u(
+    entities_buffer_meta[global_invocation_id.x] = (vec4u(
         colliding_entity_indicies[0],
         colliding_entity_indicies[1],
         colliding_entity_indicies[2],
         colliding_entity_indicies[3],
-    ) & vec4u(0xFFFFFFFu, 0xFFFFFFFu, 0xFFFFFFFu, 0xFFFFFFFu);
+    ) & vec4u(0xFFFFFFFu, 0xFFFFFFFu, 0xFFFFFFFu, 0xFFFFFFFu)) + vec4u(
+        this_gjk_boundaries_count << 28, 0, 0, 0
+    );
 }
