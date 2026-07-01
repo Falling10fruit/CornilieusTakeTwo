@@ -10,3 +10,18 @@ A massive side view factory 2d physics game where everything is an entity and in
 * Adapted from Daniel Shiffman / The Coding Train
 * **Original tutorial:** https://youtu.be/dSK-MW-zuAc
 * **License:** GNU Lesser General Public License (LGPL v2.1)
+
+## ai use disclosure
+**General use**
+- Asking for clarification on topics
+- Point out careless mistakes like a duplicate binding group layout
+- Preoptimization banter
+- Generation of the LICENSE abiding credits above
+
+**Notable instances of AI involvement**
+* 28 June 2026
+- Reversed the order of a single bubble sort pass logic I use to siphon out the furthest entity in the collision's broad phase.
+* 27 June 2026
+- im3 (an Indonesian cellular data provider) upgraded my usual 7 GB plan to include a Google AI Plus subscription hehe. Check it out: I get to chat more with higher end Gemini models anddd a 400 GB Google Drive. I know it's not disclosure but I wanna flex.
+* 12 June 2026
+- So I asked Gemini explanations for the Kogge Stone algorithm and it spontaneously spat out an implementation that I use now.

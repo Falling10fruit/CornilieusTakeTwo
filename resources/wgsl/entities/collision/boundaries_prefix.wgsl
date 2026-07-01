@@ -100,20 +100,21 @@ var<workgroup> shared_array : array<u32, 2048>;
 
 var<workgroup> global_offset : u32;
 var<workgroup> local_array : array<u32, 128>;
-var<private> private_array : array<u32, 32>;
+
+override PRIVATE_LENGTH : u32 = 32 >> (24 - ENTITY_COUNT_LOG2);
+var<private> private_array : array<u32, PRIVATE_LENGTH>;
 var<private> accumulated_sum : u32 = 0;
 
 @compute @workgroup_size(128) fn local_prefix(
-    @builtin(global_invocation_id) global_invocation_id : vec3u,
+    @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
     let index_offset = arrayLength(&entities_buffer_meta) / 2;
+    global_offset = select(entities_buffer_meta[index_offset + workgroup_id.x - 1], 0, workgroup_id.x == 0);
 
-    for (var i : u32 = 0; i < 32; i++) {
-        let global_index = global_invocation_id.x + i;
-
+    for (var i : u32 = 0; i < PRIVATE_LENGTH; i++) {
+        let global_index = workgroup_id.x + i;
         let data = entities_buffer_meta[index_offset + global_index];
-        if (local_id == 0 && i == 0) { global_offset = data.w; }
         
         accumulated_sum += data.x;
         private_array[i] += accumulated_sum;
@@ -132,10 +133,12 @@ var<private> accumulated_sum : u32 = 0;
     } workgroupBarrier();
 
     let local_offset = select(0, local_array[local_id - 1], local_id == 0);
-    let first_index = index_offset + global_invocation_id.x * 8192 + local_id * 32;
+
+    let first_index = index_offset + workgroup_id.x * PREFIX_CHUNK_WIDTH + local_id * PRIVATE_LENGTH;
     entities_buffer_meta[first_index].y = local_offset + global_offset;
-    for (var i : u32 = 1; i < 32; i++) {
-        let index = index_offset + global_invocation_id.x * 8192 + local_id * 32 + i;
+    
+    for (var i : u32 = 1; i < PRIVATE_LENGTH; i++) {
+        let index = index_offset + workgroup_id.x * PREFIX_CHUNK_WIDTH + local_id * PRIVATE_LENGTH + i;
         entities_buffer_meta[index].y = private_array[i] + local_offset + global_offset;
     }
 }
