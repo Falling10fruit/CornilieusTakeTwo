@@ -6,7 +6,7 @@ struct EntityData {
     mass: f32,
     default_sprite: u32
 }
-@group(0) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
+@group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 @group(0) @binding(1) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
@@ -38,7 +38,7 @@ const bounding_corner_signs : array<vec2u, 4> = array(
     let entity_vector = entities_buffer_0[global_invocation_id.x];
 
     let entity_type = entity_vector.x >> 23;
-    let entity_type_data = entity_type_data[entity_type];
+    let entity_type_data = entity_type_data_buffer[entity_type];
 
     let entity_dimensions_half = entity_type_data.dimensions * 0.5;
     let entity_rotation_raw = entity_vector.y & 0x1FFFu;
@@ -55,10 +55,14 @@ const bounding_corner_signs : array<vec2u, 4> = array(
 
     // We also sneak in the gjk bounding count to speed up the gjk histogram part :)) we didnt need much precision to store the number 5 anyways :P
     let gjk_bounding_count_0 = ((entity_type_data.gjk_bounds_count - 1) & 3u); // the first 2 bits of the number
-    let gjk_bounding_count_1 = ((entity_type_data.gjk_bounds_count - 1) >> 2); 
+    let gjk_bounding_count_1 = ((entity_type_data.gjk_bounds_count - 1) >> 2);
+
+    let entity_type_0 = entity_type & 0x1Fu;
+    let entity_type_1 = entity_type >> 5;
+
     let broad_dimensions = vec2u(
-        bitcast<u32>(max_width) & 0xFFFFFFFCu + gjk_bounding_count_0,
-        bitcast<u32>(max_height) & 0xFFFFFFFCu + gjk_bounding_count_1
+        bitcast<u32>(max_width) & 0xFFFFFF80u + (entity_type_0 << 2) + gjk_bounding_count_0,
+        bitcast<u32>(max_height) & 0xFFFFFF80u + (entity_type_1 << 2) + gjk_bounding_count_1
     );
     
     let entity_chunk_index = (entity_vector.x >> 7) & 0xFFu;

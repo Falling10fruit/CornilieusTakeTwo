@@ -6,7 +6,7 @@ struct EntityData {
     mass: f32,
     default_sprite: u32
 }
-@group(0) @binding(0) var<storage, read>       entity_type_data : array<EntityData>;
+@group(0) @binding(0) var<storage, read>       entity_type_data_buffer : array<EntityData>;
 @group(0) @binding(1) var<storage, read>       entity_nodes : array<vec2f>;
 @group(0) @binding(1) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
@@ -47,7 +47,8 @@ var<private> insert_entity_index_pointer : u32;
     let entity_broad_vector = entities_buffer_1[global_invocation_id.x];
 
     let this_gjk_boundaries_count = (entity_broad_vector.z & 3u) + ((entity_broad_vector.w & 3u) << 2);
-    let this_extent = bitcast<vec2f>(entity_broad_vector.zw & vec2u(0xFFFFFFFCu, 0xFFFFFFFCu));
+    let this_entity_type_id = ((entity_broad_vector.z >> 2) & 0x1Fu) + ((entity_broad_vector.w << 3) & 0x3E0u);
+    let this_extent = bitcast<vec2f>(entity_broad_vector.zw & vec2u(0xFFFFFF80u, 0xFFFFFF80u));
 
     let entity_chunk_position = entity_broad_vector.xy >> vec2u(13, 13);
     let local_position_bias = ((entity_broad_vector.xy & vec2u(0x1000u, 0x1000u)) >> vec2u(12, 12));
@@ -69,7 +70,7 @@ var<private> insert_entity_index_pointer : u32;
                 let other_entity_broad_vector = entities_buffer_1[other_entity_index];
                 
                 let other_gjk_boundaries_count = (other_entity_broad_vector.z & 3u) + ((other_entity_broad_vector.w & 3u) << 2);
-                let other_extent = bitcast<vec2f>(other_entity_broad_vector.zw & vec2u(0xFFFFFFFCu, 0xFFFFFFFCu));
+                let other_extent = bitcast<vec2f>(other_entity_broad_vector.zw & vec2u(0xFFFFFF80u, 0xFFFFFF80u));
 
                 let delta_center_u32 = other_entity_broad_vector.xy - entity_broad_vector.xy;
                 let delta_center = bitcast<vec2f>(delta_center_u32) / 4096.0;
@@ -109,6 +110,9 @@ var<private> insert_entity_index_pointer : u32;
         colliding_entity_indicies[2],
         colliding_entity_indicies[3],
     ) & vec4u(0xFFFFFFFu, 0xFFFFFFFu, 0xFFFFFFFu, 0xFFFFFFFu)) + vec4u(
-        this_gjk_boundaries_count << 28, 0, 0, 0
+        this_gjk_boundaries_count << 28,
+        (this_entity_type_id & 0xFu) << 28,
+        ((this_entity_type_id >> 4) & 0xFu) << 28,
+        (this_entity_type_id >> 8) << 28
     );
 }

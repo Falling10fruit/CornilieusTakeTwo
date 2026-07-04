@@ -1,4 +1,4 @@
-import entity_type_data from "../../json/entities/entities.json"
+import entity_type_data_buffer from "../../json/entities/entities.json"
 
 let device: GPUDevice;
 
@@ -135,13 +135,13 @@ function createEntityBuffers() {
 
     const type_data_buffer = device.createBuffer({
         label: `entity type data buffer`,
-        size: entity_type_data.length * 32,
+        size: entity_type_data_buffer.length * 32,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     }); window.world.entities.type_data_buffer = type_data_buffer;
     
     const node_data_buffer = device.createBuffer({
         label: `entity node data buffer`,
-        size: entity_type_data.reduce((prev, current) => prev + current.nodes.length, 0) * 4 * 2,
+        size: entity_type_data_buffer.reduce((prev, current) => prev + current.nodes.length, 0) * 4 * 2,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     }); window.world.entities.node_data_buffer = node_data_buffer;
 }

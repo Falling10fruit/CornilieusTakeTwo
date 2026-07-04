@@ -31,7 +31,7 @@ struct EntityData {
     mass: f32,
     default_sprite: u32
 }
-@group(0) @binding(0) var<storage, read> entity_type_data : array<EntityData>;
+@group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 @group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
@@ -226,7 +226,7 @@ const sprite_index_map = SpriteIndexMapStruct(
     entity_type = (entity_vector.x >> 23) & 511;
     if (entity_type != 0) {
         chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
-        current_entity_data = entity_type_data[entity_type];
+        current_entity_data = entity_type_data_buffer[entity_type];
         current_sprite = current_entity_data.default_sprite;
         chunk_x = chunk_index % WORLD_WIDTH_IN_CHUNKS;
         chunk_y = chunk_index / WORLD_WIDTH_IN_CHUNKS;
