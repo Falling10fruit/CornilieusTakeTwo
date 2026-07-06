@@ -28,11 +28,9 @@ override HALF_PHASE : u32 = 0;
 // boundary id  (the rest of the 24 bits) latter entity id
 //   01010101           0000010010101010...
 // z
-// boundary id 1 boundary id 2 boundary id 3    :) each with 8 bits ig eheh
-//    01010101     01010101    01010101            0101010 1 <- flag for collision found, moving on to epa
-// w                                                        
-// boundary id 1 boundary id 2 boundary id 3    wow so cool
-//    01010101     01010101    01010101            0101010 1 <- flag for no collision detected
+// former type id
+// w
+// wasted memory hehe
 
 var<private> collider_boundary_counts : vec4u;
 

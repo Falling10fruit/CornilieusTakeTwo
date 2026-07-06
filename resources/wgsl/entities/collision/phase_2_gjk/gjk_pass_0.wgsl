@@ -28,11 +28,11 @@ override HALF_PHASE : u32 = 0;
 // boundary id  (the rest of the 24 bits) latter entity id
 //   01010101           0000010010101010...
 // z
-// boundary id 1 boundary id 2 boundary id 3    :) each with 8 bits ig eheh
-//    01010101     01010101    01010101            0101010 1 <- flag for collision found, moving on to epa
-// w                                                        
-// boundary id 1 boundary id 2 boundary id 3    wow so cool
-//    01010101     01010101    01010101            0101010 1 <- flag for no collision detected
+//      \/ flag for collision  found         boundary node id 2 | boundary node id 1 | boundary node id 0    :) each with 4 bits ig eheh
+//       0 101 01010101   no clue what to          0101                 0101                0101                
+// w                      do with these bits                
+//      \/ flag for collision not found yet  boundary node id 2 | boundary node id 1 | boundary node id 0     wow so cool
+//       0 101 01010101                            0101                 0101                0101         
 
 fn cross2d(a: vec2f, b: vec2f) -> f32 { return a.x * b.y - a.y * b.x; }
 fn cross2d_vec_scalar(a: vec2f, b: f32) -> vec2f { return vec2f(b * a.y, -b * a.x); }
@@ -42,20 +42,27 @@ struct SupportNode {
     former_id: u32,
     latter_id: u32
 }
-
-var<private> node_meta : u32;
+//                                   node order of the current gjk triangle
+// node_meta 01010101 01010101 010101 01 01 01                                  0101
+//                                    which one is ABC respectively       max boundary count
+var<private> node_meta : u32 = 0x240u; // 10 01 00     0000
+var<private> support_nodes : array<vec2f, 3>; // initially CBA okk
 var<private> private_entity_nodes : array<u32, 16>;
 var<private> center_delta : vec2f;
+var<private> collision_vector : vec4u;
 
-// 64 * 512 (for a total of 2^24 threads)
+var<workgroup> leftover_count : atomic<u32>;
+
+// 1024 * 512 (for a total of 2^24 threads)
 // the y direction will be used to scale the algorithm
-@compute @workgroup_size(128) fn setup_collision_nodes( // TODO high thread count because we want to store entity node data into local memory
+@compute @workgroup_size(32) fn setup_collision_nodes(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
-    @builtin(local_invocation_index) local_id : u32
+    @builtin(local_invocation_index) local_id : u32,
+    @builtin(workgroup_id) workgroup_id : vec3u
 ) {
-    let index_offset = arrayLength(&entities_buffer_meta);
+    let index_offset = arrayLength(&entities_buffer_meta) / 2;
     let global_index = global_invocation_id.x + global_invocation_id.y * 128 * 64;
-    let collision_vector = entities_buffer_1[global_index];
+    collision_vector = entities_buffer_1[global_index];
 
     let former_collider_id = collision_vector.x & 0xFFFFFFu;
     let former_boundary_id = collision_vector.x >> 24;
@@ -72,40 +79,89 @@ var<private> center_delta : vec2f;
         bitcast<vec2i>(entities_buffer_meta[index_offset + former_collider_id].zw)
     ) / 64.0;
     let direction_0 = -center_delta;
-        
+    
     let support_node_0 = support_function(direction_0);
+    collision_vector.z = support_node_0.former_id; // overwrite former type id
+    collision_vector.w = support_node_0.latter_id;
+    support_nodes[0] = support_node_0.pos;
 
     let direction_1 = -support_node_0.pos;
 
     let support_node_1 = support_function(direction_1);
     if (dot(support_node_1.pos, direction_1) < 0) { return; }
+    collision_vector.z += support_node_1.former_id << 4;
+    collision_vector.w += support_node_1.latter_id << 4;
+    support_nodes[1] = support_node_1.pos;
 
     let support_01_delta = support_node_1.pos - support_node_0.pos;
     let direction_2 = cross2d_vec_scalar(support_01_delta, cross2d(-support_node_0.pos, support_01_delta));
 
     let support_node_2 = support_function(direction_2);
     if (dot(support_node_2.pos, direction_2) < 0) { return; }
+    collision_vector.z += support_node_2.former_id << 8;
+    collision_vector.w += support_node_2.latter_id << 8;
+    support_nodes[2] = support_node_2.pos;
 
     let support_02_delta = support_node_2.pos - support_node_0.pos;
-    let voronoi_normal_0 = cross2d_vec_scalar(support_02_delta, cross2d(support_02_delta, -support_node_0.pos));
     let support_12_delta = support_node_2.pos - support_node_0.pos;
-    let voronoi_normal_1 = cross2d_vec_scalar(support_12_delta, cross2d(support_12_delta, -support_node_0.pos));
 
-    let voronoi_dot_0 = dot(voronoi_normal_0, -support_node_2.pos);
-    let voronoi_dot_1 = dot(voronoi_normal_1, -support_node_2.pos);
-    if (
-        voronoi_dot_0 < 0 &&
-        voronoi_dot_1 < 0
-    ) {
-        entities_buffer_1[global_index].z |= 1u;
-        return; 
+    var voronoi_normal_0 = cross2d_vec_scalar(support_02_delta, cross2d(support_02_delta,  support_01_delta));
+    var voronoi_normal_1 = cross2d_vec_scalar(support_12_delta, cross2d(support_12_delta, -support_01_delta));
+    var voronoi_dot_result_0 = dot(voronoi_normal_0, -support_node_2.pos) < 0.0;
+    var voronoi_dot_result_1 = dot(voronoi_normal_1, -support_node_2.pos) < 0.0;
+
+    if (voronoi_dot_result_0 && voronoi_dot_result_1) {
+        entities_buffer_1[global_index].z |= 0x80000000u;
+        return;
     }
 
     for (var i = 0; i < 7; i++) { // I considered 6 btw
-        let direction = select(voronoi_normal_0, voronoi_normal_1, voronoi_dot_0 < 0);
-        let former_node = support_function(former_type_id, direction);
-        let latter_node = support_function(direction);
+        let direction = select(voronoi_normal_0, voronoi_normal_1, voronoi_dot_result_0);
+        let support = support_function(direction);
+
+        if (
+            all(support.pos == support_nodes[0]) ||
+            all(support.pos == support_nodes[1]) ||
+            all(support.pos == support_nodes[2])
+        ) { return; }
+
+
+        let temp_BC = (node_meta >> (4 + 2 * u32(voronoi_dot_result_0))) & 3u;
+        let temp_A = (node_meta >> 8) & 3u;
+        node_meta &= 0xFu + (3u << (4 + 2 * u32(voronoi_dot_result_1))); // because we want to keep the other one
+        node_meta += (temp_BC << 8) + (temp_A << (4 + 2 * u32(voronoi_dot_result_0)));
+
+        support_nodes[temp_BC] = support.pos;
+        collision_vector.z &= ~(0xFu << temp_BC);
+        collision_vector.w &= ~(0xFu << temp_BC);
+        collision_vector.z += support.former_id;
+        collision_vector.w += support.latter_id;
+
+        let support_0 = support_nodes[(node_meta >> 4) & 3u];
+        let support_1 = support_nodes[(node_meta >> 6) & 3u];
+
+        let support_02_delta = support.pos - support_0;
+        let support_12_delta = support.pos - support_1;
+        let support_01_delta = support_1 - support_0;
+
+        voronoi_normal_0 = cross2d_vec_scalar(support_02_delta, cross2d(support_02_delta,  support_01_delta));
+        voronoi_normal_1 = cross2d_vec_scalar(support_12_delta, cross2d(support_12_delta, -support_01_delta));
+        voronoi_dot_result_0 = dot(voronoi_normal_0, -support.pos) < 0.0;
+        voronoi_dot_result_1 = dot(voronoi_normal_1, -support.pos) < 0.0;
+
+        if (voronoi_dot_result_0 && voronoi_dot_result_1) {
+            entities_buffer_1[global_index].z |= 0x80000000u;
+            return;
+        }
     }
+
+    collision_vector.w |= 0x80000000u;
+    entities_buffer_1[global_index] = collision_vector;
+    atomicAdd(&leftover_count, 1);
+
+    // we don't need the first half of the meta buffer anymore
+    workgroupBarrier();
+    if (local_id == 0) { entities_buffer_meta[workgroup_id.x + workgroup_id.y * 1024].x = leftover_count; }
 }
 
 // gjk_bounds_dictionary_pointer
