@@ -28,28 +28,34 @@ var<workgroup> shared_local_prefix : array<u32, PREFIX_CHUNK_WIDTH>;
 // 1024 workgroups - 1024 chunks
 @compute @workgroup_size(PREFIX_CHUNK_WIDTH) fn local_sums(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
-    @builtin(local_invocation_index) local_id : u32
+    @builtin(local_invocation_index) local_id : u32,
+    @builtin(workgroup_id) workgroup_id : vec3u
 ) {
     let count = entities_buffer_meta[global_invocation_id.x].x;
-    shared_local_prefix[local_invocation_index] = count;
+    shared_local_prefix[local_id] = count;
 
     // ironically we only want the last element this time
-    for (var stride = 1; stride <= PREFIX_CHUNK_WIDTH; stride <<= 1) {
+    for (var stride : u32 = 1; stride <= PREFIX_CHUNK_WIDTH; stride <<= 1) {
         var temp : u32;
         if (local_id >= stride) { temp = shared_local_prefix[local_id - stride]; }
         workgroupBarrier();
 
-        if (local_id >= stride) {
-            shared_local_prefix[local_id] += temp
-        }
-    }
-    
-    workgroupBarrier();
-    if (local_id == 0) { entities_buffer_meta[global_invocation_id.x].y = shared_local_prefix; }
+        if (local_id >= stride) { shared_local_prefix[local_id] += temp; }
+        workgroupBarrier();
+    } workgroupBarrier();
+
+    if (local_id == 0) { entities_buffer_meta[workgroup_id.x].y = shared_local_prefix[PREFIX_CHUNK_WIDTH - 1]; }
 }
 
 var<workgroup> shared_global_prefix : array<u32, 1024>;
 
-@compute @workgroup_size(1024) fn global_prefix() {
-    let count
+@compute @workgroup_size(1024) fn global_prefix(
+    @builtin(local_invocation_index) local_id : u32
+) {
+    shared_global_prefix[local_id] = entities_buffer_meta[local_id].y;
+    workgroupBarrier();
+
+    for (var stride : u32 = 1; stride < 1024; stride <<= 1) {
+        if (local_id >= stride)
+    }
 }

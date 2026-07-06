@@ -85,12 +85,12 @@ var<workgroup> shared_array : array<u32, 2048>;
         var temp : u32;
         for (var i : u32 = 0; i < 8; i++) {
             let index = local_id + i * 256;
-            if (index > stride) { temp = shared_array[index - stride]; }
+            if (index >= stride) { temp = shared_array[index - stride]; }
         } workgroupBarrier();
 
         for (var i : u32 = 0; i < 8; i++) {
             let index = local_id + i * 256;
-            if (index > stride) { shared_array[index] += temp;}
+            if (index >= stride) { shared_array[index] += temp;}
         } workgroupBarrier();
 
     } workgroupBarrier();
@@ -130,10 +130,10 @@ var<private> accumulated_sum : u32 = 0;
     // I mean I could include the last iteration but we don't need the last one :)
     for (var stride : u32 = 1; stride < 128; stride <<= 1) {
         var temp : u32;
-        if (local_id > stride) { temp = local_array[local_id - stride]; }
+        if (local_id >= stride) { temp = local_array[local_id - stride]; }
         workgroupBarrier();
 
-        if (local_id > stride) { local_array[local_id] += temp; }
+        if (local_id >= stride) { local_array[local_id] += temp; }
         workgroupBarrier();
     } workgroupBarrier();
 
