@@ -82,15 +82,15 @@ var<workgroup> shared_array : array<u32, 2048>;
 
     // I mean I could include the last iteration but we don't need the last one
     for (var stride : u32 = 1; stride < 2048; stride <<= 1) {
-        var temp : u32;
+        var temp : array<u32, 8>;
         for (var i : u32 = 0; i < 8; i++) {
             let index = local_id + i * 256;
-            if (index >= stride) { temp = shared_array[index - stride]; }
+            if (index >= stride) { temp[i] = shared_array[index - stride]; }
         } workgroupBarrier();
 
         for (var i : u32 = 0; i < 8; i++) {
             let index = local_id + i * 256;
-            if (index >= stride) { shared_array[index] += temp;}
+            if (index >= stride) { shared_array[index] += temp[i];}
         } workgroupBarrier();
 
     } workgroupBarrier();
