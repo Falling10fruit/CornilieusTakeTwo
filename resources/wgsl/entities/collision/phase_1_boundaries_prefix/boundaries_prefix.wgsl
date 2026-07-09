@@ -8,10 +8,10 @@ struct EntityData {
 }
 @group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
-@group(0) @binding(1) var<storage, read_write> entities_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(4) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 @group(0) @binding(6) var<storage, read_write> entities_buffer_meta : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
@@ -23,7 +23,7 @@ override HALF_PHASE : u32; // 0 for the first half
 override ENTITY_COUNT_LOG2 : u32 = 24; // oh btw it can only go down to 21
 override PREFIX_CHUNK_WIDTH : u32 = 4096u >> (24 - ENTITY_COUNT_LOG2);
 
-// x - 0. entity_type
+// x - 0. entity_type & rotation (from the broad_check shader)
 // y - 0. the individual total boundaries of the one vector -> 4. final prefix
 // z - 1. chunk sum -> 2. global prefix -> 3. final prefix ->  4. position x packed \ _ They're the positions of the entity 
 // w -                                                         4. position y packed /   at the index of the vector :)
@@ -39,8 +39,9 @@ override PREFIX_CHUNK_WIDTH : u32 = 4096u >> (24 - ENTITY_COUNT_LOG2);
     let data_vector = entities_buffer_meta[global_index];
     let gjk_counts = ((data_vector >> vec4u(24, 24, 24, 24)) & vec4u(0xFu, 0xFu, 0xFu, 0xFu));
 
-    entities_buffer_meta[index_offset + global_index] = vec4u(
-        data_vector.y >> 28 + ((data_vector.z >> 28) << 4) + ((data_vector.w >> 28) << 8), // entity_type
+    let entity_type = data_vector.y >> 28 + ((data_vector.z >> 28) << 4) + ((data_vector.w >> 28) << 8);
+    entities_buffer_meta[index_offset + global_index] += vec4u(
+        entity_type,
         (gjk_counts.x + gjk_counts.y + gjk_counts.z + gjk_counts.w) * (data_vector.x >> 28),
         0, 0
     );

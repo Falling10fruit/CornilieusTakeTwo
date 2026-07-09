@@ -118,6 +118,41 @@ declare global {
                  * i.e. indicies of colliding entities during narrow phase collision
                  */
                 meta_buffer: GPUBuffeer | null,
+
+                /**
+                 * Consists of buffers used for sorting entities at the end
+                 * ```wgsl
+                 * struct AtomicCount {
+                 *     count: atomic<u32>,
+                 *     prefix_sum: u32
+                 * }
+                 * @group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
+                 * @group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>;
+                 * ```
+                 */
+                sort: {
+                    /**
+                     * Counts how many are there of each digit and also has the prefix across the digits
+                     * 
+                     * Curiously prefix sum is never used. 17 me was weird, I'm still 17 tho.
+                     * ```wgsl
+                     * struct AtomicCount {
+                     *     count: atomic<u32>,
+                     *     prefix_sum: u32
+                     * }
+                     * @group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
+                     * ```
+                     */
+                    byte_count_buffer: GPUBuffer | null,
+                    /**
+                     * Keeps a histogram of how many numbers of 16 are in each of the 8192 chunks
+                     * 
+                     * ```wgsl
+                     * @group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>;
+                     * ```
+                     */
+                    workgroup_histogram_buffer: GPUBuffer | null
+                }
             }
         };
 

@@ -17,12 +17,12 @@ struct AtomicCount {
 @group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
 @group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // 256 buckets of each workgroup. for 2 ^ 24 entities this array is 8192 elements something long
 
-override BYTE_SHIFT : u32;
+override BIT_SHIFT : u32;
 var<workgroup> local_rank : array<array<u32, 16>, 256>;
 var<workgroup> previous_prefix_0 : vec4u; // maximum prefix sum of one workgroup is 2048 - 256, so we can fit 16 sums in 8 integers
 var<workgroup> previous_prefix_1 : vec4u;
 
-@compute @workgroup_size(256) fn sort_entities( // 8192 dispatches for 16,770,000 something entities
+@compute @workgroup_size(256) fn chunk_rescatter( // 8192 dispatches for 16,770,000 something entities
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(local_invocation_index) local_invocation_index : u32,
     @builtin(num_workgroups) no_of_workgroups : vec3u,
@@ -48,7 +48,7 @@ var<workgroup> previous_prefix_1 : vec4u;
         workgroupBarrier();
 
         let entity_data = entity_buffer_0[global_invocation_id.x + i * no_of_workgroups.x * 256];
-        let chunk_byte = (entity_data.x >> (7 + BYTE_SHIFT)) & 0xFu;
+        let chunk_byte = (entity_data.x >> (7 + BIT_SHIFT)) & 0xFu;
         local_rank[local_invocation_index][chunk_byte] += 1;
         workgroupBarrier();
 

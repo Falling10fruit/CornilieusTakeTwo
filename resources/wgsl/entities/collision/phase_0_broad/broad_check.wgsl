@@ -48,7 +48,7 @@ var<private> insert_entity_index_pointer : u32;
 
     let this_gjk_boundaries_count = (entity_broad_vector.z & 3u) + ((entity_broad_vector.w & 3u) << 2);
     let this_entity_type_id = ((entity_broad_vector.z >> 2) & 0x1Fu) + ((entity_broad_vector.w << 3) & 0x3E0u);
-    let this_extent = bitcast<vec2f>(entity_broad_vector.zw & vec2u(0xFFFFFF80u, 0xFFFFFF80u));
+    let this_extent = bitcast<vec2f>(entity_broad_vector.zw & vec2u(0xFFFFE000u, 0xFFFFE000u));
 
     let entity_chunk_position = entity_broad_vector.xy >> vec2u(13, 13);
     let local_position_bias = ((entity_broad_vector.xy & vec2u(0x1000u, 0x1000u)) >> vec2u(12, 12));
@@ -115,4 +115,7 @@ var<private> insert_entity_index_pointer : u32;
         ((this_entity_type_id >> 4) & 0xFu) << 28,
         (this_entity_type_id >> 8) << 28
     );
+
+    let this_entity_rotation = ((entity_broad_vector.z >> 7) & 0x3Fu) + (((entity_broad_vector.w >> 7) & 0x3Fu) << 6);
+    entities_buffer_meta[arrayLength(&entities_buffer_meta)/2 + global_invocation_id.x].x = this_entity_rotation << 10;
 }

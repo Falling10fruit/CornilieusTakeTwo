@@ -8,10 +8,10 @@ struct EntityData {
 }
 @group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
-@group(0) @binding(1) var<storage, read_write> entities_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(4) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 @group(0) @binding(6) var<storage, read_write> entities_buffer_meta : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
@@ -20,6 +20,7 @@ struct EntityData {
 @group(1) @binding(3) var<storage, read>       world_data : array<u32>;
 
 override HALF_PHASE : u32 = 0;
+override ENTITY_COUNT_LOG2 : u32 = 0;
 
 // x
 // boundary id  (the rest of the 24 bits) former entity id
@@ -30,7 +31,7 @@ override HALF_PHASE : u32 = 0;
 // z
 // former type id
 // w
-// wasted memory hehe
+// former and latter rotations
 
 var<private> collider_boundary_counts : vec4u;
 
@@ -51,23 +52,26 @@ fn cross2d_vec_scalar(a: vec2f, b: f32) -> vec2f { return vec2f(b * a.y, -b * a.
     let former_boundary_count = collider_data_vector.x >> 28;
     collider_boundary_counts = (collider_data_vector >> vec4u(24, 24, 24, 24)) & vec4u(0xFu, 0xFu, 0xFu, 0xFu);
     
-    let former_type_id =
-        (collider_data_vector.y >> 28) +
-        ((collider_data_vector.z >> 28) << 4) +
-        ((collider_data_vector.w >> 28) << 8);
+    let former_collider_data = entities_buffer_meta[index_offset + global_index].x;
+    let former_type_id = former_collider_data & 0x3FFu;
+    let former_collider_rotation = former_collider_data >> 10;
 
     let former_collider_index = HALF_PHASE * index_offset + global_index;
     for (var former_boundary_index : u32 = 0; former_boundary_index < former_boundary_count; former_boundary_index++) {
         for (var i : u32; i < 4; i++) {
             let latter_boundary_count = collider_boundary_counts[i];
             let latter_collider_index = collider_data_vector[i] & 0xFFFFFFu;
+            let latter_collider_rotation = entities_buffer_meta[latter_collider_index | 1u << (ENTITY_COUNT_LOG2 - 1)].x >> 10;
 
             for (var latter_boundary_index : u32 = 0; latter_boundary_index < latter_boundary_count; latter_boundary_index++) {
                 let memory_index = memory_offset + former_boundary_index;
 
-                entities_buffer_1[memory_index].x = (former_boundary_index << 24) + former_collider_index;
-                entities_buffer_1[memory_index].y = (latter_boundary_index << 24) + latter_collider_index;
-                entities_buffer_1[memory_index].z = former_type_id;
+                entities_buffer_1[memory_index] = vec4u(
+                    (former_boundary_index << 24) + former_collider_index,
+                    (latter_boundary_index << 24) + latter_collider_index,
+                    former_type_id << 12, // fits the slot for leftover pass
+                    former_collider_rotation + (latter_collider_rotation << 12)
+                );
             }
 
             memory_offset += latter_boundary_count;

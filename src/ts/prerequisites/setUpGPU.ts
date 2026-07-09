@@ -13,8 +13,13 @@ async function setUpGPU () {
         title: "Unable to request adapter",
         message: "your device does not support WebGPU"
     }) }
+  
+    const requiredLimits = {
+        // Request 12 storage buffers for the compute shader
+        maxStorageBuffersPerShaderStage: 12,
+    } as GPUDeviceDescriptor;
 
-    const device = await adapter.requestDevice();
+    const device = await adapter.requestDevice(requiredLimits);
     device.lost.then((e) => {
         window.fail({
             title: "WebGPU device lost",

@@ -44,7 +44,12 @@ pub fn run() {
       // entity collisions
       get_shaders::get_broad_dimensions_entity_compute_shader,
       get_shaders::get_broad_check_entity_compute_shader,
-      get_shaders::get_gjk_entity_compute_shader,
+      get_shaders::get_boundaries_prefix_entity_compute_shader,
+      get_shaders::get_gjk_setup_entity_compute_shader,
+      get_shaders::get_gpk_pass_0_entity_compute_shader,
+      get_shaders::get_gjk_postpassprefix_entity_compute_shader,
+      get_shaders::get_gjk_pass_1_entity_compute_shader,
+      get_shaders::get_epa_pass_0_entity_compute_shader,
 
       // entity sorting
       get_shaders::get_sort_count_entity_compute_shader,

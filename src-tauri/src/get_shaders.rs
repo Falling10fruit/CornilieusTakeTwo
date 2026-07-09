@@ -34,6 +34,16 @@ pub async fn get_sprite_compute_shader(handle: tauri::AppHandle) -> Result<Strin
 }
 
 #[tauri::command]
+pub async fn get_input_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/input_compute.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
 pub async fn get_base_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
     let shader_source = get_file_as_string(handle, "wgsl/entities/entities_linked.wgsl");
 
@@ -44,8 +54,118 @@ pub async fn get_base_entity_compute_shader(handle: tauri::AppHandle) -> Result<
 }
 
 #[tauri::command]
-pub async fn get_input_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
-    let shader_source = get_file_as_string(handle, "wgsl/input_compute.wgsl");
+pub async fn get_sort_count_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/sort/chunk_count.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_sort_prefix_workgroup_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/sort/chunk_prefix_workgroup.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_sort_prefix_chunk_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/sort/chunk_prefix.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_sort_rescatter_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/sort/chunk_rescatter");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_broad_dimensions_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_0_broad/broad_dimensions.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_broad_check_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_0_broad/broad_check.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_boundaries_prefix_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_1_boundaries_prefix/boundaries_prefix.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_gjk_setup_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_2_gjk/gjk_setup.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_gpk_pass_0_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_2_gjk/gjk_pass_0.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_gjk_postpassprefix_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_2_gjk/gjk_postpassprefix.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_gjk_pass_1_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_2_gjk/gjk_pass_1.wgsl");
+
+    match shader_source {
+        Ok(code) => Ok(code),
+        Err(error) => Err(error.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_epa_pass_0_entity_compute_shader(handle: tauri::AppHandle) -> Result<String, String> {
+    let shader_source = get_file_as_string(handle, "wgsl/entities/collision/phase_3_epa/epa_pass_0.wgsl");
 
     match shader_source {
         Ok(code) => Ok(code),

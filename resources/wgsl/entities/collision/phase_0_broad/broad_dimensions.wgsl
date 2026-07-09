@@ -1,3 +1,14 @@
+const pi = 3.1415926535; 
+//    Entity index (creation order)
+// 01010101 01010101 01010101 01010101
+// type = 0 means no entity
+// type (2^9 = 512)     chunk index 2^16         xPos(2^13)       yPos (16 * 8 pixels divided by 2^13)         rotation 2^13 
+//  [ 01010101 0 ]   [ 1010101 01010101 0 ] [ 1010101 | 010101 ]           [ 01 01010101 010 ]              [ 10101 01010101 ] |
+// x_vel      y_vel      rotate_vel
+// 0101010101 0101010101 010101010101 
+// 2^10 -> 1023          2^12 -> 4095
+//01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
+
 struct EntityData {
     gjk_bounds_dictionary_pointer: u32,
     gjk_bounds_count: u32,
@@ -8,10 +19,10 @@ struct EntityData {
 }
 @group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
-@group(0) @binding(1) var<storage, read_write> entities_indicies : array<u32>;
-@group(0) @binding(2) var<storage, read_write> chunk_indicies : array<u32>;
-@group(0) @binding(3) var<storage, read_write> entities_buffer_0 : array<vec4u>;
-@group(0) @binding(4) var<storage, read_write> entities_buffer_1 : array<vec4u>;
+@group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
+@group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
+@group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
+@group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
 @group(0) @binding(6) var<storage, read_write> entities_buffer_meta : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> debug_buffer : f32; // ##DEBUG_TYPE##=
@@ -60,9 +71,12 @@ const bounding_corner_signs : array<vec2u, 4> = array(
     let entity_type_0 = entity_type & 0x1Fu;
     let entity_type_1 = entity_type >> 5;
 
+    let entity_rotation_0 = (entity_rotation_raw >> 1) & 0x3Fu;
+    let entity_rotation_1 = entity_rotation_raw >> 7;
+
     let broad_dimensions = vec2u(
-        bitcast<u32>(max_width) & 0xFFFFFF80u + (entity_type_0 << 2) + gjk_bounding_count_0,
-        bitcast<u32>(max_height) & 0xFFFFFF80u + (entity_type_1 << 2) + gjk_bounding_count_1
+        bitcast<u32>(max_width) & 0xFFFFE000u + (entity_rotation_0 << 7) + (entity_type_0 << 2) + gjk_bounding_count_0,
+        bitcast<u32>(max_height) & 0xFFFFE000u + (entity_rotation_0 << 7) + (entity_type_1 << 2) + gjk_bounding_count_1
     );
     
     let entity_chunk_index = (entity_vector.x >> 7) & 0xFFu;
@@ -85,15 +99,3 @@ const bounding_corner_signs : array<vec2u, 4> = array(
 //            
 // 0 10000000 10000000000000000000000 = 0.5
 // 2^(128 - 128) * 
-
-// For safe keeping
-fn rotate_node(node : vec2f, cosin : vec2f) -> vec2f {
-    return vec2f(
-        node.x * cosin.x - node.y * cosin.y,
-        node.x * cosin.y + node.y * cosin.x
-    );
-}
-
-fn cross_2d(vec_0 : vec2f, vec_1 : vec2f) -> f32 {
-    return vec_0.x * vec_1.y - vec_1.x * vec_0.y;
-}

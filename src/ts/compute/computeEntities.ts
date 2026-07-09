@@ -1,12 +1,18 @@
 import { invoke } from "@tauri-apps/api/core";
 import { Entity } from "../entities/baseEntity.ts"
 import { print_bits } from "../../bit_utils.ts";
+
+import { create_sorting_pipelines, sort_entities } from "../compute/entities/sort.ts";
+
 import entity_type_data_buffer from "../../json/entities/entities.json"
 import sprite_indicies from "../../json/sprites/sprite_indicies.json"
 
 let device: GPUDevice;
-let sort_entity
+let bindGroupLayout_entities: GPUBindGroupLayout;
+let bindGroupLayout_additionalData: GPUBindGroupLayout;
+
 let base_pipeline: GPUComputePipeline;
+
 let bindGroup_entities_0: GPUBindGroup;
 let bindGroup_entities_1: GPUBindGroup;
 let bindGroup_targetSprites: GPUBindGroup;
@@ -15,10 +21,9 @@ let bindGroup_additionalData: GPUBindGroup;
 async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCanvasContext }) {
     device = parameters.device;
 
-
     const base_computeModule = await load_base_entity_shader(device) as GPUShaderModule;
-    const sort_computeModule = await sort_base_entity_shader(device) as GPUShaderModule;
-    const bindGroupLayout_entities = device.createBindGroupLayout({
+
+    bindGroupLayout_entities = device.createBindGroupLayout({
         label: `compute entities data bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // entity type data
@@ -31,13 +36,13 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
     
-    const bindGroupLayout_additionalData = device.createBindGroupLayout({
+    bindGroupLayout_additionalData = device.createBindGroupLayout({
         label: `compute entities additional data bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage"           }}, // debug buffer to transfer one u32 fromt the gpu
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // vec2u(cos, sin) look up table
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // hilbert curve table
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // world data
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // hilbert curve table
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" }}, // world data
         ]
     });
     
@@ -48,26 +53,32 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
         ]
     });
 
-    base_pipeline = await device.createComputePipelineAsync({
-        label: `compute entities base_pipeline`,
-        layout: device.createPipelineLayout({
-            label: `compute entities base_pipeline layout`,
-            bindGroupLayouts: [
-                bindGroupLayout_entities,
-                bindGroupLayout_targetSprites,
-                bindGroupLayout_additionalData
-            ]
-        }),
-        compute: {
-            module: base_computeModule,
-            entryPoint: `cShader`,
-            constants: {
-                "WORLD_WIDTH_IN_CHUNKS": window.world.width,
-                "WORLD_HEIGHT_IN_CHUNKS": window.world.height,
-                "CHUNK_LENGTH": 8
-            }
-        }
-    });
+    await Promise.all([
+        async () => {
+            base_pipeline = await device.createComputePipelineAsync({
+                label: `compute entities base_pipeline`,
+                layout: device.createPipelineLayout({
+                    label: `compute entities base_pipeline layout`,
+                    bindGroupLayouts: [
+                        bindGroupLayout_entities,
+                        bindGroupLayout_additionalData,
+                        bindGroupLayout_targetSprites,
+                    ]
+                }),
+                compute: {
+                    module: base_computeModule,
+                    entryPoint: `cShader`,
+                    constants: {
+                        "WORLD_WIDTH_IN_CHUNKS": window.world.width,
+                        "WORLD_HEIGHT_IN_CHUNKS": window.world.height,
+                        "CHUNK_LENGTH": 8
+                    }
+                }
+            })
+        },
+        create_sorting_pipelines(device),
+        write_entity_type_data_buffer()
+    ])
 
     if (window.world.entities.type_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities base_pipeline creation", message: "GPUBuffer window.world.entities.type_data_buffer  is null" });
     if (window.world.entities.node_data_buffer  == null) return window.fail({ title: "Buffer unavailable during entities base_pipeline creation", message: "GPUBuffer window.world.entities.node_data_buffer  is null"} );
@@ -84,7 +95,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
 
     bindGroup_entities_0 = device.createBindGroup({
         label: `compute entities data 0 - 1 bind group`,
-        layout: pipeline.getBindGroupLayout(0),
+        layout: base_pipeline.getBindGroupLayout(0),
         entries: [
             { binding: 0, resource: { buffer: window.world.entities.type_data_buffer  }},
             { binding: 1, resource: { buffer: window.world.entities.node_data_buffer  }},
@@ -99,7 +110,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     
     bindGroup_entities_1 = device.createBindGroup({
         label: `compute entities data 0 - 1 bind group`,
-        layout: pipeline.getBindGroupLayout(0),
+        layout: base_pipeline.getBindGroupLayout(0),
         entries: [
             { binding: 0, resource: { buffer: window.world.entities.type_data_buffer  }},
             { binding: 1, resource: { buffer: window.world.entities.node_data_buffer  }},
@@ -113,7 +124,7 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
 
     bindGroup_additionalData = device.createBindGroup({
         label: `compute entities additional data bind group`,
-        layout: pipeline.getBindGroupLayout(2),
+        layout: base_pipeline.getBindGroupLayout(2),
         entries: [
             { binding: 0, resource: { buffer: window.debug.buffer                     }},
             { binding: 1, resource: { buffer: window.cosin_lut_buffer                 }},
@@ -124,16 +135,14 @@ async function setUpComputeEntities(parameters: { device: GPUDevice, ctx: GPUCan
     
     bindGroup_targetSprites = device.createBindGroup({
         label: `compute entities target sprites bind group`,
-        layout: pipeline.getBindGroupLayout(1),
+        layout: base_pipeline.getBindGroupLayout(1),
         entries: [
             { binding: 0, resource: { buffer: window.spritesBuffer.target }},
         ]
     });
-
-    write_entity_type_data_buffer();
 }
 
-function write_entity_type_data_buffer () {
+async function write_entity_type_data_buffer () {
     // struct EntityData {
     //     node_count: u32,
     //     node_pointer: u32,
@@ -149,13 +158,13 @@ function write_entity_type_data_buffer () {
     let prefix_count = 0;
     const node_pointer_indicies = entity_type_data_buffer.map((current_type_data) => {
         const temp = prefix_count;
-        prefix_count += current_type_data.nodes.length;
+        prefix_count += current_type_data.gjk_bounds.length;
         return temp;
     });
     
     for (let i = 0; i < entity_type_data_buffer.length; i++) {
         const current_type_data = entity_type_data_buffer[i];
-        entity_type_data_buffer_array_u32[i * 8 * 4 + 0 ] = current_type_data.nodes.length;
+        entity_type_data_buffer_array_u32[i * 8 * 4 + 0 ] = current_type_data.gjk_bounds.length;
         entity_type_data_buffer_array_u32[i * 8 * 4 + 4 ] = node_pointer_indicies[i];
         entity_type_data_buffer_array_f32[i * 8 * 4 + 8 ] = current_type_data.center[0];
         entity_type_data_buffer_array_f32[i * 8 * 4 + 12] = current_type_data.center[1];
@@ -169,13 +178,7 @@ function write_entity_type_data_buffer () {
 }
 
 async function load_base_entity_shader(device: GPUDevice) {
-    const computeShaderSource = await invoke("get_entity_compute_shader").catch((e) => { return e });
-    if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
-    return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
-}
-
-async function sort_base_entity_shader(device: GPUDevice) {
-    const computeShaderSource = await invoke("get_entity_compute_shader").catch((e) => { return e });
+    const computeShaderSource = await invoke("get_entity_base_compute_shader").catch((e) => { return e });
     if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
     return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
 }
@@ -194,7 +197,7 @@ async function createPlaceholderEntities() {
         entity_type: 1,
         global_x_position : 0,
         global_y_position : 0,
-        rotation : 0,
+        rotation : 0.3,
         x_velocity : 0,
         y_velocity : 0,
         rotation_velocity : 0
@@ -204,7 +207,7 @@ async function createPlaceholderEntities() {
         entity_type: 3,
         global_x_position : 10,
         global_y_position : 26,
-        rotation : 0,
+        rotation : 0.3,
         x_velocity : 0,
         y_velocity : 0,
         rotation_velocity : 0
@@ -217,6 +220,9 @@ async function createPlaceholderEntities() {
 
 function computeEntities(pass: GPUComputePassEncoder) {
     pass.setPipeline(base_pipeline);
+    
+    // base    sort 0  sort 1  sort 2  sort 3
+    // 0 -> 1, 1 -> 0, 0 -> 1, 0 -> 1, 0 -> 1 so we need to reverse
     if (window.world.entities.current_entity_buffer_is == 0) {
         pass.setBindGroup(0, bindGroup_entities_0);
     } else {
@@ -225,9 +231,11 @@ function computeEntities(pass: GPUComputePassEncoder) {
 
     pass.setBindGroup(1, bindGroup_additionalData);
     pass.setBindGroup(2, bindGroup_targetSprites);
-    
+
     if (window.world.entities.indirect_count_buffer == null) return window.fail({ title: "indirect buffer missing", message: "while computing entities"});
     pass.dispatchWorkgroupsIndirect(window.world.entities.indirect_count_buffer, 0);
+
+    sort_entities(pass);
 }
 
 export { setUpComputeEntities, computeEntities, createPlaceholderEntities }

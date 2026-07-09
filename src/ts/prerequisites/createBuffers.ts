@@ -13,6 +13,7 @@ function createBuffers(parameters: { device: GPUDevice }) {
 function createComputeBuffers() {
     create_cosin_lut();
     createEntityBuffers();
+    createSortBuffers();
     createInputBuffers();
 }
 
@@ -141,9 +142,23 @@ function createEntityBuffers() {
     
     const node_data_buffer = device.createBuffer({
         label: `entity node data buffer`,
-        size: entity_type_data_buffer.reduce((prev, current) => prev + current.nodes.length, 0) * 4 * 2,
+        size: entity_type_data_buffer.reduce((prev, current) => prev + current.gjk_bounds.length, 0) * 4 * 2,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
     }); window.world.entities.node_data_buffer = node_data_buffer;
+}
+
+function createSortBuffers() {
+    window.world.entities.sort.byte_count_buffer = device.createBuffer({
+        label: `byte count buffer`,
+        size: 8 * 16,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
+
+    window.world.entities.sort.workgroup_histogram_buffer = device.createBuffer({
+        label: `workgroup histogram buffer`,
+        size: 4 * 16 * 8192,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    });
 }
 
 function create_cosin_lut() {
@@ -157,8 +172,8 @@ function create_cosin_lut() {
     window.cosin_lut_buffer = device.createBuffer({
         label: `cosin lut`,
         size: cosin_lut_array.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
-    }); device.queue.writeBuffer(window.cosin_lut_buffer, 0, cosin_lut_array, 0, cosin_lut_array.byteLength);
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    }); device.queue.writeBuffer(window.cosin_lut_buffer, 0, cosin_lut_array);
 }
 
 function createInputBuffers () {

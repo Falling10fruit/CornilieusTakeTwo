@@ -23,15 +23,23 @@ async function preload (parameters: { device: GPUDevice }) {
         playerInputBufferMapped: null,
 
         entities: {
+            current_entity_buffer_is: 0,
+            indirect_count_buffer: null,
+            
             type_data_buffer: null,
             node_data_buffer: null,
-            indirect_count_buffer: null,
+
             entities_indicies: null,
             chunk_indicies: null,
-            current_entity_buffer_is: 0,
+            
             entities_buffer_0: null,
             entities_buffer_1: null,
             meta_buffer: null,
+            
+            sort: {
+                byte_count_buffer: null,
+                workgroup_histogram_buffer: null,
+            }
         }
     };
 

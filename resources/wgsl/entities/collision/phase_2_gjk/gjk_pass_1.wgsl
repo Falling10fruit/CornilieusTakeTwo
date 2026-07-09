@@ -30,11 +30,11 @@ override ENTITY_COUNT_LOG2 : u32 = 24;
 //   01010101           0000010010101010...
 // z
 //      \/ flag for collision  found         boundary node id 2 | boundary node id 1 | boundary node id 0    :) each with 4 bits ig eheh
-//       0 101 01010101                            0101                 0101                0101                
-// w         ---------- former entity type
+//       0 101 01010101   no clue what to          0101                 0101                0101                
+// w                      do with these bits                
 //      \/ flag for collision not found yet  boundary node id 2 | boundary node id 1 | boundary node id 0     wow so cool
 //       0 101 01010101                            0101                 0101                0101         
-//           ---------- latter entity type 
+
 fn cross2d(a: vec2f, b: vec2f) -> f32 { return a.x * b.y - a.y * b.x; }
 fn cross2d_vec_scalar(a: vec2f, b: f32) -> vec2f { return vec2f(b * a.y, -b * a.x); }
 
@@ -54,20 +54,17 @@ var<private> rotations : u32;
 var<private> center_delta : vec2f;
 
 var<private> collision_vector : vec4u;
-var<workgroup> leftover_count : atomic<u32>;
 
-// 1024 * 512 (for a total of 2^24 threads)
+// 512 * 512 (for a total of 2^23 threads)
 // the y direction will be used to scale the algorithm
 @compute @workgroup_size(32) fn setup_collision_nodes(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(local_invocation_index) local_id : u32,
     @builtin(workgroup_id) workgroup_id : vec3u
 ) {
-    let index_offset = arrayLength(&entities_buffer_meta) / 2;
-    let global_index = global_invocation_id.x + global_invocation_id.y * 1024 * 32;
-    if (global_index >= entities_buffer_meta[0].z) { return; }
-
-    collision_vector = entities_buffer_1[global_index];
+    let global_index = global_invocation_id.x + global_invocation_id.y * 512 * 32;
+    let entity_index = entities_buffer_meta[global_index].w;
+    collision_vector = entities_buffer_1[entity_index];
 
     let former_collider_id = collision_vector.x & 0xFFFFFFu;
     let former_boundary_id = collision_vector.x >> 24;
@@ -75,14 +72,14 @@ var<workgroup> leftover_count : atomic<u32>;
 
     let latter_collider_id = collision_vector.y & 0xFFFFFFu;
     let latter_boundary_id = collision_vector.y >> 24;
-    let latter_type_id = entities_buffer_meta[index_offset + latter_collider_id].x;
+    let latter_type_id = (collision_vector.w >> 12) & 0x3FFu;
 
-    rotations = collision_vector.w >> 12;
-    collision_vector.z = former_type_id << 12;
-    collision_vector.w = latter_type_id << 12;
+    rotations = (entities_buffer_meta[former_type_id | (1u << (ENTITY_COUNT_LOG2 - 1))].x >> 10) + 
+        (entities_buffer_meta[latter_type_id | (1u << (ENTITY_COUNT_LOG2 - 1))].x >> 10) << 12;
 
     load_entity_nodes(former_boundary_id, former_type_id, latter_boundary_id, latter_type_id);
 
+    let index_offset = arrayLength(&entities_buffer_meta);
     center_delta = vec2f(
         bitcast<vec2i>(entities_buffer_meta[index_offset + latter_collider_id].zw) - 
         bitcast<vec2i>(entities_buffer_meta[index_offset + former_collider_id].zw)
@@ -90,8 +87,8 @@ var<workgroup> leftover_count : atomic<u32>;
     let direction_0 = -center_delta;
     
     let support_node_0 = support_function(direction_0);
-    collision_vector.z += support_node_0.former_id;
-    collision_vector.w += support_node_0.latter_id;
+    collision_vector.z = support_node_0.former_id; // overwrite former type id
+    collision_vector.w = support_node_0.latter_id;
     support_nodes[0] = support_node_0.pos;
 
     let direction_1 = -support_node_0.pos;
@@ -120,11 +117,12 @@ var<workgroup> leftover_count : atomic<u32>;
     var voronoi_dot_result_1 = dot(voronoi_normal_1, -support_node_2.pos) < 0.0;
 
     if (voronoi_dot_result_0 && voronoi_dot_result_1) {
-        entities_buffer_1[global_index].z |= 0x80000000u;
+        collision_vector.z |= 0x80000000u;
+        entities_buffer_1[global_index] = collision_vector;
         return;
     }
 
-    for (var i = 0; i < 7; i++) { // I considered 6 btw
+    for (var i = 7; i < 16; i++) { // I considered 6 btw
         let direction = select(voronoi_normal_0, voronoi_normal_1, voronoi_dot_result_0);
         let support = support_function(direction);
 
@@ -165,17 +163,23 @@ var<workgroup> leftover_count : atomic<u32>;
         }
     }
 
-    collision_vector.w |= 0x80000000u;
+    collision_vector.z |= 0x80000000u;
     entities_buffer_1[global_index] = collision_vector;
-    atomicAdd(&leftover_count, 1);
+    return;
+}
 
-    workgroupBarrier();
-    if (local_id == 0) {
-        let index = workgroup_id.x + workgroup_id.y * 1024;
-        let global_position = index & 0x1Fu;
-        let local_position = index >> 5;
-        entities_buffer_meta[global_position * 32 + local_position].x = leftover_count;
-    }
+fn vertex_indicies_to_support(former_vertex_id : u32, latter_vertex_id : u32) -> SupportNode {
+    let former_node_data = private_entity_nodes[former_vertex_id];
+    let latter_node_data = private_entity_nodes[latter_vertex_id];
+    let node_vector = vec4f8_to_vec4f32(vec4u(
+        former_node_data & 0xFFu, (former_node_data >> 8) & 0xFFu,
+        (latter_node_data >> 16) & 0xFFu, (latter_node_data >> 24) & 0xFFu,
+    ));
+    
+    return SupportNode(
+        node_vector.zw - node_vector.xy,
+        former_vertex_id, latter_vertex_id
+    );
 }
 
 // gjk_bounds_dictionary_pointer
