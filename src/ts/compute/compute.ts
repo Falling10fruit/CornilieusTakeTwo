@@ -53,6 +53,8 @@ function compute() {
                 window.debug.unmapped_buffers.push(mapping_buffer);
             });
         }
+
+        
     } else {
         device.queue.submit([commandEncoder.finish()]);
     }

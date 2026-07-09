@@ -7,6 +7,7 @@ import { print_bits } from "../../bit_utils.ts";
 import { computeSprites} from "../compute/computeSprites.ts";
 import { renderWorld } from "./renderWorld.ts";
 import { renderSprites } from "./renderSprites.ts";
+import { render_buffers } from "./renderBuffer.ts";
 
 /** Sets up the {@link render} function.
  * World } from "./renderWorld.ts";
@@ -48,6 +49,7 @@ function draw () {
     });
     renderWorld(renderPass);
     renderSprites(renderPass);
+    render_buffers(renderPass);
     renderPass.end();
 
     if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging entities`});

@@ -26,6 +26,7 @@ import { createPlaceholderEntities } from "./ts/compute/computeEntities";
 
 import { draw } from "./ts/render/render"; //
 import { compute, setUpComputePass } from "./ts/compute/compute";
+import { setUpRenderBuffers } from "./ts/render/renderBuffer.ts";
 
 const { device, ctx } = await setUpGPU();
 
@@ -41,6 +42,7 @@ await Promise.all([
     setUpCanvasResize({ device }),
     setUpRenderWorld({ device }),
     setUpRenderSprites({ device }),
+    setUpRenderBuffers({ device })
 ]);
 
 await Promise.all([

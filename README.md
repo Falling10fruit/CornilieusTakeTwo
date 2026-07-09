@@ -19,6 +19,8 @@ A massive side view factory 2d physics game where everything is an entity and in
 - Generation of the LICENSE abiding credits above
 
 **Notable instances of AI involvement**
+* 7 July 2026
+  - I forgot to mention that I asked AI a while ago what to call the constant of the number of bits that can represent the number/id of entities and it gave me `ENTITY_COUNT_LOG2` which is perfect
 * 5 July 2026
   - I asked if the 2d cross product can be used in the triple cross product and it gave me the one liner helper functions.
   - Also it taught me how to make nested lists in markdown

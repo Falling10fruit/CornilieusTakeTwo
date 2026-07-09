@@ -4,15 +4,15 @@ struct AtomicCount {
 }
 @group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
 
-var<workgroup> shared_copy : array<u32, 256>;
+var<workgroup> shared_copy : array<u32, 16>;
 
-@compute @workgroup_size(256) fn chunk_prefix( //
+@compute @workgroup_size(16) fn chunk_prefix( //
     @builtin(local_invocation_index) local_invocation_index : u32,
 ) {
     shared_copy[local_invocation_index] = atomicLoad(&byte_count[local_invocation_index].count);
 
     workgroupBarrier();
-    for (var stride : u32 = 1; stride < 256; stride *= 2) {
+    for (var stride : u32 = 1; stride < 16; stride *= 2) {
 
         var temporary : u32;
         if (local_invocation_index >= stride) {
@@ -26,7 +26,7 @@ var<workgroup> shared_copy : array<u32, 256>;
     }
 
     byte_count[0].prefix_sum = 0;
-    if (local_invocation_index != 255) {
-        byte_count[local_invocation_index + 1].prefix_sum = shared_copy[local_invocation_index];
+    if (local_invocation_index != 0) {
+        byte_count[local_invocation_index].prefix_sum = shared_copy[local_invocation_index - 1];
     }
 }

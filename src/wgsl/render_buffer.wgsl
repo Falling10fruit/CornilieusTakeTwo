@@ -1,6 +1,3 @@
-
-@group(0) @binding(0) var<storage, read> buffer_to_render : array<vec4u>; // change buffer type
-
 const vertex_array = array<vec2f, 3>(
     vec2f(0.0, 0.25),
     vec2f(0.0, 0.0),
@@ -18,6 +15,8 @@ struct VertexOutput {
         vec4f(vertex_array[vertex_index], 0.0, 1.0)
     );
 }
+
+@group(0) @binding(0) var<storage, read> buffer_to_render : array<vec4u>; // change buffer type
 
 @fragment fn fragment(vertex_output: VertexOutput) -> @location(0) vec4f {
     let position = vertex_output.position;

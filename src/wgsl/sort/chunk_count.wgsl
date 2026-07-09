@@ -7,8 +7,13 @@ struct AtomicCount {
 @group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
 @group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // so a 16 by 8192 for a 2^24 entity
 
-// update 7/9/2026 the default value was 12 and I don't know why, I'm scared I'm going to break something so come back here and tell me later okay?
 override BIT_SHIFT : u32 = 0; // four passes to get all 4 bits of 2 bytes
+
+override ENTITY_COUNT_LOG2 : u32 = 24u;
+override CHUNK_WIDTH : u32 = 65536u >> (24 - ENTITY_COUNT_LOG2);
+
+
+
 var<workgroup> local_buckets : array<atomic<u32>, 16>;
 
 @compute @workgroup_size(256) fn chunk_count( // 8,192  dispatches
@@ -19,7 +24,7 @@ var<workgroup> local_buckets : array<atomic<u32>, 16>;
 ) {
     for (var subthread_offset = 0u; subthread_offset < 8; subthread_offset++) {
         let bucket_index = (entity_buffer_0[global_invocation_id.x + 256 * no_of_dispatches.x * subthread_offset].x >> (7 + BIT_SHIFT)) & 0xFu;
-        atomicAdd(&local_buckets[bucket_index], 1u);
+        atomicAdd(&local_buckets[bucket_index], 1u); // ai told me that this heavily contested, albiet local, writing will kill me. uh. TODO fix this
     }
 
     workgroupBarrier();
