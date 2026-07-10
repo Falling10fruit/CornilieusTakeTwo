@@ -10,11 +10,8 @@
 
 @group(0) @binding(0) var<storage> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
-struct AtomicCount {
-    count: atomic<u32>,
-    prefix_sum: u32
-}
-@group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
+
+@group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 16>>; // length 8192 for 2^24 entities
 @group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // 256 buckets of each workgroup. for 2 ^ 24 entities this array is 8192 elements something long
 
 override BIT_SHIFT : u32;
@@ -58,7 +55,7 @@ var<workgroup> local_rank : array<array<u32, 16>, 256>; // the limit of local me
             }
         }
 
-        let chunk_offset = byte_count[chunk_byte].prefix_sum;
+        let chunk_offset = digit_prefix[0][chunk_byte];
         let local_offset = select(local_rank[local_invocation_index][chunk_byte], previous_prefix, local_invocation_index == 0);
         entity_buffer_1[chunk_offset + local_offset] = entity_data;
         workgroupBarrier();

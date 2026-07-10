@@ -243,7 +243,7 @@ const sprite_index_map = SpriteIndexMapStruct(
     
         do_the_physics();
 
-        // if (entity_index == 1) { debug_buffer = x_position; }
+        if (entity_index == 0) { debug_buffer = local_position.y; }
 
         //   33554432                         65536                   127          127          511     
         //  sprite index                     chunk index             x pos        y pos       rotation

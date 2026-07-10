@@ -1,10 +1,7 @@
 @group(0) @binding(0) var<storage> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
-struct AtomicCount {
-    count: atomic<u32>,
-    prefix_sum: u32
-}
-@group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
+
+@group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 16>>; // length 8192 for 2^24 entities
 @group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // so a 16 by 8192 for a 2^24 entity
 
 override BIT_SHIFT : u32 = 0; // four passes to get all 4 bits of 2 bytes
@@ -40,7 +37,7 @@ var<workgroup> local_buckets : array<array<u32, 256>, 16>;
     if (local_id < 16) {
         let local_count = local_buckets[local_id][255];
         if (local_count != 0u) { // if local_count is zero then don't spend bandwidth incrementing nothing
-            atomicAdd(&byte_count[local_id].count, local_count);
+            digit_prefix[workgroup_id.x][local_id] = local_count;
             workgroup_histogram[workgroup_id.x][local_id] = local_count;
         }
     }
