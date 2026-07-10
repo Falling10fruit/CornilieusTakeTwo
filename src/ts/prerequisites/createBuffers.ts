@@ -1,4 +1,4 @@
-import entity_type_data_buffer from "../../json/entities/entities.json"
+import entity_type_data_buffer from "../../json/entities/entities.json";
 
 let device: GPUDevice;
 
@@ -12,6 +12,7 @@ function createBuffers(parameters: { device: GPUDevice }) {
 
 function createComputeBuffers() {
     create_cosin_lut();
+    create_hilbert();
     createEntityBuffers();
     createSortBuffers();
     createInputBuffers();
@@ -176,6 +177,14 @@ function create_cosin_lut() {
         size: cosin_lut_array.byteLength,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     }); device.queue.writeBuffer(window.cosin_lut_buffer, 0, cosin_lut_array);
+}
+
+function create_hilbert() {
+    window.world.chunk_hilbert_curve_buffer = device.createBuffer({
+        label: `hilbert buffer`,
+        size: window.world.width * window.world.height * 4,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+    })
 }
 
 function createInputBuffers () {
