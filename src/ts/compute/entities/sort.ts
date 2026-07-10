@@ -113,7 +113,7 @@ async function create_sorting_pipelines(given_device: GPUDevice) {
         layout: sort_data_bind_group_layout,
         entries: [
             { binding: 0, resource: { buffer: window.world.entities.sort.byte_count_buffer } },
-            { binding: 0, resource: { buffer: window.world.entities.sort.workgroup_histogram_buffer } },
+            { binding: 1, resource: { buffer: window.world.entities.sort.workgroup_histogram_buffer } },
         ]
     });
 }
@@ -171,7 +171,7 @@ function sort_entities(pass: GPUComputePassEncoder) {
         const count_pipeline = count_pipelines[i];
         if (count_pipeline == null) return window.fail({ title: "sort entities count pipeline is null", message: "During the entities compute pass"});
         pass.setPipeline(count_pipeline);
-        pass.dispatchWorkgroups(8192 * window.world.ENTITIES_COUNT_LOG2 / 24);
+        pass.dispatchWorkgroups(8192 >> (24 - window.world.ENTITIES_COUNT_LOG2));
         
         pass.setPipeline(prefix_pipeline);
         pass.dispatchWorkgroups(1)
@@ -182,7 +182,7 @@ function sort_entities(pass: GPUComputePassEncoder) {
         const rescatter_pipeline = rescatter_pipelines[i];
         if (rescatter_pipeline == null) return window.fail({ title: "sort entities rescatter pipeline is null", message: "During the entities compute pass"});
         pass.setPipeline(rescatter_pipeline);
-        pass.dispatchWorkgroups(8192 * window.world.ENTITIES_COUNT_LOG2 / 24);
+        pass.dispatchWorkgroups(8192 >> (24 - window.world.ENTITIES_COUNT_LOG2));
     }
 }
 

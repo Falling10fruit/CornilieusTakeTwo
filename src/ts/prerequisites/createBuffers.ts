@@ -159,7 +159,7 @@ function createSortBuffers() {
 
     window.world.entities.sort.workgroup_histogram_buffer = device.createBuffer({
         label: `workgroup histogram buffer`,
-        size: 4 * 16 * 8192 * (window.world.ENTITIES_COUNT_LOG2) / 24,
+        size: 4 * 16 * 8192 >> (24 - window.world.ENTITIES_COUNT_LOG2),
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     });
 }

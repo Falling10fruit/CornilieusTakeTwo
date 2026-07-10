@@ -49,7 +49,7 @@ await Promise.all([
 
 await Promise.all([
     generateWorldToBuffer(),
-    generateHilbert(),
+    generateHilbert({ device }),
     createPlaceholderEntities(),
     createPlaceholderSprites()
 ]);

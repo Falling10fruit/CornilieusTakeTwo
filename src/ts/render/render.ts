@@ -19,6 +19,7 @@ import { renderSprites } from "./renderSprites.ts";
 function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
     device = parameters.device;
     ctx = parameters.ctx;
+
 }
 
 const debugging_time = false; 
@@ -38,6 +39,7 @@ function draw () {
     computeSprites(computePass);
     computePass.end();
 
+    if (window.depth_texture == null) return window.fail({ title: `depth texture is null`, message: `while creating the render pass`});
     const renderPass = commandEncoder.beginRenderPass({
         label: `render renderPass`,
         colorAttachments: [{
@@ -45,7 +47,7 @@ function draw () {
             loadOp: `clear`,
             storeOp: `store`,
             view: ctx.getCurrentTexture().createView(),
-        }],
+        }]
     });
     renderWorld(renderPass);
     renderSprites(renderPass);

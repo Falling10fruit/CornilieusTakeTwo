@@ -9,27 +9,39 @@ struct AtomicCount {
 
 override BIT_SHIFT : u32 = 0; // four passes to get all 4 bits of 2 bytes
 
-var<workgroup> local_buckets : array<atomic<u32>, 16>;
+var<workgroup> local_buckets : array<array<u32, 256>, 16>;
 
 // 8,192 dispatches [chunks] for 2^24 entities
 @compute @workgroup_size(256) fn chunk_count( 
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(num_workgroups) no_of_dispatches : vec3u,
-    @builtin(local_invocation_index) local_invocation_index : u32
+    @builtin(local_invocation_index) local_id : u32
 ) {
     for (var subthread_offset = 0u; subthread_offset < 8; subthread_offset++) {
         let bucket_index = (entity_buffer_0[global_invocation_id.x + 256 * no_of_dispatches.x * subthread_offset].x >> (7 + BIT_SHIFT)) & 0xFu;
-        atomicAdd(&local_buckets[bucket_index], 1u); // ai told me that this heavily contested, albiet local, writing will kill me. uh. TODO fix this
+        local_buckets[bucket_index][local_id] += 1;
+        
+        for (var digit = 0u; digit < 16; digit++) { for (var stride = 1u; stride <= 256; stride <<= 1) {
+            var temp: u32;
+            if (local_id >= stride) { temp = local_buckets[digit][local_id - stride]; }
+            workgroupBarrier();
+
+            if (local_id >= stride) { local_buckets[digit][local_id] += temp; }
+            workgroupBarrier();
+        }}
+       
+        if (local_id < 16) { local_buckets[local_id][0] = local_buckets[local_id][255]; }
+        workgroupBarrier();
+        for (var digit = 0u; digit < 16; digit++) { if (local_id != 0) { local_buckets[digit][local_id] = 0; } }
+        workgroupBarrier();
     }
 
-    workgroupBarrier();
-
-    if (local_invocation_index < 16) {
-        let local_count = atomicLoad(&local_buckets[local_invocation_index]);
+    if (local_id < 16) {
+        let local_count = local_buckets[local_id][255];
         if (local_count != 0u) { // if local_count is zero then don't spend bandwidth incrementing nothing
-            atomicAdd(&byte_count[local_invocation_index].count, local_count);
-            workgroup_histogram[workgroup_id.x][local_invocation_index] = local_count;
+            atomicAdd(&byte_count[local_id].count, local_count);
+            workgroup_histogram[workgroup_id.x][local_id] = local_count;
         }
     }
 }

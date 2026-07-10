@@ -80,7 +80,7 @@ async function setUpRenderSprites (parameters: { device: GPUDevice}) {
                     },
                 },
             }],
-        },
+        }
     });
 }
 

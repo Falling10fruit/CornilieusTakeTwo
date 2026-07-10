@@ -22,7 +22,7 @@ async function setUpRenderBuffers (parameters: { device: GPUDevice}) {
     pipeline = await device.createRenderPipelineAsync({
         label: `render buffer pipeline`,
         layout: device.createPipelineLayout({
-            label: `render buffer pipeline layout`,
+            label: `render buffer pipeline`,
             bindGroupLayouts: [bind_group_layout]
         }),
         vertex:   { module: shader_module, entryPoint: "vertex"

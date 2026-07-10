@@ -208,6 +208,9 @@ declare global {
         /** A uniform buffer that contains the dimensions of the viewport in `vec2f` */
         viewportUniform: GPUBuffer | null;
 
+        /** 2d culling */
+        depth_texture: GPUTexture | null;
+
         cosin_lut_buffer: GPUBuffer | null;
 
         /** Shows the error box with the given message and heading.

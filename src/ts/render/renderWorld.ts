@@ -195,7 +195,7 @@ async function setUpRenderWorld (parameters: { device: GPUDevice }) {
             targets: [{
                 format: navigator.gpu.getPreferredCanvasFormat(),
             }],
-        },
+        }
     });
 
     worldSizeUniform = device.createBuffer({

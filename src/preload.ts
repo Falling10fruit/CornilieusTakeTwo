@@ -14,7 +14,7 @@ async function preload (parameters: { device: GPUDevice }) {
         storageBuffer: null,
         dimensionsUniform: null,
         NO_OF_SPRITES: 2**15,
-        ENTITIES_COUNT_LOG2: 16,
+        ENTITIES_COUNT_LOG2: 19,
 
         MAX_PLAYERS: 1, // aka singleplayer
         player_count: 1,

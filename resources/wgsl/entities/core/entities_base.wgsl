@@ -182,7 +182,7 @@ fn get_rotation_vel () -> f32 {
 }
 
 // Using groups because I'm too lazy to offset everything when i insert something new
-@group(3) @binding(0) var<storage, read_write> sprites_target : array<vec2u>;
+@group(2) @binding(0) var<storage, read_write> sprites_target : array<vec2u>;
 struct SpriteIndexMapStruct {
     // player_looking_right: u32,
     // player_looking_left: u32,

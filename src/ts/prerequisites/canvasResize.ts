@@ -19,6 +19,13 @@ function resizeCanvas () {
     
     if (window.viewportUniform == null) return console.log("huh, why isn't the viewport initialized");
     device.queue.writeBuffer(window.viewportUniform, 0, new Float32Array([canvas.width, canvas.height]));
+    
+    window.depth_texture = device.createTexture({
+        label: `depth texture`,
+        size: [canvas.width, canvas.height],
+        format: `depth24plus`,
+        usage: GPUTextureUsage.RENDER_ATTACHMENT
+    });
 }
     
 export { setUpCanvasResize }
