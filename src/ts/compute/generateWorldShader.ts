@@ -1,4 +1,4 @@
-import generate_world_source from "../../wgsl/world/genrate.wgsl?raw";
+import generate_world_source from "../../wgsl/world/generate.wgsl?raw";
 
 let device: GPUDevice;
 let bindGroupLayout: GPUBindGroupLayout;

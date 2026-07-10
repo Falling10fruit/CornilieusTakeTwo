@@ -178,7 +178,7 @@ async function write_entity_type_data_buffer () {
 }
 
 async function load_base_entity_shader(device: GPUDevice) {
-    const computeShaderSource = await invoke("get_entity_base_compute_shader").catch((e) => { return e });
+    const computeShaderSource = await invoke("get_base_entity_compute_shader").catch((e) => { return e });
     if (typeof computeShaderSource != "string") return window.fail({ title: "failed to retrieve", message: computeShaderSource});
     return device.createShaderModule({ label: "compute entities shader", code: computeShaderSource });
 }

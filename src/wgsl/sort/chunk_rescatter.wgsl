@@ -12,15 +12,13 @@
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 struct AtomicCount {
     count: atomic<u32>,
-    prefix_sum: atomic<u32>
+    prefix_sum: u32
 }
 @group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
 @group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // 256 buckets of each workgroup. for 2 ^ 24 entities this array is 8192 elements something long
 
 override BIT_SHIFT : u32;
-var<workgroup> local_rank : array<array<u32, 16>, 256>;
-var<workgroup> previous_prefix_0 : vec4u; // maximum prefix sum of one workgroup is 2048 - 256, so we can fit 16 sums in 8 integers
-var<workgroup> previous_prefix_1 : vec4u;
+var<workgroup> local_rank : array<array<u32, 16>, 256>; // the limit of local memory btw
 
 @compute @workgroup_size(256) fn chunk_rescatter( // 8192 dispatches for 16,770,000 something entities
     @builtin(global_invocation_id) global_invocation_id : vec3u,
@@ -28,21 +26,18 @@ var<workgroup> previous_prefix_1 : vec4u;
     @builtin(num_workgroups) no_of_workgroups : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
 ) {
+    var previous_prefix : u32;
+
     for (var i : u32; i < 8; i++) {
-        if (local_invocation_index < 8) {
-            local_rank[0][local_invocation_index] = (previous_prefix_0[(local_invocation_index >> 1) & 3u] >> (8 * (local_invocation_index & 1u)));
-        } else if (local_invocation_index < 16) {
-            local_rank[0][local_invocation_index] = (previous_prefix_1[(local_invocation_index >> 1) & 3u] >> (8 * (local_invocation_index & 1u)));
+        if (local_invocation_index < 16) {
+            previous_prefix = local_rank[255][local_invocation_index];
+            local_rank[0][local_invocation_index] = previous_prefix;
         }
         workgroupBarrier();
 
         if (local_invocation_index != 0) {
-            for (var digit : u32 = 0; digit < 8; digit++) {
-                local_rank[local_invocation_index][digit] = 0;    
-            }
-
-            for (var digit : u32 = 8; digit < 16; digit++) {
-                local_rank[local_invocation_index][digit] = 0;    
+            for (var digit : u32 = 0; digit < 16; digit++) {
+                local_rank[local_invocation_index][digit] = 0;
             }
         }
         workgroupBarrier();
@@ -53,7 +48,7 @@ var<workgroup> previous_prefix_1 : vec4u;
         workgroupBarrier();
 
         for (var digit : u32 = 0; digit < 16; digit++) {
-            for (var stride : u32 = 1; stride < 256; stride <<= 1) {
+            for (var stride : u32 = 1; stride <= 256; stride <<= 1) {
                 var temporary : u32;
                 if (stride <= local_invocation_index) { temporary = local_rank[local_invocation_index - stride][digit]; }
                 workgroupBarrier();
@@ -64,7 +59,8 @@ var<workgroup> previous_prefix_1 : vec4u;
         }
 
         let chunk_offset = byte_count[chunk_byte].prefix_sum;
-        let local_offset = local_rank[local_invocation_index][chunk_byte];
+        let local_offset = select(local_rank[local_invocation_index][chunk_byte], previous_prefix, local_invocation_index == 0);
         entity_buffer_1[chunk_offset + local_offset] = entity_data;
+        workgroupBarrier();
     }
 }

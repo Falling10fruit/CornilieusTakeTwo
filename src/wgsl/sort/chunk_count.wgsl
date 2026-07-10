@@ -4,19 +4,15 @@ struct AtomicCount {
     count: atomic<u32>,
     prefix_sum: u32
 }
-@group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
-@group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // so a 16 by 8192 for a 2^24 entity
+@group(1) @binding(0) var<storage, read_write> byte_count : array<AtomicCount>;
+@group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // so a 16 by 8192 for a 2^24 entity
 
 override BIT_SHIFT : u32 = 0; // four passes to get all 4 bits of 2 bytes
 
-override ENTITY_COUNT_LOG2 : u32 = 24u;
-override CHUNK_WIDTH : u32 = 65536u >> (24 - ENTITY_COUNT_LOG2);
-
-
-
 var<workgroup> local_buckets : array<atomic<u32>, 16>;
 
-@compute @workgroup_size(256) fn chunk_count( // 8,192  dispatches
+// 8,192 dispatches [chunks] for 2^24 entities
+@compute @workgroup_size(256) fn chunk_count( 
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(num_workgroups) no_of_dispatches : vec3u,

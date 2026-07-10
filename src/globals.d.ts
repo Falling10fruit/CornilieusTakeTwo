@@ -67,7 +67,7 @@ declare global {
             storageBuffer: worldBuffer | null;
             dimensionsUniform: GPUBuffer | null;
             NO_OF_SPRITES: number;
-            NO_OF_ENTITIES: number;
+            ENTITIES_COUNT_LOG2: number;
 
             MAX_PLAYERS: number; // Maybe allow the host to change it mid stage AFTER I actually make the game
             player_count: number;

@@ -104,33 +104,35 @@ function createEntityBuffers() {
     device.queue.writeBuffer(indirect_count_buffer, 0, dispatch_dimensions, 0, dispatch_dimensions.length);
     window.world.entities.indirect_count_buffer = indirect_count_buffer;
 
+    const no_of_entities = 2**window.world.ENTITIES_COUNT_LOG2;
+
     const entities_indicies = device.createBuffer({
         label: `entities indicies buffer`,
-        size: window.world.NO_OF_ENTITIES * 4,
+        size: no_of_entities * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     }); window.world.entities.entities_indicies = entities_indicies;
 
     const chunk_indicies = device.createBuffer({
         label: `chunk indicies buffer`,
-        size: window.world.NO_OF_ENTITIES * 4,
+        size: no_of_entities * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     }); window.world.entities.chunk_indicies = chunk_indicies;
 
     const buffer_0 = device.createBuffer({
         label: `entities texture 0`,
-        size: window.world.NO_OF_ENTITIES * 4 * 7,
+        size: no_of_entities * 4 * 4, // vec4u
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }); window.world.entities.entities_buffer_0 = buffer_0;
     
     const buffer_1 = device.createBuffer({
         label: `entities buffer 1`,
-        size: window.world.NO_OF_ENTITIES * 4 * 7,
+        size: no_of_entities * 4 * 4, // vec4u
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
     }); window.world.entities.entities_buffer_1 = buffer_1;
 
     const meta_buffer = device.createBuffer({
         label: `entities meta buffer`,
-        size: window.world.NO_OF_ENTITIES * 4 * 7,
+        size: no_of_entities * 4 * 4, // vec4u
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     }); window.world.entities.meta_buffer = meta_buffer;
 
@@ -156,7 +158,7 @@ function createSortBuffers() {
 
     window.world.entities.sort.workgroup_histogram_buffer = device.createBuffer({
         label: `workgroup histogram buffer`,
-        size: 4 * 16 * 8192,
+        size: 4 * 16 * 8192 * (window.world.ENTITIES_COUNT_LOG2) / 24,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     });
 }
