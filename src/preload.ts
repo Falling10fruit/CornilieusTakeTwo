@@ -37,7 +37,7 @@ async function preload (parameters: { device: GPUDevice }) {
             meta_buffer: null,
             
             sort: {
-                byte_count_buffer: null,
+                digit_prefix_buffer: null,
                 workgroup_histogram_buffer: null,
             }
         }

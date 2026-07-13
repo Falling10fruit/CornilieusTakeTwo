@@ -53,7 +53,7 @@ async function create_sorting_pipelines(given_device: GPUDevice) {
                     label: `sort entities chunk prefix shader`,
                     code: chunk_prefix_source
                 }),
-                entryPoint: `chunk_prefix`,
+                entryPoint: `main`,
             }
         }),
         device.createComputePipelineAsync({
@@ -70,7 +70,7 @@ async function create_sorting_pipelines(given_device: GPUDevice) {
                     label: `sort entities chunk prefix workgroup shader`,
                     code: chunk_prefix_workgroup_source
                 }),
-                entryPoint: `chunk_prefix_workgroup`,
+                entryPoint: `main`,
                 constants: {
                     "ENTITY_COUNT_LOG2": window.world.ENTITIES_COUNT_LOG2
                 }
@@ -105,14 +105,14 @@ async function create_sorting_pipelines(given_device: GPUDevice) {
         })
     ];
 
-    if (window.world.entities.sort.byte_count_buffer == null) return window.fail({ title: "Buffer unavailable during entities base_entity_pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_0 is null" });
+    if (window.world.entities.sort.digit_prefix_buffer == null) return window.fail({ title: "Buffer unavailable during entities base_entity_pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_0 is null" });
     if (window.world.entities.sort.workgroup_histogram_buffer == null) return window.fail({ title: "Buffer unavailable during entities pipeline creation", message: "GPUBuffer window.world.entities.entities_buffer_1 is null" });
 
     sort_data_bind_group = device.createBindGroup({
         label: `sort data bind group`,
         layout: sort_data_bind_group_layout,
         entries: [
-            { binding: 0, resource: { buffer: window.world.entities.sort.byte_count_buffer } },
+            { binding: 0, resource: { buffer: window.world.entities.sort.digit_prefix_buffer } },
             { binding: 1, resource: { buffer: window.world.entities.sort.workgroup_histogram_buffer } },
         ]
     });
@@ -134,7 +134,7 @@ async function create_sort_pass_pipelines(iteration: number) {
                 label: `sort entities chunk count shader`,
                 code: chunk_count_source
             }),
-            entryPoint: `chunk_count`,
+            entryPoint: `main`,
             constants: {
                 "BIT_SHIFT": iteration * 4,
             }
@@ -155,7 +155,7 @@ async function create_sort_pass_pipelines(iteration: number) {
                 label: `sort entities chunk rescatter shader`,
                 code: chunk_rescatter_source
             }),
-            entryPoint: `chunk_rescatter`,
+            entryPoint: `main`,
             constants: {
                 "BIT_SHIFT": iteration * 4,
             }

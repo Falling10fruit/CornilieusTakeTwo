@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <title>I don't have the webgpu profiler on webview2</title>
+
+        <style>
+            body {
+                background-color: white;
+                margin: 5px;
+            }
+
+            #canvas { float: left; }
+            #eyedropper {
+                margin: 0px;
+                font-size: 0.8rem;
+            }
+
+            #eyedropper_pointer {
+                float: right;
+                height: 1px;
+                width: 1px;
+                background-color: red;
+                position: fixed;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+        <p id="eyedropper"></p>
+        <div id="eyedropper_pointer"></div>
+
+        <script type="module">
+            const canvas = document.getElementById("canvas");
+            canvas.width = 64 * 3;
+            canvas.height = 36 * 3;
+
+            const render_buffer_source = `
+            // insert wgsl source
+            `
+
+            const chunk_count_source = `
+            // insert wgsl source
+            `;
+            
+            const chunk_prefix_source = `
+            // insert wgsl source
+            `;
+            
+            const chunk_prefix_workgroup_source = `
+            // insert wgsl source
+            `;
+            
+            const chunk_rescatter_source = `
+            // insert wgsl source
+            `;
+
+            const adapter = await navigator.gpu.requestAdapter();
+
+            const device = await adapter.requestDevice({
+                requiredLimits: {
+                    maxStorageBuffersPerShaderStage: 12,
+                }
+            });
+            device.lost.then((e) => {
+                console.error(e);
+            });
+
+            const ctx = canvas.getContext("webgpu");
+            ctx.configure({
+                device: device,
+                format: navigator.gpu.getPreferredCanvasFormat(),
+                alphaMode: "premultiplied",
+                usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
+            });
+
+            const ENTITY_COUNT_LOG2 = 21;
+
+            const viewport_buffer = device.createBuffer({
+                label: "viewport buffer",
+                size: 2 * 4,
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+            });
+            device.queue.writeBuffer(viewport_buffer, 0, new Float32Array([
+                ctx.canvas.width, ctx.canvas.height
+            ]));
+
+            const chunk_count_debug_buffer = device.createBuffer({
+                label: "debug buffer",
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+            const chunk_prefix_debug_buffer = device.createBuffer({
+                label: "debug buffer",
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+            const chunk_prefix_workgroup_debug_buffer = device.createBuffer({
+                label: "debug buffer",
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+            const chunk_rescatter_debug_buffer = device.createBuffer({
+                label: "debug buffer",
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+
+            const entity_buffer_0 = device.createBuffer({
+                label: `entity buffer 0`,
+                size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+            const entity_buffer_1 = device.createBuffer({
+                label: `entity buffer 0`,
+                size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+
+            device.queue.writeBuffer(entity_buffer_0, 0, new Uint32Array([
+                (1 << 23) + (1 << 7), 0, 0, 0,
+                (1 << 23) + (2 << 7), 0, 0, 0,
+                (1 << 23) + (3 << 7), 0, 0, 0,
+                (1 << 23) + (4 << 7), 0, 0, 0,
+                (1 << 23) + (5 << 7), 0, 0, 0,
+                (1 << 23) + (6 << 7), 0, 0, 0,
+                (1 << 23) + (7 << 7), 0, 0, 0,
+                (1 << 23) + (17 << 7), 0, 0, 0,
+                (1 << 23) + (35 << 7), 0, 0, 0,
+            ]));
+            
+            const digit_prefix_buffer = device.createBuffer({
+                label: `digital prefix buffer`,
+                size: 4 * 16 * 8192 >> (24 - ENTITY_COUNT_LOG2),
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+            const workgroup_histogram_buffer = device.createBuffer({
+                label: `workgroup histogram buffer`,
+                size: 4 * 16 * 8192 >> (24 - ENTITY_COUNT_LOG2),
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
+
+            const render_buffer_bind_group_layout = device.createBindGroupLayout({
+                label: "render buffer bind group layout",
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
+                    { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "storage" } },
+                ]
+            })
+
+            const entity_bind_group_layout = device.createBindGroupLayout({
+                label: `entity bind group layout`,
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                ]
+            });
+            const prefix_bind_group_layout = device.createBindGroupLayout({
+                label: `prefix bind group layout`,
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                ]
+            });
+
+            const chunk_count_debug_bind_group_layout = device.createBindGroupLayout({
+                label: "chunk_count debug buffer bind group layout",
+                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
+            })
+            const chunk_prefix_debug_bind_group_layout = device.createBindGroupLayout({
+                label: "chunk_prefix debug buffer bind group layout",
+                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
+            })
+            const chunk_prefix_workgroup_debug_bind_group_layout = device.createBindGroupLayout({
+                label: "chunk_prefix_workgroup debug buffer bind group layout",
+                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
+            })
+            const chunk_rescatter_debug_bind_group_layout = device.createBindGroupLayout({
+            label: "chunk_rescatter debug buffer bind group layout",
+            entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
+            });
+
+            const sort_bind_group_layout = device.createBindGroupLayout({
+                label: "sort bind group layoute",
+                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
+            });
+
+            const render_buffer_shader_module = device.createShaderModule({
+                label: "render buffer shader module",
+                code: render_buffer_source
+            });
+
+            const chunk_count_shader_module = device.createShaderModule({
+                label: `chunk count shader module`,
+                code: chunk_count_source
+            });
+            const chunk_prefix_shader_module = device.createShaderModule({
+                label: `chunk prefix shader module`,
+                code: chunk_prefix_source
+            });
+            const chunk_prefix_workgroup_shader_module = device.createShaderModule({
+                label: `chunk prefix workgroup shader module`,
+                code: chunk_prefix_workgroup_source
+            });
+            const chunk_rescatter_shader_module = device.createShaderModule({
+                label: `chunk rescatter shader module`,
+                code: chunk_rescatter_source
+            });
+
+            const [
+                render_buffer_pipeline,
+
+                accumulate_pipeline,
+                prefix_sum_pipeline,
+                rescatter_pipeline,
+            ] = await Promise.all([
+                device.createRenderPipelineAsync({
+                    label: "render buffer pipeline",
+                    layout: device.createPipelineLayout({
+                        label: "render buffer pipeline layout",
+                        bindGroupLayouts: [ render_buffer_bind_group_layout ]
+                    }),
+                    vertex: { module: render_buffer_shader_module, entryPoint: "vertex" },
+                    fragment: { module: render_buffer_shader_module, entryPoint: "fragment",
+                        targets: [{
+                            format: navigator.gpu.getPreferredCanvasFormat(),
+                            blend: {
+                                color: {
+                                    srcFactor: 'one',
+                                    dstFactor: 'one-minus-src-alpha'
+                                },
+                                
+                                alpha: {
+                                    srcFactor: 'one',
+                                    dstFactor: 'one-minus-src-alpha'
+                                },
+                            },
+                        }]
+                    },
+                }),
+                device.createComputePipelineAsync({
+                    label: "accumulate pipeline",
+                    layout: device.createPipelineLayout({
+                        label: "accumulate pipeline layoute",
+                        bindGroupLayouts: [
+                            entity_bind_group_layout,
+                            sort_bind_group_layout,
+                            chunk_count_debug_bind_group_layout,
+                        ]
+                    }),
+                    compute: {
+                        module: chunk_count_shader_module,
+                        entryPoint: "accumulate",
+                        constants: {
+                            BIT_SHIFT: 0
+                        }
+                    }
+                }),
+                device.createComputePipelineAsync({
+                    label: "prefix_sum pipeline",
+                    layout: device.createPipelineLayout({
+                        label: "prefix_sum pipeline layoute",
+                        bindGroupLayouts: [
+                            entity_bind_group_layout,
+                            sort_bind_group_layout,
+                        ]
+                    }),
+                    compute: {
+                        module: chunk_count_shader_module,
+                        entryPoint: "prefix_sum",
+                        constants: {
+                            BIT_SHIFT: 0,
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                        }
+                    }
+                }),
+                device.createComputePipelineAsync({
+                    label: "rescatter pipeline",
+                    layout: device.createPipelineLayout({
+                        label: "rescatter pipeline layoute",
+                        bindGroupLayouts: [
+                            entity_bind_group_layout,
+                            sort_bind_group_layout,
+                        ]
+                    }),
+                    compute: {
+                        module: chunk_count_shader_module,
+                        entryPoint: "rescatter",
+                        constants: {
+                            BIT_SHIFT: 0
+                        }
+                    }
+                }),
+            ]);
+
+            const chunk_count_debug_bind_group = device.createBindGroup({
+                label: "chunk_count debug buffer bind group",
+                layout: chunk_count_debug_bind_group_layout,
+                entries: [{ binding: 0, resource: { buffer: chunk_count_debug_buffer }}]
+            })
+            const chunk_prefix_debug_bind_group = device.createBindGroup({
+                label: "chunk_prefix debug buffer bind group",
+                layout: chunk_prefix_debug_bind_group_layout,
+                entries: [{ binding: 0, resource: { buffer: chunk_prefix_debug_buffer }}]
+            })
+            const chunk_prefix_workgroup_debug_bind_group = device.createBindGroup({
+                label: "chunk_prefix_workgroup debug buffer bind group",
+                layout: chunk_prefix_workgroup_debug_bind_group_layout,
+                entries: [{ binding: 0, resource: { buffer: chunk_prefix_workgroup_debug_buffer }}]
+            })
+            const chunk_rescatter_debug_bind_group = device.createBindGroup({
+                label: "chunk_rescatter debug buffer bind group",
+                layout: chunk_rescatter_debug_bind_group_layout,
+                entries: [{ binding: 0, resource: { buffer: chunk_rescatter_debug_buffer }}]
+            })
+            const render_buffer_bind_group = device.createBindGroup({
+                label: "render buffer bind group",
+                layout: render_buffer_bind_group_layout,
+                entries: [
+                    { binding: 0, resource: { buffer: viewport_buffer } },
+                    { binding: 1, resource: { buffer: digit_prefix_buffer } },
+                ]
+            });
+
+            const entity_bind_group = device.createBindGroup({
+                label: `entity bind group`,
+                layout: entity_bind_group_layout,
+                entries: [
+                    { binding: 0, resource: { buffer: entity_buffer_0 }},
+                    { binding: 1, resource: { buffer: entity_buffer_1 }},
+                ]
+            });
+            const prefix_bind_group = device.createBindGroup({
+                label: `prefix bind group`,
+                layout: prefix_bind_group_layout,
+                entries: [
+                    { binding: 0, resource: { buffer: digit_prefix_buffer }},
+                    { binding: 1, resource: { buffer: workgroup_histogram_buffer }},
+                ]
+            });
+            const sort_bind_group = device.createBindGroup({
+                label: "sort bind group",
+                layout: sort_bind_group_layout,
+                entries: [{ binding: 0, resource: { buffer: digit_prefix_buffer } }]
+            });
+    
+
+            const command_encoder = device.createCommandEncoder({ label: `command buffer` });
+            
+            const compute_pass = command_encoder.beginComputePass({ label: `compute pass` });
+            compute_pass.setBindGroup(0, entity_bind_group);
+            compute_pass.setBindGroup(1, sort_bind_group);
+            compute_pass.setBindGroup(2, chunk_count_debug_bind_group);
+            
+            compute_pass.setPipeline(accumulate_pipeline);
+            compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+            compute_pass.setPipeline(prefix_sum_pipeline);
+            compute_pass.dispatchWorkgroups(16);
+            // compute_pass.setPipeline(rescatter_pipeline);
+            // compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+            
+            compute_pass.end();
+
+            const render_pass = command_encoder.beginRenderPass({
+                label: "render pass",
+                colorAttachments: [{
+                    clearValue: [0.0, 0.0, 0.0, 1.0],
+                    loadOp: `clear`,
+                    storeOp: `store`,
+                    view: ctx.getCurrentTexture().createView(),
+                }]
+            });
+            render_pass.setPipeline(render_buffer_pipeline);
+            render_pass.setBindGroup(0, render_buffer_bind_group);
+            render_pass.draw(3);
+            render_pass.end();
+
+            const debug_buffer = device.createBuffer({
+                label: `debug buffer`,
+                size: 4,
+                // size: 4 * 16 * 8192 >> (24 - ENTITY_COUNT_LOG2),
+                // size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+            });
+            command_encoder.copyBufferToBuffer(chunk_count_debug_buffer, debug_buffer)
+            const frame_buffer = device.createBuffer({
+                label: "frame buffer",
+                size: 4 * ctx.canvas.width * ctx.canvas.height,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+            });
+            command_encoder.copyTextureToBuffer({ texture: ctx.getCurrentTexture() }, {
+                buffer: frame_buffer,
+                bytesPerRow: ctx.canvas.width * 4
+            }, [ctx.canvas.width, ctx.canvas.height, 1]);
+            device.queue.submit([command_encoder.finish()]);
+
+            debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
+                console.log((new Uint32Array(debug_buffer.getMappedRange()))[0]);
+            });
+
+            let eyedropper_x = 0, eyedropper_y = 0;
+            let mouse_x = 0, mouse_y = 0, mouse_down = false;
+            window.onmousedown = (e) => { mouse_down = true; }; window.onmouseup = (e) => { mouse_down = false; };
+            window.onmousemove = (e) => {
+                mouse_x = e.clientX - 5; mouse_y = e.clientY - 5;
+                
+                if (!mouse_down) return;
+
+                if (mouse_x < ctx.canvas.width && mouse_x >= 0) { eyedropper_x = mouse_x; }
+                if (mouse_y < ctx.canvas.height && mouse_y >= 0) { eyedropper_y = mouse_y; }
+                update_eyedropper_pointer();
+            };
+            const eyedropper_pointer = document.getElementById("eyedropper_pointer");
+            window.onkeydown = (e) => {
+                console.log(e.key);
+                if (e.key == "ArrowUp") eyedropper_y = Math.max(0, Math.min(eyedropper_y - 1, ctx.canvas.height - 1));
+                if (e.key == "ArrowDown") eyedropper_y = Math.max(0, Math.min(eyedropper_y + 1, ctx.canvas.height - 1));
+                if (e.key == "ArrowLeft") eyedropper_x = Math.max(0, Math.min(eyedropper_x - 1, ctx.canvas.width - 1));
+                if (e.key == "ArrowRight") eyedropper_x = Math.max(0, Math.min(eyedropper_x + 1, ctx.canvas.width - 1));
+
+                update_eyedropper_pointer();
+            };
+            const eyedropper_p = document.getElementById("eyedropper");
+            await frame_buffer.mapAsync(GPUMapMode.READ);
+            const frame_buffer_data = new Uint8Array(frame_buffer.getMappedRange());
+            // console.log(frame_buffer_data);
+            eyedropper();
+            function eyedropper() {
+                const pixel_index = eyedropper_x + eyedropper_y * ctx.canvas.width;
+                const array_index = pixel_index * 4;
+                const u32_pixel = (
+                    (frame_buffer_data[array_index + 2] << 24) +
+                    (frame_buffer_data[array_index + 1] << 16) +
+                    (frame_buffer_data[array_index + 0] << 8) +
+                    frame_buffer_data[array_index + 3]
+                ) >>> 0;
+
+                eyedropper_p.innerText = `canvas width: ${ctx.canvas.width} height: ${ctx.canvas.height}
+                    mouse x: ${mouse_x} y: ${mouse_y}
+
+                    eyedropper x: ${eyedropper_x} y: ${eyedropper_y}
+                    pixel_index: ${pixel_index}
+                    array_index: ${array_index}
+                    pixel data: ${frame_buffer_data[array_index + 2]}, ${frame_buffer_data[array_index + 1]}, ${frame_buffer_data[array_index + 0]}, ${frame_buffer_data[array_index + 3]}
+                    hex: ${u32_pixel.toString(16).toUpperCase().padStart(8, "0")}
+                    u16: ${
+                        (frame_buffer_data[array_index + 2] << 8) +
+                        frame_buffer_data[array_index + 1]
+                    }, ${
+                        (frame_buffer_data[array_index + 0] << 8) +
+                        frame_buffer_data[array_index + 3]
+                    }
+                    u32: ${u32_pixel}
+                    0b${(u32_pixel.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' ')}`;
+
+                requestAnimationFrame(eyedropper);
+            }
+
+            function update_eyedropper_pointer() {
+                eyedropper_pointer.style.left = `${eyedropper_x + 5}px`;
+                eyedropper_pointer.style.top = `${eyedropper_y + 5}px`;
+            }
+        </script>
+    </body>
+</html>

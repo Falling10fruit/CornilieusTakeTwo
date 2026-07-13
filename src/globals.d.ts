@@ -122,11 +122,7 @@ declare global {
                 /**
                  * Consists of buffers used for sorting entities at the end
                  * ```wgsl
-                 * struct AtomicCount {
-                 *     count: atomic<u32>,
-                 *     prefix_sum: u32
-                 * }
-                 * @group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
+                 * @group(0) @binding(1) var<storage, read_write> digit_prefix : array<array<u32, 16>>;
                  * @group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>;
                  * ```
                  */
@@ -136,14 +132,10 @@ declare global {
                      * 
                      * Curiously prefix sum is never used. 17 me was weird, I'm still 17 tho.
                      * ```wgsl
-                     * struct AtomicCount {
-                     *     count: atomic<u32>,
-                     *     prefix_sum: u32
-                     * }
-                     * @group(0) @binding(1) var<storage, read_write> byte_count : array<AtomicCount>;
+                     * @group(0) @binding(1) var<storage, read_write> digit_prefix : array<array<u32, 16>>;
                      * ```
                      */
-                    byte_count_buffer: GPUBuffer | null,
+                    digit_prefix_buffer: GPUBuffer | null,
                     /**
                      * Keeps a histogram of how many numbers of 16 are in each of the 8192 chunks
                      * 

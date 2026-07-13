@@ -9,7 +9,7 @@ function setUpComputePass (parameters: { device: GPUDevice}) {
     device = parameters.device;
 }
 
-const debugging_time = true;
+const debugging_time = false;
 let debugging_loops = 999999999;
 function compute() {
     // if (debugging_time) window.keyIsDown["w"] = true;

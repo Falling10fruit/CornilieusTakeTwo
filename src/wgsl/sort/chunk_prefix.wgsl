@@ -1,18 +1,20 @@
 @group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 16>>; // length 8192 for 2^24 entities
 
+@group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
+
 override ENTITY_COUNT_LOG2 : u32 = 24;
 override PREFIX_ITERATION_COUNT : u32 = 32u >> (24 - ENTITY_COUNT_LOG2);
 
 var<workgroup> shared_prefix : array<array<u32, 16>, 256>;
 
-@compute @workgroup_size(256) fn chunk_prefix( 
+@compute @workgroup_size(256) fn main( 
     @builtin(local_invocation_index) local_id : u32,
 ) {
     for (var i = 0u; i < PREFIX_ITERATION_COUNT; i++) { for (var digit = 0u; digit < 16; digit++) {
         shared_prefix[local_id][digit] += digit_prefix[local_id + i * 256][digit];
         workgroupBarrier();
 
-        for (var stride = 1u; stride <= 256; stride <<= 1) {
+        for (var stride = 1u; stride < 256; stride <<= 1) {
             var temp : u32;
             if (local_id >= stride) { temp = shared_prefix[local_id - stride][digit]; }
             workgroupBarrier();

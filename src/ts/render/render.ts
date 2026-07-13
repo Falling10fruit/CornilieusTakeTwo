@@ -19,7 +19,6 @@ import { renderSprites } from "./renderSprites.ts";
 function setUpRender (parameters: { device: GPUDevice, ctx: GPUCanvasContext}) {
     device = parameters.device;
     ctx = parameters.ctx;
-
 }
 
 const debugging_time = false; 

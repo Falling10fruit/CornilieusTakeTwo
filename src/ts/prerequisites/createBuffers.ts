@@ -151,9 +151,9 @@ function createEntityBuffers() {
 }
 
 function createSortBuffers() {
-    window.world.entities.sort.byte_count_buffer = device.createBuffer({
+    window.world.entities.sort.digit_prefix_buffer = device.createBuffer({
         label: `byte count buffer`,
-        size: 8 * 16,
+        size: 4 * 16 * 8192 >> (24 - window.world.ENTITIES_COUNT_LOG2),
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
     });
 

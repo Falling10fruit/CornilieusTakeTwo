@@ -25,10 +25,8 @@ async function setUpRenderBuffers (parameters: { device: GPUDevice}) {
             label: `render buffer pipeline`,
             bindGroupLayouts: [bind_group_layout]
         }),
-        vertex:   { module: shader_module, entryPoint: "vertex"
-        },
+        vertex:   { module: shader_module, entryPoint: "vertex" },
         fragment: { module: shader_module, entryPoint: "fragment",
-
             targets: [{
                 format: navigator.gpu.getPreferredCanvasFormat(),
                 blend: {

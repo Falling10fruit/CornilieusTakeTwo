@@ -33,7 +33,7 @@ var<workgroup> shared_local_prefix : array<u32, PREFIX_CHUNK_WIDTH>;
     let count = entities_buffer_meta[global_invocation_id.x].x;
     shared_local_prefix[local_id] = count;
 
-    for (var stride : u32 = 1; stride <= PREFIX_CHUNK_WIDTH; stride <<= 1) {
+    for (var stride : u32 = 1; stride < PREFIX_CHUNK_WIDTH; stride <<= 1) {
         var temp : u32;
         if (local_id >= stride) { temp = shared_local_prefix[local_id - stride]; }
         workgroupBarrier();
@@ -54,7 +54,7 @@ var<workgroup> shared_global_prefix : array<u32, 2048>;
     shared_global_prefix[local_id + 1024] = entities_buffer_meta[local_id + 1024].y;
     workgroupBarrier();
 
-    for (var stride : u32 = 1; stride <= 2048; stride <<= 1) {
+    for (var stride : u32 = 1; stride < 2048; stride <<= 1) {
         var temp : vec2u;
         for (var i : u32 = 0; i < 2; i++) {
             let index = local_id + i * 1024;

@@ -8,55 +8,57 @@
 // 2^10 -> 1023          2^12 -> 4095
 //01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 
-@group(0) @binding(0) var<storage> entity_buffer_0 : array<vec4u>;
+@group(0) @binding(0) var<storage, read_write> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 
 @group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 16>>; // length 8192 for 2^24 entities
 @group(1) @binding(1) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>; // 256 buckets of each workgroup. for 2 ^ 24 entities this array is 8192 elements something long
 
+@group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
+
 override BIT_SHIFT : u32;
 var<workgroup> local_rank : array<array<u32, 16>, 256>; // the limit of local memory btw
 
-@compute @workgroup_size(256) fn chunk_rescatter( // 8192 dispatches for 16,770,000 something entities
+@compute @workgroup_size(256) fn  main( // 8192 dispatches for 16,770,000 something entities
     @builtin(global_invocation_id) global_invocation_id : vec3u,
-    @builtin(local_invocation_index) local_invocation_index : u32,
+    @builtin(local_invocation_index) local_id : u32,
     @builtin(num_workgroups) no_of_workgroups : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
 ) {
     var previous_prefix : u32;
 
     for (var i : u32; i < 8; i++) {
-        if (local_invocation_index < 16) {
-            previous_prefix = local_rank[255][local_invocation_index];
-            local_rank[0][local_invocation_index] = previous_prefix;
+        if (local_id < 16) {
+            previous_prefix = local_rank[255][local_id];
+            local_rank[0][local_id] = previous_prefix;
         }
         workgroupBarrier();
 
-        if (local_invocation_index != 0) {
+        if (local_id != 0) {
             for (var digit : u32 = 0; digit < 16; digit++) {
-                local_rank[local_invocation_index][digit] = 0;
+                local_rank[local_id][digit] = 0;
             }
         }
         workgroupBarrier();
 
         let entity_data = entity_buffer_0[global_invocation_id.x + i * no_of_workgroups.x * 256];
         let chunk_byte = (entity_data.x >> (7 + BIT_SHIFT)) & 0xFu;
-        local_rank[local_invocation_index][chunk_byte] += 1;
+        local_rank[local_id][chunk_byte] += 1;
         workgroupBarrier();
 
         for (var digit : u32 = 0; digit < 16; digit++) {
-            for (var stride : u32 = 1; stride <= 256; stride <<= 1) {
+            for (var stride : u32 = 1; stride < 256; stride <<= 1) {
                 var temporary : u32;
-                if (stride <= local_invocation_index) { temporary = local_rank[local_invocation_index - stride][digit]; }
+                if (local_id >= stride) { temporary = local_rank[local_id - stride][digit]; }
                 workgroupBarrier();
 
-                if (stride <= local_invocation_index) { local_rank[local_invocation_index][digit] += temporary; }
+                if (local_id >= stride) { local_rank[local_id][digit] += temporary; }
                 workgroupBarrier();
             }
         }
 
         let chunk_offset = digit_prefix[0][chunk_byte];
-        let local_offset = select(local_rank[local_invocation_index][chunk_byte], previous_prefix, local_invocation_index == 0);
+        let local_offset = select(local_rank[local_id][chunk_byte], previous_prefix, local_id == 0);
         entity_buffer_1[chunk_offset + local_offset] = entity_data;
         workgroupBarrier();
     }
