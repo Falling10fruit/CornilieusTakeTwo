@@ -38,29 +38,38 @@
             // insert wgsl source
             `
 
-            const chunk_count_source = `
+            const sort_entities_source = `
             // insert wgsl source
             `;
             
-            const chunk_prefix_source = `
-            // insert wgsl source
-            `;
-            
-            const chunk_prefix_workgroup_source = `
-            // insert wgsl source
-            `;
-            
-            const chunk_rescatter_source = `
-            // insert wgsl source
-            `;
+            const chunk_prefix_source = ``;
+            const chunk_prefix_workgroup_source = ``;
+            const chunk_rescatter_source = ``;
 
             const adapter = await navigator.gpu.requestAdapter();
 
             const device = await adapter.requestDevice({
                 requiredLimits: {
                     maxStorageBuffersPerShaderStage: 12,
-                }
+                },
+                requiredFeatures: ["timestamp-query"]
             });
+
+            const query_set = device.createQuerySet({
+                type: "timestamp",
+                count: 2
+            });
+            const resolve_buffer = device.createBuffer({
+                label: " resolve buffer",
+                size: query_set.count * 8,
+                usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC
+            });
+            const query_result_buffer = device.createBuffer({
+                label: "query result buffer",
+                size: resolve_buffer.size,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+            });
+
             device.lost.then((e) => {
                 console.error(e);
             });
@@ -191,7 +200,7 @@
 
             const chunk_count_shader_module = device.createShaderModule({
                 label: `chunk count shader module`,
-                code: chunk_count_source
+                code: sort_entities_source
             });
             const chunk_prefix_shader_module = device.createShaderModule({
                 label: `chunk prefix shader module`,
@@ -346,7 +355,14 @@
 
             const command_encoder = device.createCommandEncoder({ label: `command buffer` });
             
-            const compute_pass = command_encoder.beginComputePass({ label: `compute pass` });
+            const compute_pass = command_encoder.beginComputePass({
+                label: `compute pass`,
+                timestampWrites: {
+                    querySet: query_set,
+                    beginningOfPassWriteIndex: 0,
+                    endOfPassWriteIndex: 1
+                }
+            });
             compute_pass.setBindGroup(0, entity_bind_group);
             compute_pass.setBindGroup(1, sort_bind_group);
             compute_pass.setBindGroup(2, chunk_count_debug_bind_group);
@@ -374,6 +390,9 @@
             render_pass.draw(3);
             render_pass.end();
 
+            command_encoder.resolveQuerySet(query_set, 0, query_set.count, resolve_buffer, 0);
+            command_encoder.copyBufferToBuffer(resolve_buffer, 0, query_result_buffer, 0, resolve_buffer.size);
+
             const debug_buffer = device.createBuffer({
                 label: `debug buffer`,
                 size: 4,
@@ -392,6 +411,11 @@
                 bytesPerRow: ctx.canvas.width * 4
             }, [ctx.canvas.width, ctx.canvas.height, 1]);
             device.queue.submit([command_encoder.finish()]);
+
+            query_result_buffer.mapAsync(GPUMapMode.READ).then(() => {
+                const timestaps = (new BigUint64Array(query_result_buffer.getMappedRange()));
+                console.log(`Time elapsed: ${Number(timestaps[1] - timestaps[0]) / 10**6}`);
+            });
 
             debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
                 const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];

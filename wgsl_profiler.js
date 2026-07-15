@@ -6,28 +6,17 @@ createServer(async (req, res) => {
     const [
         html,
         render_buffer_source,
-        
-        chunk_count_source,
-        chunk_prefix_source,
-        chunk_prefix_workgroup_source,
-        chunk_rescatter_source
+        sort_entities_source,
     ] = await Promise.all([
         readFile(join("wgsl_profiler.html"), "utf-8"),
         readFile(join("src", "wgsl", "render_buffer.wgsl"), "utf-8"),
-
-        readFile(join("src", "wgsl", "sort", "chunk_count.wgsl"), "utf-8"),
-        readFile(join("src", "wgsl", "sort", "chunk_prefix.wgsl"), "utf-8"),
-        readFile(join("src", "wgsl", "sort", "chunk_prefix_workgroup.wgsl"), "utf-8"),
-        readFile(join("src", "wgsl", "sort", "chunk_rescatter.wgsl"), "utf-8"),
+        readFile(join("src", "wgsl", "sort_entities.wgsl"), "utf-8"),
     ]);
 
     const split_html = html.split("// insert wgsl source");
     const concated_html =
         split_html[0] + render_buffer_source +
-        split_html[1] + chunk_count_source +
-        split_html[2] + chunk_prefix_source +
-        split_html[3] + chunk_prefix_workgroup_source +
-        split_html[4] + chunk_rescatter_source + split_html[5];
+        split_html[1] + sort_entities_source + split_html[2];
 
     res.writeHead(200, { "Content-Type": "text/html"});
     
