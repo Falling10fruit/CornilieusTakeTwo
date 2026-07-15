@@ -35,7 +35,7 @@ struct VertexOutput {
     // digit_prefix
     let value = buffer_to_render[index][position.y & 0xFu];
 
-    return vec4f(f32(value >> 8)/255.0, f32(value & 0xFFu)/255.0, f32(position.y & 0xFu)/255.0, 1.0) * 8;
+    return vec4f(f32(value >> 8)/255.0, f32(value & 0xFFu)/255.0, f32(position.y & 0xFu)/255.0, 1.0);
 }
 
 // @fragment fn fragment(vertex_output: VertexOutput) -> @location(0) vec4f {

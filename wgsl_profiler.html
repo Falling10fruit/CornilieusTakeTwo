@@ -355,8 +355,8 @@
             compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
             compute_pass.setPipeline(prefix_sum_pipeline);
             compute_pass.dispatchWorkgroups(16);
-            // compute_pass.setPipeline(rescatter_pipeline);
-            // compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+            compute_pass.setPipeline(rescatter_pipeline);
+            compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
             
             compute_pass.end();
 
@@ -394,7 +394,11 @@
             device.queue.submit([command_encoder.finish()]);
 
             debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
-                console.log((new Uint32Array(debug_buffer.getMappedRange()))[0]);
+                const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];
+
+                console.log(debug_buffer_value);
+                console.log(debug_buffer_value.toString(16).toString(16).toUpperCase().padStart(8, "0"));
+                console.log((debug_buffer_value.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
             });
 
             let eyedropper_x = 0, eyedropper_y = 0;

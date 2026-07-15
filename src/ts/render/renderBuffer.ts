@@ -10,7 +10,8 @@ async function setUpRenderBuffers (parameters: { device: GPUDevice}) {
     const bind_group_layout = device.createBindGroupLayout({
         label: `render buffer bind group layout`,
         entries: [
-            { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "read-only-storage" } }
+            { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
+            { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "storage" } },
         ]
     });
 
@@ -48,7 +49,8 @@ async function setUpRenderBuffers (parameters: { device: GPUDevice}) {
         label: `render buffer bind group`,
         layout: bind_group_layout,
         entries: [
-            { binding: 0, resource: window.world.entities.entities_buffer_0 } as GPUBindGroupEntry
+            { binding: 0, resource: window.viewportUniform } as GPUBindGroupEntry,
+            { binding: 1, resource: window.world.entities.entities_buffer_0 } as GPUBindGroupEntry
         ]
     });
 }

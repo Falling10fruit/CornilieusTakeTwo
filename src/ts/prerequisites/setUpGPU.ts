@@ -17,7 +17,8 @@ async function setUpGPU () {
     const device = await adapter.requestDevice({
         requiredLimits: {
             maxStorageBuffersPerShaderStage: 12,
-        }
+        },
+        requiredFeatures: ["timestamp-query"]
     });
     device.lost.then((e) => {
         window.fail({

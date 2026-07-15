@@ -50,7 +50,7 @@ function draw () {
     });
     renderWorld(renderPass);
     renderSprites(renderPass);
-    render_buffers(renderPass);
+    // render_buffers(renderPass);
     renderPass.end();
 
     if (window.debug.buffer == null)        return window.fail({title: `debug buffer is null`,        message: `debugging entities`});

@@ -3,13 +3,13 @@
 
 @group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 16>>; // length 8192 for 2^24 entities
 
-@group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
+// @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
 
 override BIT_SHIFT : u32 = 0; // four passes to get all 4 bits of 2 bytes
 
 var<workgroup> shared_digit_prefix : array<array<u32, 256>, 16>;
 
-var<private> private_accumulation : array<u32, 16>;
+var<private> private_accumulation : vec2u;
 
 @compute @workgroup_size(256) fn accumulate(
     @builtin(workgroup_id) workgroup_id : vec3u,
@@ -21,31 +21,42 @@ var<private> private_accumulation : array<u32, 16>;
 
         if (entity_type != 0) {
             let digit = (entity_vector.x >> (7 + BIT_SHIFT)) & 0xFu;
-            private_accumulation[digit]++;
+            private_accumulation[digit >> 3] += 1u << (4 * (digit & 7u));
         }
     }
-    if (workgroup_id.x == 0 && local_id == 1) {
-        let i = 0u;
-        debug_buffer = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256].x;
-        // debug_buffer = (entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256].x >> (7 + BIT_SHIFT)) & 0xFu;
-        // debug_buffer = workgroup_id.x * 2048 + local_id + i * 256;
-    }
+    // if (workgroup_id.x == 0 && local_id == 1) {
+    //     let i = 0u;
+    //     let digit = 0u;
+    //     // debug_buffer = private_accumulation.x;
+    //     debug_buffer = private_accumulation[digit >> 3] >> (4 * (digit & 7u));
+    //     // debug_buffer = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256].x;
+    //     // debug_buffer = (entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256].x >> (7 + BIT_SHIFT)) & 0xFu;
+    //     // debug_buffer = workgroup_id.x * 2048 + local_id + i * 256;
+    // }
 
-    for (var digit = 0u; digit < 16; digit++) { shared_digit_prefix[digit][local_id] += private_accumulation[digit]; }
+    for (var digit = 0u; digit < 16; digit++) {
+        shared_digit_prefix[digit][local_id] += (private_accumulation[digit >> 3] >> (4 * (digit & 7u))) & 0xFu;
+    }
     workgroupBarrier();
+ 
+    // for (var digit = 0u; digit < 16; digit++) {
+    //     digit_prefix[local_id][digit] = shared_digit_prefix[digit][local_id];
+    // } workgroupBarrier();
 
     for (var stride = 1u; stride < 256; stride <<= 1) {
         var temp: array<u32, 16>;
-        for (var digit = 0u; digit < 16; digit++) { 
-            if (local_id >= stride) { temp[digit] = shared_digit_prefix[digit][local_id - stride]; }
-        }
+        for (var digit = 0u; digit < 16; digit++) { if (local_id >= stride) {
+            temp[digit] = shared_digit_prefix[digit][local_id - stride];
+        } }
         workgroupBarrier();
 
-        for (var digit = 0u; digit < 16; digit++) {
-            if (local_id >= stride) { shared_digit_prefix[digit][local_id] += temp[digit]; }
-        }
+        for (var digit = 0u; digit < 16; digit++) { if (local_id >= stride) {
+            shared_digit_prefix[digit][local_id] += temp[digit];
+        } }
         workgroupBarrier();
+
     }
+
 
     if (local_id < 16) { digit_prefix[workgroup_id.x][local_id] = shared_digit_prefix[local_id][255]; }
 }
@@ -123,7 +134,11 @@ var<private> private_prefix : array<vec2u, 8>;
 
         for (var i = 0u; i < 8; i++) {
             let index = digit_offset + global_offset + local_offset + private_accumulation[digit];
-            entity_buffer_1[index] = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256];
+            let entity_vector = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256];
+            
+            if (entity_vector.x >> 23 != 0u) {
+                entity_buffer_1[index] = entity_vector;
+            }
         }
     }
 }

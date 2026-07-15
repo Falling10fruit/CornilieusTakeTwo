@@ -233,7 +233,7 @@ function computeEntities(pass: GPUComputePassEncoder) {
     if (window.world.entities.indirect_count_buffer == null) return window.fail({ title: "indirect buffer missing", message: "while computing entities"});
     pass.dispatchWorkgroupsIndirect(window.world.entities.indirect_count_buffer, 0);
 
-    // sort_entities(pass);
+    sort_entities(pass);
 }
 
 export { setUpComputeEntities, computeEntities, createPlaceholderEntities }

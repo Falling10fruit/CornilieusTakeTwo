@@ -128,22 +128,13 @@ declare global {
                  */
                 sort: {
                     /**
-                     * Counts how many are there of each digit and also has the prefix across the digits
+                     * Saves the count of each digit for every workgroup
                      * 
-                     * Curiously prefix sum is never used. 17 me was weird, I'm still 17 tho.
                      * ```wgsl
                      * @group(0) @binding(1) var<storage, read_write> digit_prefix : array<array<u32, 16>>;
                      * ```
                      */
                     digit_prefix_buffer: GPUBuffer | null,
-                    /**
-                     * Keeps a histogram of how many numbers of 16 are in each of the 8192 chunks
-                     * 
-                     * ```wgsl
-                     * @group(0) @binding(2) var<storage, read_write> workgroup_histogram : array<array<u32, 16>>;
-                     * ```
-                     */
-                    workgroup_histogram_buffer: GPUBuffer | null
                 }
             }
         };
