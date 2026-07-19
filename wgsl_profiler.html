@@ -64,11 +64,6 @@
                 size: query_set.count * 8,
                 usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC
             });
-            const query_result_buffer = device.createBuffer({
-                label: "query result buffer",
-                size: resolve_buffer.size,
-                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-            });
 
             device.lost.then((e) => {
                 console.error(e);
@@ -139,7 +134,7 @@
             
             const digit_prefix_buffer = device.createBuffer({
                 label: `digital prefix buffer`,
-                size: 4 * 16 * 8192 >> (24 - ENTITY_COUNT_LOG2),
+                size: 4 * 4 * 8192 >> (24 - ENTITY_COUNT_LOG2),
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
             const workgroup_histogram_buffer = device.createBuffer({
@@ -197,23 +192,39 @@
                 label: "render buffer shader module",
                 code: render_buffer_source
             });
-
-            const chunk_count_shader_module = device.createShaderModule({
+            const sort_shader_module = device.createShaderModule({
                 label: `chunk count shader module`,
                 code: sort_entities_source
             });
-            const chunk_prefix_shader_module = device.createShaderModule({
-                label: `chunk prefix shader module`,
-                code: chunk_prefix_source
+
+            const debug_buffer = device.createBuffer({
+                label: "debug buffer",
+                size: 4,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
             });
-            const chunk_prefix_workgroup_shader_module = device.createShaderModule({
-                label: `chunk prefix workgroup shader module`,
-                code: chunk_prefix_workgroup_source
+            const frame_buffer = device.createBuffer({
+                label: "frame buffer",
+                size: 4 * ctx.canvas.width * ctx.canvas.height,
+                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
             });
-            const chunk_rescatter_shader_module = device.createShaderModule({
-                label: `chunk rescatter shader module`,
-                code: chunk_rescatter_source
-            });
+            const mapped_timed_buffers = [
+                device.createBuffer({
+                    label: "query result buffer",
+                    size: resolve_buffer.size,
+                    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+                }),
+                device.createBuffer({
+                    label: "query result buffer",
+                    size: resolve_buffer.size,
+                    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+                }),
+                device.createBuffer({
+                    label: "query result buffer",
+                    size: resolve_buffer.size,
+                    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+                }),
+            ];
+            let gpu_time_spent = undefined;
 
             const [
                 render_buffer_pipeline,
@@ -257,7 +268,7 @@
                         ]
                     }),
                     compute: {
-                        module: chunk_count_shader_module,
+                        module: sort_shader_module,
                         entryPoint: "accumulate",
                         constants: {
                             BIT_SHIFT: 0
@@ -274,7 +285,7 @@
                         ]
                     }),
                     compute: {
-                        module: chunk_count_shader_module,
+                        module: sort_shader_module,
                         entryPoint: "prefix_sum",
                         constants: {
                             BIT_SHIFT: 0,
@@ -292,7 +303,7 @@
                         ]
                     }),
                     compute: {
-                        module: chunk_count_shader_module,
+                        module: sort_shader_module,
                         entryPoint: "rescatter",
                         constants: {
                             BIT_SHIFT: 0
@@ -351,79 +362,6 @@
                 layout: sort_bind_group_layout,
                 entries: [{ binding: 0, resource: { buffer: digit_prefix_buffer } }]
             });
-    
-
-            const command_encoder = device.createCommandEncoder({ label: `command buffer` });
-            
-            const compute_pass = command_encoder.beginComputePass({
-                label: `compute pass`,
-                timestampWrites: {
-                    querySet: query_set,
-                    beginningOfPassWriteIndex: 0,
-                    endOfPassWriteIndex: 1
-                }
-            });
-            compute_pass.setBindGroup(0, entity_bind_group);
-            compute_pass.setBindGroup(1, sort_bind_group);
-            compute_pass.setBindGroup(2, chunk_count_debug_bind_group);
-            
-            compute_pass.setPipeline(accumulate_pipeline);
-            compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
-            compute_pass.setPipeline(prefix_sum_pipeline);
-            compute_pass.dispatchWorkgroups(16);
-            compute_pass.setPipeline(rescatter_pipeline);
-            compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
-            
-            compute_pass.end();
-
-            const render_pass = command_encoder.beginRenderPass({
-                label: "render pass",
-                colorAttachments: [{
-                    clearValue: [0.0, 0.0, 0.0, 1.0],
-                    loadOp: `clear`,
-                    storeOp: `store`,
-                    view: ctx.getCurrentTexture().createView(),
-                }]
-            });
-            render_pass.setPipeline(render_buffer_pipeline);
-            render_pass.setBindGroup(0, render_buffer_bind_group);
-            render_pass.draw(3);
-            render_pass.end();
-
-            command_encoder.resolveQuerySet(query_set, 0, query_set.count, resolve_buffer, 0);
-            command_encoder.copyBufferToBuffer(resolve_buffer, 0, query_result_buffer, 0, resolve_buffer.size);
-
-            const debug_buffer = device.createBuffer({
-                label: `debug buffer`,
-                size: 4,
-                // size: 4 * 16 * 8192 >> (24 - ENTITY_COUNT_LOG2),
-                // size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
-                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-            });
-            command_encoder.copyBufferToBuffer(chunk_count_debug_buffer, debug_buffer)
-            const frame_buffer = device.createBuffer({
-                label: "frame buffer",
-                size: 4 * ctx.canvas.width * ctx.canvas.height,
-                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-            });
-            command_encoder.copyTextureToBuffer({ texture: ctx.getCurrentTexture() }, {
-                buffer: frame_buffer,
-                bytesPerRow: ctx.canvas.width * 4
-            }, [ctx.canvas.width, ctx.canvas.height, 1]);
-            device.queue.submit([command_encoder.finish()]);
-
-            query_result_buffer.mapAsync(GPUMapMode.READ).then(() => {
-                const timestaps = (new BigUint64Array(query_result_buffer.getMappedRange()));
-                console.log(`Time elapsed: ${Number(timestaps[1] - timestaps[0]) / 10**6}`);
-            });
-
-            debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
-                const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];
-
-                console.log(debug_buffer_value);
-                console.log(debug_buffer_value.toString(16).toString(16).toUpperCase().padStart(8, "0"));
-                console.log((debug_buffer_value.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
-            });
 
             let eyedropper_x = 0, eyedropper_y = 0;
             let mouse_x = 0, mouse_y = 0, mouse_down = false;
@@ -448,10 +386,103 @@
                 update_eyedropper_pointer();
             };
             const eyedropper_p = document.getElementById("eyedropper");
-            await frame_buffer.mapAsync(GPUMapMode.READ);
-            const frame_buffer_data = new Uint8Array(frame_buffer.getMappedRange());
-            // console.log(frame_buffer_data);
-            eyedropper();
+            var frame_buffer_data = undefined;
+            tick();
+            function tick() {
+                const command_encoder = device.createCommandEncoder({ label: `command buffer` });
+                
+                const compute_pass = command_encoder.beginComputePass({
+                    label: `compute pass`,
+                    timestampWrites: {
+                        querySet: query_set,
+                        beginningOfPassWriteIndex: 0,
+                        endOfPassWriteIndex: 1
+                    }
+                });
+                compute_pass.setBindGroup(0, entity_bind_group);
+                compute_pass.setBindGroup(1, sort_bind_group);
+                compute_pass.setBindGroup(2, chunk_count_debug_bind_group);
+                
+                compute_pass.setPipeline(accumulate_pipeline);
+                compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+                compute_pass.setPipeline(prefix_sum_pipeline);
+                compute_pass.dispatchWorkgroups(16);
+                compute_pass.setPipeline(rescatter_pipeline);
+                compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+                
+                compute_pass.end();
+
+                const render_pass = command_encoder.beginRenderPass({
+                    label: "render pass",
+                    colorAttachments: [{
+                        clearValue: [0.0, 0.0, 0.0, 1.0],
+                        loadOp: `clear`,
+                        storeOp: `store`,
+                        view: ctx.getCurrentTexture().createView(),
+                    }]
+                });
+                render_pass.setPipeline(render_buffer_pipeline);
+                render_pass.setBindGroup(0, render_buffer_bind_group);
+                render_pass.draw(3);
+                render_pass.end();
+
+                let query_result_buffer = undefined;
+                if (mapped_timed_buffers.length > 0) {
+                    query_result_buffer = mapped_timed_buffers[0];
+                    mapped_timed_buffers.splice(0, 1);
+
+                    command_encoder.resolveQuerySet(query_set, 0, query_set.count, resolve_buffer, 0);
+                    command_encoder.copyBufferToBuffer(resolve_buffer, 0, query_result_buffer, 0, resolve_buffer.size);
+                } else {
+                    console.warn("There aren't any mapped time buffers left, adding more :)");
+                    mapped_timed_buffers.push(device.createBuffer({
+                        label: "query result buffer",
+                        size: resolve_buffer.size,
+                        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+                    }));
+                }
+
+                if (debug_buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(chunk_count_debug_buffer, debug_buffer); }
+                if (frame_buffer.mapState == "unmapped") { command_encoder.copyTextureToBuffer(
+                    { texture: ctx.getCurrentTexture() },
+                    {
+                        buffer: frame_buffer,
+                        bytesPerRow: ctx.canvas.width * 4
+                    }, [ctx.canvas.width, ctx.canvas.height, 1]
+                ); }
+                
+                device.queue.submit([command_encoder.finish()]);
+
+                if (query_result_buffer != undefined) { query_result_buffer.mapAsync(GPUMapMode.READ).then(() => {
+                    const timestaps = (new BigUint64Array(query_result_buffer.getMappedRange()));
+                    const new_time = Number(timestaps[1] - timestaps[0]) / 10**3;
+                    if (gpu_time_spent == undefined) {
+                        gpu_time_spent = new_time;
+                    } else {
+                        gpu_time_spent = (gpu_time_spent * 119 + new_time) / 120;
+                    }
+
+                    query_result_buffer.unmap();
+                    mapped_timed_buffers.push(query_result_buffer);
+                }); }
+                
+
+                if (debug_buffer.mapState == "umapped") { debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
+                    const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];
+
+                    console.log(debug_buffer_value);
+                    console.log(debug_buffer_value.toString(16).toString(16).toUpperCase().padStart(8, "0"));
+                    console.log((debug_buffer_value.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
+                }); }
+
+                if (frame_buffer.mapState == "unmapped") { frame_buffer.mapAsync(GPUMapMode.READ).then(() => {
+                    frame_buffer_data = new Uint8Array(frame_buffer.getMappedRange());
+                }); }
+                if (frame_buffer_data != undefined) { eyedropper(); }
+
+                requestAnimationFrame(tick);
+            }
+            
             function eyedropper() {
                 const pixel_index = eyedropper_x + eyedropper_y * ctx.canvas.width;
                 const array_index = pixel_index * 4;
@@ -478,9 +509,9 @@
                         frame_buffer_data[array_index + 3]
                     }
                     u32: ${u32_pixel}
-                    0b${(u32_pixel.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' ')}`;
-
-                requestAnimationFrame(eyedropper);
+                    0b${(u32_pixel.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' ')}
+                    gpu_time_spent: ${Math.round(gpu_time_spent)} μs
+                `;
             }
 
             function update_eyedropper_pointer() {
@@ -488,5 +519,7 @@
                 eyedropper_pointer.style.top = `${eyedropper_y + 5}px`;
             }
         </script>
+
+        <script>// console log shaders</script>
     </body>
 </html>
