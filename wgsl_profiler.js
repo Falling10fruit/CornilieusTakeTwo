@@ -15,7 +15,7 @@ createServer(async (req, res) => {
 
 createServer(async (req, res) => {
     const concated_html = await return_html_with_file_paths([
-        join("wgsl_profiler.html"),
+        join("wgsl_profiler copy.html"),
         join("src", "wgsl", "render_buffer.wgsl"),
         join("src", "wgsl", "sort_entities copy.wgsl"),
     ]);

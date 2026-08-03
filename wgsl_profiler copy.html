@@ -88,27 +88,6 @@
                 ctx.canvas.width, ctx.canvas.height
             ]));
 
-            const chunk_count_debug_buffer = device.createBuffer({
-                label: "debug buffer",
-                size: 4,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-            });
-            const chunk_prefix_debug_buffer = device.createBuffer({
-                label: "debug buffer",
-                size: 4,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-            });
-            const chunk_prefix_workgroup_debug_buffer = device.createBuffer({
-                label: "debug buffer",
-                size: 4,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-            });
-            const chunk_rescatter_debug_buffer = device.createBuffer({
-                label: "debug buffer",
-                size: 4,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-            });
-
             const entity_buffer_0 = device.createBuffer({
                 label: `entity buffer 0`,
                 size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
@@ -132,14 +111,19 @@
                 (1 << 23) + (35 << 7), 0, 0, 0,
             ]));
             
+            const gpu_debug_buffer = device.createBuffer({
+                label: "gpu debug buffer",
+                size: 4,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+            });
             const digit_prefix_buffer = device.createBuffer({
                 label: `digital prefix buffer`,
                 size: 4 * 4 * 8192 >> (24 - ENTITY_COUNT_LOG2),
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
-            const workgroup_histogram_buffer = device.createBuffer({
-                label: `workgroup histogram buffer`,
-                size: 4 * 16 * 8192 >> (24 - ENTITY_COUNT_LOG2),
+            const global_prefix_buffer = device.createBuffer({
+                label: `global prefix buffer`,
+                size: 4 * 16 * 32 >> (24 - ENTITY_COUNT_LOG2),
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
 
@@ -149,8 +133,7 @@
                     { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
                     { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "storage" } },
                 ]
-            })
-
+            });
             const entity_bind_group_layout = device.createBindGroupLayout({
                 label: `entity bind group layout`,
                 entries: [
@@ -158,35 +141,18 @@
                     { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
                 ]
             });
-            const prefix_bind_group_layout = device.createBindGroupLayout({
-                label: `prefix bind group layout`,
-                entries: [
-                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-                ]
-            });
-
-            const chunk_count_debug_bind_group_layout = device.createBindGroupLayout({
-                label: "chunk_count debug buffer bind group layout",
-                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
-            })
-            const chunk_prefix_debug_bind_group_layout = device.createBindGroupLayout({
-                label: "chunk_prefix debug buffer bind group layout",
-                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
-            })
-            const chunk_prefix_workgroup_debug_bind_group_layout = device.createBindGroupLayout({
-                label: "chunk_prefix_workgroup debug buffer bind group layout",
-                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
-            })
-            const chunk_rescatter_debug_bind_group_layout = device.createBindGroupLayout({
-            label: "chunk_rescatter debug buffer bind group layout",
-            entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" }}]
-            });
-
             const sort_bind_group_layout = device.createBindGroupLayout({
                 label: "sort bind group layoute",
-                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+                    { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
+                ]
             });
+            const gpu_debug_buffer_bind_group_layout = device.createBindGroupLayout({
+                label: "gpu debug buffer bind group layout",
+                entries: [ { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
+            });
+            
 
             const render_buffer_shader_module = device.createShaderModule({
                 label: "render buffer shader module",
@@ -230,7 +196,9 @@
                 render_buffer_pipeline,
 
                 accumulate_pipeline,
-                prefix_sum_pipeline,
+                local_prefix_sum_pipeline,
+                global_prefix_sum_pipeline,
+                increment_by_global_prefix_pipeline,
                 rescatter_pipeline,
             ] = await Promise.all([
                 device.createRenderPipelineAsync({
@@ -264,7 +232,7 @@
                         bindGroupLayouts: [
                             entity_bind_group_layout,
                             sort_bind_group_layout,
-                            chunk_count_debug_bind_group_layout,
+                            gpu_debug_buffer_bind_group_layout
                         ]
                     }),
                     compute: {
@@ -276,17 +244,55 @@
                     }
                 }),
                 device.createComputePipelineAsync({
-                    label: "prefix_sum pipeline",
+                    label: "local_prefix_sum pipeline",
                     layout: device.createPipelineLayout({
-                        label: "prefix_sum pipeline layoute",
+                        label: "local_prefix_sum pipeline layoute",
                         bindGroupLayouts: [
                             entity_bind_group_layout,
-                            sort_bind_group_layout,
+                            sort_bind_group_layout
                         ]
                     }),
                     compute: {
                         module: sort_shader_module,
-                        entryPoint: "prefix_sum",
+                        entryPoint: "local_prefix_sum",
+                        constants: {
+                            BIT_SHIFT: 0,
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                        }
+                    }
+                }),
+                device.createComputePipelineAsync({
+                    label: "global_prefix_sum pipeline",
+                    layout: device.createPipelineLayout({
+                        label: "global_prefix_sum pipeline layoute",
+                        bindGroupLayouts: [
+                            entity_bind_group_layout,
+                            sort_bind_group_layout,
+                            gpu_debug_buffer_bind_group_layout
+                        ]
+                    }),
+                    compute: {
+                        module: sort_shader_module,
+                        entryPoint: "global_prefix_sum",
+                        constants: {
+                            BIT_SHIFT: 0,
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                        }
+                    }
+                }),
+                device.createComputePipelineAsync({
+                    label: "increment_by_global_prefix pipeline",
+                    layout: device.createPipelineLayout({
+                        label: "increment_by_global_prefix pipeline layoute",
+                        bindGroupLayouts: [
+                            entity_bind_group_layout,
+                            sort_bind_group_layout,
+                            gpu_debug_buffer_bind_group_layout
+                        ]
+                    }),
+                    compute: {
+                        module: sort_shader_module,
+                        entryPoint: "increment_by_global_prefix",
                         constants: {
                             BIT_SHIFT: 0,
                             ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
@@ -300,6 +306,7 @@
                         bindGroupLayouts: [
                             entity_bind_group_layout,
                             sort_bind_group_layout,
+                            gpu_debug_buffer_bind_group_layout
                         ]
                     }),
                     compute: {
@@ -311,27 +318,7 @@
                     }
                 }),
             ]);
-
-            const chunk_count_debug_bind_group = device.createBindGroup({
-                label: "chunk_count debug buffer bind group",
-                layout: chunk_count_debug_bind_group_layout,
-                entries: [{ binding: 0, resource: { buffer: chunk_count_debug_buffer }}]
-            })
-            const chunk_prefix_debug_bind_group = device.createBindGroup({
-                label: "chunk_prefix debug buffer bind group",
-                layout: chunk_prefix_debug_bind_group_layout,
-                entries: [{ binding: 0, resource: { buffer: chunk_prefix_debug_buffer }}]
-            })
-            const chunk_prefix_workgroup_debug_bind_group = device.createBindGroup({
-                label: "chunk_prefix_workgroup debug buffer bind group",
-                layout: chunk_prefix_workgroup_debug_bind_group_layout,
-                entries: [{ binding: 0, resource: { buffer: chunk_prefix_workgroup_debug_buffer }}]
-            })
-            const chunk_rescatter_debug_bind_group = device.createBindGroup({
-                label: "chunk_rescatter debug buffer bind group",
-                layout: chunk_rescatter_debug_bind_group_layout,
-                entries: [{ binding: 0, resource: { buffer: chunk_rescatter_debug_buffer }}]
-            })
+            
             const render_buffer_bind_group = device.createBindGroup({
                 label: "render buffer bind group",
                 layout: render_buffer_bind_group_layout,
@@ -340,7 +327,11 @@
                     { binding: 1, resource: { buffer: digit_prefix_buffer } },
                 ]
             });
-
+            const gpu_debug_buffer_bind_group = device.createBindGroup({
+                label: "gpu debug buffer bind group",
+                layout: gpu_debug_buffer_bind_group_layout,
+                entries: [{ binding: 0, resource: { buffer: gpu_debug_buffer } }]
+            });
             const entity_bind_group = device.createBindGroup({
                 label: `entity bind group`,
                 layout: entity_bind_group_layout,
@@ -349,18 +340,13 @@
                     { binding: 1, resource: { buffer: entity_buffer_1 }},
                 ]
             });
-            const prefix_bind_group = device.createBindGroup({
-                label: `prefix bind group`,
-                layout: prefix_bind_group_layout,
-                entries: [
-                    { binding: 0, resource: { buffer: digit_prefix_buffer }},
-                    { binding: 1, resource: { buffer: workgroup_histogram_buffer }},
-                ]
-            });
             const sort_bind_group = device.createBindGroup({
                 label: "sort bind group",
                 layout: sort_bind_group_layout,
-                entries: [{ binding: 0, resource: { buffer: digit_prefix_buffer } }]
+                entries: [
+                    { binding: 0, resource: { buffer: digit_prefix_buffer } },
+                    { binding: 1, resource: { buffer: global_prefix_buffer } },
+                ]
             });
 
             let eyedropper_x = 0, eyedropper_y = 0;
@@ -387,7 +373,11 @@
             };
             const eyedropper_p = document.getElementById("eyedropper");
             var frame_buffer_data = undefined;
-            tick();
+
+            const use_interval = false;
+            if (use_interval) {
+                setInterval(tick, 200);
+            } else { tick(); }
             function tick() {
                 const command_encoder = device.createCommandEncoder({ label: `command buffer` });
                 
@@ -401,12 +391,16 @@
                 });
                 compute_pass.setBindGroup(0, entity_bind_group);
                 compute_pass.setBindGroup(1, sort_bind_group);
-                compute_pass.setBindGroup(2, chunk_count_debug_bind_group);
+                compute_pass.setBindGroup(2, gpu_debug_buffer_bind_group);
                 
                 compute_pass.setPipeline(accumulate_pipeline);
                 compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
-                compute_pass.setPipeline(prefix_sum_pipeline);
+                compute_pass.setPipeline(local_prefix_sum_pipeline);
+                compute_pass.dispatchWorkgroups(32 >> (24 - ENTITY_COUNT_LOG2), 16);
+                compute_pass.setPipeline(global_prefix_sum_pipeline);
                 compute_pass.dispatchWorkgroups(16);
+                compute_pass.setPipeline(increment_by_global_prefix_pipeline);
+                compute_pass.dispatchWorkgroups(32 >> (24 - ENTITY_COUNT_LOG2), 16);
                 compute_pass.setPipeline(rescatter_pipeline);
                 compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
                 
@@ -442,7 +436,7 @@
                     }));
                 }
 
-                if (debug_buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(chunk_count_debug_buffer, debug_buffer); }
+                if (debug_buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(gpu_debug_buffer, debug_buffer); }
                 if (frame_buffer.mapState == "unmapped") { command_encoder.copyTextureToBuffer(
                     { texture: ctx.getCurrentTexture() },
                     {
@@ -465,7 +459,7 @@
                 }); }
                 
 
-                if (debug_buffer.mapState == "umapped") { debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
+                if (debug_buffer.mapState == "unmapped") { debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
                     const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];
 
                     console.log(debug_buffer_value);
@@ -478,7 +472,7 @@
                 }); }
                 if (frame_buffer_data != undefined) { eyedropper(); }
 
-                requestAnimationFrame(tick);
+                if (!use_interval) { requestAnimationFrame(tick) }
             }
             
             function eyedropper() {
@@ -509,6 +503,7 @@
                     u32: ${u32_pixel}
                     0b${(u32_pixel.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' ')}
                     gpu_time_spent: ${Math.round(gpu_time_spent.reduce((accumulate, current) => accumulate + current, 0) / gpu_time_spent.length)} μs
+                    use_interval: ${use_interval}
                 `;
             }
 

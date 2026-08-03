@@ -6,7 +6,7 @@ export default function PlayScreen () {
     return (<main id="play_screen">
         <div id="inventory">
             <For each={Array.from({ length: 10 })}>
-                {(_, index) =>
+                { (_, index) =>
                     <div class="inventory_item">
                         <input type="radio" name="inventory" checked />
                         <img src={placeholder_image} alt={`inventory slot no. ${index}`}/>

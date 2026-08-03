@@ -10,7 +10,7 @@ enum Screens {
 }
 const [current_screen, set_current_screen] = createSignal(Screens.WELCOME_SCREEN);
 
-function App ()  {
+function App () {
     return (<>
         <Switch fallback={<TitleScreen />}>
             <Match when={current_screen() === Screens.WELCOME_SCREEN}>

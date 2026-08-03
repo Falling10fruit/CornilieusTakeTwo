@@ -7,7 +7,11 @@ struct TransformStruct {
 @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
 @group(0) @binding(1) var<uniform> uViewport : vec2f;
 @group(0) @binding(2) var<storage, read> sCurrentSprites : array<vec2u>;
-@group(0) @binding(3) var<uniform> world_dimensions : vec2u;
+@group(1) @binding(1) var<storage, read>       cosin_lut : array<vec2f>;
+
+override WORLD_WIDTH_IN_CHUNKS : u32;
+override WORLD_HEIGHT_IN_CHUNKS : u32;
+override CHUNK_LENGTH : u32;
 
 const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(0.0, 2.0),
@@ -15,10 +19,9 @@ const vertexArray : array<vec2f, 3> = array<vec2f, 3>(
     vec2f(2.0, 0.0),
 );
 
-
-//   33554432                         65536                   127          127          511     
-//  sprite index                     chunk index             x pos        y pos       rotation
-// 01010101 01010101 01010101 0 ] [ 1010101 |  01010101 0 ] [ 1010101 ] [ 0101010 ] [ 1 01010101 ]
+//     524288 (2^19)                      2^24                   63        2^6         511     
+//     sprite index                   chunk index              x pos      y pos      rotation
+// 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 101010 ] [ 101010 ] [ 101010101 ]
 
 struct spriteDataStruct {
     atlas_splice: vec4f,
@@ -47,13 +50,13 @@ struct v_out {
     var out : v_out;
 
     let sprite_vector = sCurrentSprites[instanceIndex];
-    let sprite_index = (sprite_vector.x >> 7);
+    let sprite_index = (sprite_vector.x >> 15);
     let sprite_atlas : vec4f = spritesArray[sprite_index].atlas_splice;
 
-    let chunk : u32 = ((sprite_vector.x & 0x7Fu) << 9) + (sprite_vector.y >> 23);
-    let xPos : f32 = f32(((sprite_vector.y >> 16) & 127u) + 128 * (chunk % world_dimensions.x) );
-    let yPos : f32 = f32(((sprite_vector.y >> 9) & 127u) + 128 * (chunk / world_dimensions.x) );
-    let rotation = f32((sprite_vector.y >> 0) & 511u);
+    let chunk : u32 = ((sprite_vector.x & 0x1FFFu) << 11) + (sprite_vector.y >> 21);
+    let xPos : f32 = f32(((sprite_vector.y >> 15) & 0x3Fu) + 64 * (chunk % WORLD_WIDTH_IN_CHUNKS) );
+    let yPos : f32 = f32(((sprite_vector.y >> 9) & 0x3Fu) + 64 * (chunk / WORLD_WIDTH_IN_CHUNKS) );
+    let rotation = sprite_vector.y & 511u;
 
     let translate_by_pivot : mat3x3f = createTranslateMatrix((-spritesArray[sprite_index].pivot) / 16.0);
     let translateMatrix : mat3x3f = createTranslateMatrix((vec2f(xPos, yPos)) / 16.0); // The bottom left
@@ -94,13 +97,13 @@ fn createTranslateMatrix(translate_vector: vec2f) -> mat3x3f {
     );                                               // ╰                ╯
 }
 
-fn createRotateMatrix(rotation : f32) -> mat3x3f {
-    let radians : f32 = rotation / 512.0 * 2.0 * 3.1415926535;
+fn createRotateMatrix(rotation : u32) -> mat3x3f {
+    let cosin = cosin_lut[rotation << 4];
 
     return mat3x3(
-        cos(radians),  sin(radians), 0.0,
-        -sin(radians), cos(radians), 0.0,
-        0.0,           0.0,          1.0,
+         cosin.x, cosin.y, 0.0,
+        -cosin.y, cosin.x, 0.0,
+         0.0,     0.0,     1.0,
     );
 }
 

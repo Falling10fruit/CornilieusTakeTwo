@@ -2,28 +2,20 @@ const pi = 3.1415926535;
 //    Entity index (creation order)
 // 01010101 01010101 01010101 01010101
 // type = 0 means no entity
-// type (2^9 = 512)     chunk index 2^16         xPos(2^13)       yPos (16 * 8 pixels divided by 2^13)         rotation 2^13 
-//  [ 01010101 0 ]   [ 1010101 01010101 0 ] [ 1010101 | 010101 ]           [ 01 01010101 010 ]              [ 10101 01010101 ] |
+// type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (4 * 8 pixels divided by 2^8)     rotation 2^13 
+//  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 
 // 2^10 -> 1023          2^12 -> 4095
-//01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 
-const entity_sub_int_entity_type = vec2u(0, 8);
-const entity_sub_int_chunk = vec2u(9, 24);
-const entity_sub_int_x_position = vec2u(25, 37);
-const entity_sub_int_y_position = vec2u(38, 50);
-const entity_sub_int_rotation = vec2u(51, 63);
-const entity_sub_int_x_velocity = vec2u(64, 73);
-const entity_sub_int_y_velocity = vec2u(74, 83);
-const entity_sub_int_rotation_velocity = vec2u(84, 95);
+// 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 
 // chunk indicies descriptor
 // index of access is index of chunk, the first 26 bits is the 
 //                                  2^6 = 64
 // 01010101 01010101 01010101 01 010101
 
-struct EntityData {
+struct EntityTypeData {
     gjk_bounds_dictionary_pointer: u32,
     gjk_bounds_count: u32,
     center: vec2f,
@@ -31,7 +23,8 @@ struct EntityData {
     mass: f32,
     default_sprite: u32
 }
-@group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityData>;
+
+@group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityTypeData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
 @group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
@@ -45,24 +38,24 @@ struct EntityData {
 @group(1) @binding(2) var<storage, read>       hilbert_curve : array<u32>;
 @group(1) @binding(3) var<storage, read>       world_data : array<u32>;
 
-override WORLD_WIDTH_IN_CHUNKS : u32; 
+override WORLD_WIDTH_IN_CHUNKS : u32;
 override WORLD_HEIGHT_IN_CHUNKS : u32;
 override CHUNK_LENGTH : u32;
-override POS_CHUNK_RATIO : f32 = f32(8192 / (CHUNK_LENGTH * 16));
+override CHUNK_LENGTH_PIXELS : f32 = f32(CHUNK_LENGTH) * 16.0;
+override POS_CHUNK_RATIO : f32 = 256.0 / CHUNK_LENGTH_PIXELS;
 
 var<private> entity_vector : vec4u;
 var<private> other_entity_vector : vec4u;
 var<private> entity_index : u32;
 var<private> entity_type : u32;
-var<private> current_entity_data : EntityData;
+var<private> current_entity_type_data : EntityTypeData;
 var<private> chunk_index : u32;
-var<private> chunk_x : u32;
-var<private> chunk_y : u32;
+var<private> chunk_position : vec2u;
 var<private> local_position : vec2f;
-var<private> global_position : vec2f;
-var<private> x_velocity : f32;
-var<private> y_velocity : f32;
+var<private> velocity : vec2f;
+var<private> rotation_raw : u32;
 var<private> rotation : f32; // in the 2^13 format 0 - 8191
+var<private> rotation_vel : f32;
 var<private> current_sprite : u32;
 
 fn index_entity_integer(index : u32) -> u32 {
@@ -124,16 +117,11 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 
 }
 
-fn parse_local_position() {
-    let x_position_raw = ((entity_vector.x & 0x7Fu) << 6) + (entity_vector.y >> 26);
-    let x_position_shift = countLeadingZeros(x_position_raw) + 1;
-    let x_position = bitcast<f32>((133 << 23) + (((x_position_raw << x_position_shift) >> x_position_shift) << (x_position_shift - 9)));
-
-    let y_position_raw = ((entity_vector.y >> 13) & 0x1FFFu);
-    let y_position_shift = countLeadingZeros(y_position_raw) + 1;
-    let y_position = bitcast<f32>((133 << 23) + (((y_position_raw << y_position_shift) >> y_position_shift) << (y_position_shift - 9)));
-
-    local_position = vec2f(x_position, y_position);
+fn parse_local_position(entity_vector : vec4u) {
+    return vec2f(vec2u(
+        (entity_vector.y >> 21) & 0xFFu,
+        (entity_vector.y >> 13) & 0xFFu,
+    )) / POS_CHUNK_RATIO;
 }
 
 fn serialize_to_10_bit (number : f32) -> u32 {
@@ -154,23 +142,9 @@ fn parse_from_10_bit (bits : u32) -> f32 {
     return bitcast<f32>((sign_bit << 31) + ((exponent + 119) << 23) + (mantissa << 19));
 }
 
-fn update_entity_position () {
-    let x_position_13_bit : u32 = u32(round((global_position.x) * POS_CHUNK_RATIO));
-    let serialized_x_position : u32 = x_position_13_bit  % 8192;
-    chunk_x = x_position_13_bit >> 13;
-    
-    let y_position_13_bit : u32 = u32(round((global_position.y) * POS_CHUNK_RATIO));
-    let serialized_y_position : u32 = y_position_13_bit  % 8192;
-    chunk_y = y_position_13_bit >> 13;
-    
-    set_sub_integer_entity(entity_sub_int_x_position, serialized_x_position);
-    set_sub_integer_entity(entity_sub_int_y_position, serialized_y_position);
-    set_sub_integer_entity(entity_sub_int_chunk, chunk_x + chunk_y * WORLD_WIDTH_IN_CHUNKS);
-}
-
 // 0 10 101010101
-fn get_rotation_vel () -> f32 {
-    let raw_int = get_sub_integer_entity(entity_sub_int_rotation_velocity);
+fn get_rotation_vel (entity_vector : vec4u) -> f32 {
+    let raw_int = entity_vector.z & 0xFFFu;
 
     let sign_bit = raw_int >> 11;
     let sign : f32 = f32(sign_bit * 2) - 1.0;
@@ -222,38 +196,43 @@ const sprite_index_map = SpriteIndexMapStruct(
     entity_index = entities_indicies[global_invocation_id.x];
     entity_vector = entities_buffer_0[entity_index];
 
-
-    entity_type = (entity_vector.x >> 23) & 511;
+    entity_type = (entity_vector.x >> 21) & 2047;
     if (entity_type != 0) {
         chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
-        current_entity_data = entity_type_data_buffer[entity_type];
-        current_sprite = current_entity_data.default_sprite;
-        chunk_x = chunk_index % WORLD_WIDTH_IN_CHUNKS;
-        chunk_y = chunk_index / WORLD_WIDTH_IN_CHUNKS;
+        current_entity_type_data = entity_type_data_buffer[entity_type];
+        current_sprite = current_entity_type_data.default_sprite;
+        chunk_position.x = chunk_index % WORLD_WIDTH_IN_CHUNKS;
 
-        parse_local_position();
-        global_position = local_position + vec2f(f32(chunk_x), f32(chunk_y * 16 * CHUNK_LENGTH));
+        local_position = parse_local_position(entity_vector);
         
-        x_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_x_velocity));
-        y_velocity = parse_from_10_bit(get_sub_integer_entity(entity_sub_int_y_velocity));
-        rotation   = f32(get_sub_integer_entity(entity_sub_int_rotation)) * 2 * pi / 8192.0;
+        velocity.x = parse_from_10_bit((entity_vector.z >> 22) & 0x3FFu);
+        velocity.y = parse_from_10_bit((entity_vector.z >> 12) & 0x3FFu);
+
+        rotation_raw = entity_vector.y & 0x1FFFu;
+        rotation = f32(rotation_raw) * 2 * pi / 8192.0;
+        rotation_vel = get_rotation_vel(entity_vector);
 
 
     // insert here
     
         do_the_physics();
 
-        if (entity_index == 0) { debug_buffer = local_position.y; }
+        entity_vector = save_entity();
 
-        //   33554432                         65536                   127          127          511     
-        //  sprite index                     chunk index             x pos        y pos       rotation
-        // 01010101 01010101 01010101 0 ] [ 1010101 |  01010101 0 ] [ 1010101 ] [ 0101010 ] [ 101010101 ]
+        // if (entity_index == 0) { debug_buffer = local_position.y; }
+
+        //     524288 (2^19)                      2^24                   63        2^6         511     
+        //     sprite index                   chunk index              x pos      y pos      rotation
+        // 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 101010 ] [ 101010 ] [ 101010101 ]
         let serialized_position = vec2u(global_position);
         let chunk_index = (serialized_position.x >> 7) + WORLD_WIDTH_IN_CHUNKS * (serialized_position.y >> 7);
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         let target_sprite_vector = vec2u(
-            (current_sprite << 7) + (chunk_index >> 9),
-            (chunk_index << 23) + ((serialized_position.x & 127u) << 16) + ((serialized_position.y & 127u) << 9) + serialized_rotation
+            (current_sprite << 15) + (chunk_index >> 9),
+            (chunk_index << 23) +
+            ((serialized_position.x & 127u) << 16) +
+            ((serialized_position.y & 127u) << 9) +
+            rotation_raw
         );
         sprites_target[global_invocation_id.x] = target_sprite_vector;
 
@@ -266,36 +245,46 @@ fn handle_collision(collider : u32) {
 }
 
 fn do_the_physics() {
-    let world_width_in_chunks_cast_shift = countLeadingZeros(WORLD_WIDTH_IN_CHUNKS) + 1;
-    let world_height_in_chunks_cast_shift = countLeadingZeros(WORLD_HEIGHT_IN_CHUNKS) + 1;
-    let world_dimension_in_chunks_cast_shift = vec2u(world_width_in_chunks_cast_shift, world_height_in_chunks_cast_shift);
-    let exponent = vec2u(166, 166) - world_dimension_in_chunks_cast_shift;
-    let mantissa = vec2u(WORLD_WIDTH_IN_CHUNKS, WORLD_HEIGHT_IN_CHUNKS) << world_dimension_in_chunks_cast_shift;
-    let world_dimensions_in_pixels = bitcast<vec2f>((exponent << vec2u(23, 23)) + (mantissa >> vec2u(9, 9)));
-
-    global_position.x += x_velocity;
-    x_velocity *= 0.97;
-
-    x_velocity = select(x_velocity, 0.0, global_position.x < 0.0 || global_position.x > world_dimensions_in_pixels.x);
-    global_position.x = clamp(global_position.x, 0, world_dimensions_in_pixels.x);
+    local_position.x += velocity.x;
+    velocity.x *= 0.97;
     
-    global_position.y += y_velocity;
-    y_velocity -= 0.0981;
-    y_velocity *= 0.97;
-    
-    y_velocity = select(y_velocity, 0.0, global_position.y < 0.0 || global_position.y > world_dimensions_in_pixels.y);
-    global_position.y = clamp(global_position.y, 0.0, world_dimensions_in_pixels.y);
+    local_position.y += velocity.y;
+    velocity.y -= 0.0981;
+    velocity.y *= 0.97;
 
-    set_sub_integer_entity(entity_sub_int_x_velocity, serialize_to_10_bit(x_velocity));
-    set_sub_integer_entity(entity_sub_int_y_velocity, serialize_to_10_bit(y_velocity));
-    
-    update_entity_position();
+    velocity.x = clamp(velocity.x, 0
+        local_postion.x > f32(CHUNK_LENGTH * 16) && chunk_position.x == WORLD_WIDTH_IN_CHUNKS - 1 ||
+        local_position.x < 0.0                   && chunk_position.x == 0
+    );
+    velocity.y = clamp(velocity.y, 0
+        local_postion.y > f32(CHUNK_LENGTH * 16) && chunk_position.y == WORLD_HEIGHT_IN_CHUNKS - 1 ||
+        local_position.y < 0.0                   && chunk_position.y == 0
+    );
+
+    rotation += rotation_vel;
 }
 
-fn collide_world () { // maybe resolve during collision since we might as while 
+fn collide_world () {
     let local_tile_index = (entity_vector.x & 0x7Fu) + ((entity_vector.y >> 19) & 0x7Fu) * CHUNK_LENGTH + chunk_index * 16 * CHUNK_LENGTH;
     let tile_health = (world_data[local_tile_index] >> 25) & 0x1Fu;
     if (tile_health > 0) {
         debug_buffer = 1.0;
     }
+}
+
+fn save_entity_to_vec4u() -> vec4u {
+    let new_entity_vector = vec4u(entity_type << 21, 0, 0, 0);
+    
+    chunk_position += vec2u(local_position >= CHUNK_LENGTH_PIXELS) - vec2u(local_position < 0.0);
+    let chunk_index = chunk_position.x + chunk_position.y * WORLD_WIDTH_IN_CHUNKS;
+    let local_position_raw = u32((local_postion + CHUNK_LENGTH_PIXELS) * POS_CHUNK_RATIO) & 0xFFu;
+    rotation_raw = u32(round(rotation)) & 4095u;
+    
+    new_entity_vector.x += chunk_index >> 3;
+    new_entity_vector.y +=
+        ((chunk_index & 7u) << 29) +
+        (local_position_raw.x << 21) + 
+        (local_position_raw.y << 13) + rotation_raw;
+
+    return new_entity_vector;
 }

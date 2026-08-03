@@ -1,4 +1,4 @@
-const pi = 3.1415926535; 
+const pi = 3.1415926535; // This is as much as I memorized btw, im so smart
 //    Entity index (creation order)
 // 01010101 01010101 01010101 01010101
 // type = 0 means no entity
@@ -12,6 +12,8 @@ const pi = 3.1415926535;
 struct EntityData {
     gjk_bounds_dictionary_pointer: u32,
     gjk_bounds_count: u32,
+    joints_pointer: u32,
+    joints_count: u32,
     center: vec2f,
     dimensions: vec2f,
     mass: f32,

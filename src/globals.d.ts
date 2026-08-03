@@ -97,7 +97,10 @@ declare global {
                  */
                 node_data_buffer : GPUBuffer | null
                 indirect_count_buffer: GPUBuffer | null,
-                /** which sprites are which entities */
+                /**
+                 *       graph color   which sprites are which entities (honestly does this matter actually like bro what is this)
+                 *   0101   0101                               01010101 01010101 01010101
+                 */
                 entities_indicies: GPUBuffer | null,
                 /** Holds the index of the chunk the entity is currently in
                  * has no_of_chunks + 1 elements, the last one has a value of length(entities_buffer)
