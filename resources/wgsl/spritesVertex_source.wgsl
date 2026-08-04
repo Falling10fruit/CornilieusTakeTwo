@@ -50,7 +50,7 @@ struct v_out {
     var out : v_out;
 
     let sprite_vector = sCurrentSprites[instanceIndex];
-    let sprite_index = (sprite_vector.x >> 15);
+    let sprite_index = (sprite_vector.x >> 13);
     let sprite_atlas : vec4f = spritesArray[sprite_index].atlas_splice;
 
     let chunk : u32 = ((sprite_vector.x & 0x1FFFu) << 11) + (sprite_vector.y >> 21);

@@ -26,7 +26,6 @@ struct EntityTypeData {
 
 @group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityTypeData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
-@group(0) @binding(2) var<storage, read_write> entities_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
@@ -44,6 +43,19 @@ override CHUNK_LENGTH : u32;
 override CHUNK_LENGTH_PIXELS : f32 = f32(CHUNK_LENGTH) * 16.0;
 override POS_CHUNK_RATIO : f32 = 256.0 / CHUNK_LENGTH_PIXELS;
 
+struct LocalPosition {
+    raw: vec2u,
+    actual: vec2f
+}
+
+struct EntityData {
+    type: u32,
+    type_data: EntityTypeData,
+    chunk_index: u32,
+    chunk_position: vec2u,
+    local_position: LocalPosition,
+    
+}
 var<private> entity_vector : vec4u;
 var<private> other_entity_vector : vec4u;
 var<private> entity_index : u32;
@@ -117,7 +129,7 @@ fn set_sub_integer_entity(range : vec2u, new_value : u32) {
 
 }
 
-fn parse_local_position(entity_vector : vec4u) {
+fn parse_local_position(entity_vector : vec4u) -> vec2f {
     return vec2f(vec2u(
         (entity_vector.y >> 21) & 0xFFu,
         (entity_vector.y >> 13) & 0xFFu,
@@ -193,12 +205,11 @@ const sprite_index_map = SpriteIndexMapStruct(
 @compute @workgroup_size(32) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    entity_index = entities_indicies[global_invocation_id.x];
-    entity_vector = entities_buffer_0[entity_index];
+    entity_vector = entities_buffer_0[global_invocation_id.x];
 
     entity_type = (entity_vector.x >> 21) & 2047;
     if (entity_type != 0) {
-        chunk_index = get_sub_integer_entity(entity_sub_int_chunk);
+        chunk_index = ((entity_vector.x & 0x1FFFFF) << 3) + (entity_vector.y >> 29);
         current_entity_type_data = entity_type_data_buffer[entity_type];
         current_sprite = current_entity_type_data.default_sprite;
         chunk_position.x = chunk_index % WORLD_WIDTH_IN_CHUNKS;
@@ -221,21 +232,20 @@ const sprite_index_map = SpriteIndexMapStruct(
     
         do_the_physics();
 
-        entity_vector = save_entity();
+        entity_vector = save_entity_to_vec4u();
 
         // if (entity_index == 0) { debug_buffer = local_position.y; }
 
         //     524288 (2^19)                      2^24                   63        2^6         511     
         //     sprite index                   chunk index              x pos      y pos      rotation
         // 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 101010 ] [ 101010 ] [ 101010101 ]
-        let serialized_position = vec2u(global_position);
-        let chunk_index = (serialized_position.x >> 7) + WORLD_WIDTH_IN_CHUNKS * (serialized_position.y >> 7);
+        let chunk_index = chunk_position.x + WORLD_WIDTH_IN_CHUNKS * chunk_position.y;
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         let target_sprite_vector = vec2u(
-            (current_sprite << 15) + (chunk_index >> 9),
+            (current_sprite << 13) + (chunk_index >> 11),
             (chunk_index << 23) +
-            ((serialized_position.x & 127u) << 16) +
-            ((serialized_position.y & 127u) << 9) +
+            ((local_position.x & 0x3Fu) << 15) +
+            ((local_position.y & 0x3Fu) << 9) +
             rotation_raw
         );
         sprites_target[global_invocation_id.x] = target_sprite_vector;
@@ -260,12 +270,13 @@ fn do_the_physics() {
     velocity.y -= 0.0981;
     velocity.y *= 0.97;
 
-    velocity.x = clamp(velocity.x, 0
-        local_postion.x > f32(CHUNK_LENGTH * 16) && chunk_position.x == WORLD_WIDTH_IN_CHUNKS - 1 ||
+    velocity.x = select(velocity.x, 0,
+        local_position.x > f32(CHUNK_LENGTH * 16) && chunk_position.x == WORLD_WIDTH_IN_CHUNKS - 1 ||
         local_position.x < 0.0                   && chunk_position.x == 0
     );
-    velocity.y = clamp(velocity.y, 0
-        local_postion.y > f32(CHUNK_LENGTH * 16) && chunk_position.y == WORLD_HEIGHT_IN_CHUNKS - 1 ||
+    velocity.y = select
+    (velocity.y, 0,
+        local_position.y > f32(CHUNK_LENGTH * 16) && chunk_position.y == WORLD_HEIGHT_IN_CHUNKS - 1 ||
         local_position.y < 0.0                   && chunk_position.y == 0
     );
 
@@ -281,11 +292,11 @@ fn collide_world () {
 }
 
 fn save_entity_to_vec4u() -> vec4u {
-    let new_entity_vector = vec4u(entity_type << 21, 0, 0, 0);
+    var new_entity_vector = vec4u(entity_type << 21, 0, 0, 0);
     
-    chunk_position += vec2u(local_position >= CHUNK_LENGTH_PIXELS) - vec2u(local_position < 0.0);
+    chunk_position += vec2u(local_position >= vec2f(CHUNK_LENGTH_PIXELS, CHUNK_LENGTH_PIXELS)) - vec2u(local_position < vec2f(0.0, 0.0));
     let chunk_index = chunk_position.x + chunk_position.y * WORLD_WIDTH_IN_CHUNKS;
-    let local_position_raw = u32((local_postion + CHUNK_LENGTH_PIXELS) * POS_CHUNK_RATIO) & 0xFFu;
+    let local_position_raw = vec2u((local_position + CHUNK_LENGTH_PIXELS) * POS_CHUNK_RATIO) & vec2u(0xFFu, 0xFFu);
     rotation_raw = u32(round(rotation)) & 4095u;
     
     new_entity_vector.x += chunk_index >> 3;
