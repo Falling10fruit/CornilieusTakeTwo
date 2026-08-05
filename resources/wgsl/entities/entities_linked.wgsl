@@ -7,6 +7,8 @@ const pi = 3.1415926535;
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 
 // 2^10 -> 1023          2^12 -> 4095
+// chunk  index within chunk    joint optional joint module
+//   01        0101               01
 
 // 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
 
@@ -26,7 +28,7 @@ struct EntityTypeData {
 
 @group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityTypeData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
-@group(0) @binding(2) var<storage, read_write> entity_indicies : array<vec2f>;
+@group(0) @binding(2) var<storage, read_write> entity_indicies : array<u32>;
 @group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
@@ -244,8 +246,8 @@ const sprite_index_map = SpriteIndexMapStruct(
         let chunk_index = chunk_position.x + WORLD_WIDTH_IN_CHUNKS * chunk_position.y;
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         let target_sprite_vector = vec2u(
-            (current_sprite << 13) + (chunk_index >> 11),
-            (chunk_index << 23) +
+            (current_sprite << 13) +
+            (chunk_index >> 11), (chunk_index << 23) +
             ((local_position.x & 0x3Fu) << 15) +
             ((local_position.y & 0x3Fu) << 9) +
             rotation_raw
@@ -273,13 +275,13 @@ fn do_the_physics() {
     velocity.y *= 0.97;
 
     velocity.x = select(velocity.x, 0,
-        local_position.x > f32(CHUNK_LENGTH * 16) && chunk_position.x == WORLD_WIDTH_IN_CHUNKS - 1 ||
-        local_position.x < 0.0                   && chunk_position.x == 0
+        ((local_position.x > f32(CHUNK_LENGTH * 16)) && (chunk_position.x == WORLD_WIDTH_IN_CHUNKS - 1)) ||
+        ((local_position.x < 0.0)                    && (chunk_position.x == 0))
     );
     velocity.y = select
     (velocity.y, 0,
-        local_position.y > f32(CHUNK_LENGTH * 16) && chunk_position.y == WORLD_HEIGHT_IN_CHUNKS - 1 ||
-        local_position.y < 0.0                   && chunk_position.y == 0
+        ((local_position.y > f32(CHUNK_LENGTH * 16)) && (chunk_position.y == WORLD_HEIGHT_IN_CHUNKS - 1)) ||
+        ((local_position.y < 0.0)                    && (chunk_position.y == 0))
     );
 
     rotation += rotation_vel;
