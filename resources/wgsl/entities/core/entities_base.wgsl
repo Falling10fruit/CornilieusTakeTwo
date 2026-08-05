@@ -26,6 +26,7 @@ struct EntityTypeData {
 
 @group(0) @binding(0) var<storage, read> entity_type_data_buffer : array<EntityTypeData>;
 @group(0) @binding(1) var<storage, read> entity_nodes : array<vec2f>;
+@group(0) @binding(2) var<storage, read_write> entity_indicies : array<vec2f>;
 @group(0) @binding(3) var<storage, read_write> chunk_indicies : array<u32>;
 @group(0) @binding(4) var<storage, read_write> entities_buffer_0 : array<vec4u>;
 @group(0) @binding(5) var<storage, read_write> entities_buffer_1 : array<vec4u>;
@@ -49,7 +50,7 @@ struct LocalPosition {
 }
 
 struct EntityData {
-    type: u32,
+    type_id: u32,
     type_data: EntityTypeData,
     chunk_index: u32,
     chunk_position: vec2u,
@@ -205,7 +206,8 @@ const sprite_index_map = SpriteIndexMapStruct(
 @compute @workgroup_size(32) fn cShader(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {
-    entity_vector = entities_buffer_0[global_invocation_id.x];
+    let entity_index = entity_indicies[global_invocation_id.x];
+    entity_vector = entities_buffer_0[entity_index];
 
     entity_type = (entity_vector.x >> 21) & 2047;
     if (entity_type != 0) {
@@ -244,7 +246,7 @@ const sprite_index_map = SpriteIndexMapStruct(
             ((local_position.y & 0x3Fu) << 9) +
             rotation_raw
         );
-        sprites_target[global_invocation_id.x] = target_sprite_vector;
+        sprites_target[entity_index] = target_sprite_vector;
 
         entities_buffer_1[entity_index] = entity_vector;
     }
