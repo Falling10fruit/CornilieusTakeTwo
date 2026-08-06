@@ -6,11 +6,11 @@
 override WORLD_WIDTH_IN_CHUNKS : u32;
 override WORLD_HEIGHT_IN_CHUNKS : u32;
 override CHUNK_LENGTH : i32;
-override CHUNK_LENGTH_PIXELS : i32 = CHUNK_LENGTH * 64;
+override CHUNK_LENGTH_PIXELS : i32 = CHUNK_LENGTH * 16;
 
-//     524288 (2^19)                      2^24                   63        2^6         511     
-//     sprite index                   chunk index              x pos      y pos      rotation
-// 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 101010 ] [ 101010 ] [ 101010101 ]
+//     524288 (2^19)                      2^24                  31        2^5         2^12     
+//     sprite index                   chunk index              x pos     y pos      rotation
+// 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 10101 ] [ 01010 ] [ 10101010101 ]
 
 struct SpriteData {
     chunk_position: vec2i,

@@ -32,11 +32,13 @@ struct EntityData {
 @group(1) @binding(2) var<storage, read_write> hilbert_curve : array<u32>;
 @group(1) @binding(3) var<storage, read>       world_data : array<u32>;
 
-override WORLD_HEIGHT : u32; // in terms of chunks
-override WORLD_WIDTH : u32; 
-override CHUNK_WIDTH : u32;
-override LOCAL_POSITION_PRECISION : u32; // i think it was 4096 subdivisions of 1 pixel, idk :)
-var<workgroup> entity_redix : array<u32, 32>;
+// global position (chunk_pos + local_pos), (bounding box) 
+
+override WORLD_WIDTH : u32;  // in terms of chunks
+override WORLD_HEIGHT : u32;
+
+const CHUNK_LENGTH_LOG2 : u32 = 1;
+const LOCAL_POSITION_BIT_COUNT : u32 = 5;
 
 const bounding_corner_signs : array<vec2u, 4> = array(
     vec2u(0u, 0u),
@@ -77,15 +79,15 @@ const bounding_corner_signs : array<vec2u, 4> = array(
     let entity_rotation_1 = entity_rotation_raw >> 7;
 
     let broad_dimensions = vec2u(
-        bitcast<u32>(max_width) & 0xFFFFE000u + (entity_rotation_0 << 7) + (entity_type_0 << 2) + gjk_bounding_count_0,
-        bitcast<u32>(max_height) & 0xFFFFE000u + (entity_rotation_0 << 7) + (entity_type_1 << 2) + gjk_bounding_count_1
+        (bitcast<u32>(max_width) & 0xFFFFE000u) + (entity_rotation_0 << 7) + (entity_type_0 << 2) + gjk_bounding_count_0,
+        (bitcast<u32>(max_height) & 0xFFFFE000u) + (entity_rotation_0 << 7) + (entity_type_1 << 2) + gjk_bounding_count_1
     );
     
     let entity_chunk_index = (entity_vector.x >> 7) & 0xFFu;
     let entity_chunk_position = vec2u(entity_chunk_index % WORLD_WIDTH, entity_chunk_index / WORLD_WIDTH);
-    let entity_local_position =  vec2u(((entity_vector.x & 0x7Fu) << 6) + (entity_vector.y >> 26), (entity_vector.y >> 13) & 0x1FFFu);
+    let entity_local_position =  vec2u((entity_vector.y >> 14) & 0x1Fu, (entity_vector.y >> 9) & 0x1Fu);
     
-    entities_buffer_1[global_invocation_id.x] = vec4u((entity_chunk_position << vec2u(13, 13)) + entity_local_position, broad_dimensions);
+    entities_buffer_1[global_invocation_id.x] = vec4u((entity_chunk_position << vec2u(LOCAL_POSITION_BIT_COUNT, LOCAL_POSITION_BIT_COUNT)) + entity_local_position, broad_dimensions);
 }
 
 // 0000000 00000001 00000010 00000011 0000100 101 110 111 1000 1001 1010 1011 1100 1101 1110 1111 10000 10001 10010 10011 10100 10101 10110 10111 11000

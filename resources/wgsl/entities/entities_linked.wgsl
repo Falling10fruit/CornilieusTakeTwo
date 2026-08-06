@@ -70,7 +70,7 @@ var<private> local_position : vec2f;
 var<private> velocity : vec2f;
 var<private> rotation_raw : u32;
 var<private> rotation : f32; // in the 2^13 format 0 - 8191
-var<private> rotation_vel : f32;
+var<private> rotation_vel : f32; // not in radians
 var<private> current_sprite : u32;
 
 fn index_entity_integer(index : u32) -> u32 {
@@ -224,9 +224,8 @@ const sprite_index_map = SpriteIndexMapStruct(
         velocity.y = parse_from_10_bit((entity_vector.z >> 12) & 0x3FFu);
 
         rotation_raw = entity_vector.y & 0x1FFFu;
-        rotation = f32(rotation_raw) * 2 * pi / 8192.0;
+        rotation = f32(rotation_raw);
         rotation_vel = get_rotation_vel(entity_vector);
-
 
     // else
     if (entity_type == 1) { main_john(); } else
@@ -245,11 +244,12 @@ const sprite_index_map = SpriteIndexMapStruct(
         // 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 101010 ] [ 101010 ] [ 101010101 ]
         let chunk_index = chunk_position.x + WORLD_WIDTH_IN_CHUNKS * chunk_position.y;
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
+        let local_position_int = vec2u(local_position);
         let target_sprite_vector = vec2u(
             (current_sprite << 13) +
             (chunk_index >> 11), (chunk_index << 23) +
-            ((local_position.x & 0x3Fu) << 15) +
-            ((local_position.y & 0x3Fu) << 9) +
+            ((local_position_int.x & 0x3Fu) << 15) +
+            ((local_position_int.y & 0x3Fu) << 9) +
             rotation_raw
         );
         sprites_target[entity_index] = target_sprite_vector;

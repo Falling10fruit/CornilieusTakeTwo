@@ -21,6 +21,7 @@ struct EntityData {
 
 override WORLD_WIDTH_IN_CHUNKS : u32; 
 override WORLD_HEIGHT_IN_CHUNKS : u32;
+override CHUNK_LENGTH : u32;
 
 const chunk_offsets : array<vec2u, 4> = array(
     vec2u(1, 1),
