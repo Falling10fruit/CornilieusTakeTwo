@@ -1,13 +1,15 @@
 const pi = 3.1415926535; // This is as much as I memorized btw, im so smart
+
 //    Entity index (creation order)
 // 01010101 01010101 01010101 01010101
 // type = 0 means no entity
-// type (2^9 = 512)     chunk index 2^16         xPos(2^13)       yPos (16 * 8 pixels divided by 2^13)         rotation 2^13 
-//  [ 01010101 0 ]   [ 1010101 01010101 0 ] [ 1010101 | 010101 ]           [ 01 01010101 010 ]              [ 10101 01010101 ] |
+// type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (2 * 16 pixels divided by 2^8)     rotation 2^13 
+//  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 
 // 2^10 -> 1023          2^12 -> 4095
-//01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101 01010101
+// chunk  index within chunk    joint optional joint module
+//   01        0101               01
 
 struct EntityData {
     gjk_bounds_dictionary_pointer: u32,
@@ -36,9 +38,7 @@ struct EntityData {
 
 override WORLD_WIDTH : u32;  // in terms of chunks
 override WORLD_HEIGHT : u32;
-
-const CHUNK_LENGTH_LOG2 : u32 = 1;
-const LOCAL_POSITION_BIT_COUNT : u32 = 5;
+override LOCAL_POSITION_BIT_COUNT : u32 = 8;
 
 const bounding_corner_signs : array<vec2u, 4> = array(
     vec2u(0u, 0u),
@@ -52,7 +52,7 @@ const bounding_corner_signs : array<vec2u, 4> = array(
 ) {
     let entity_vector = entities_buffer_0[global_invocation_id.x];
 
-    let entity_type = entity_vector.x >> 23;
+    let entity_type = entity_vector.x >> 21; // 8 august when entity type was 11 bits
     let entity_type_data = entity_type_data_buffer[entity_type];
 
     let entity_dimensions_half = entity_type_data.dimensions * 0.5;
@@ -83,9 +83,9 @@ const bounding_corner_signs : array<vec2u, 4> = array(
         (bitcast<u32>(max_height) & 0xFFFFE000u) + (entity_rotation_0 << 7) + (entity_type_1 << 2) + gjk_bounding_count_1
     );
     
-    let entity_chunk_index = (entity_vector.x >> 7) & 0xFFu;
+    let entity_chunk_index = ((entity_vector.x & 0x1FFFFFu) << 3) + (entity_vector.y >> 29);
     let entity_chunk_position = vec2u(entity_chunk_index % WORLD_WIDTH, entity_chunk_index / WORLD_WIDTH);
-    let entity_local_position =  vec2u((entity_vector.y >> 14) & 0x1Fu, (entity_vector.y >> 9) & 0x1Fu);
+    let entity_local_position =  vec2u((entity_vector.y >> 21) & 0xFFu, (entity_vector.y >> 13) & 0xFFu);
     
     entities_buffer_1[global_invocation_id.x] = vec4u((entity_chunk_position << vec2u(LOCAL_POSITION_BIT_COUNT, LOCAL_POSITION_BIT_COUNT)) + entity_local_position, broad_dimensions);
 }

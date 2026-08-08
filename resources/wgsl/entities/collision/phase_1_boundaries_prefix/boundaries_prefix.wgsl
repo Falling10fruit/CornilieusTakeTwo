@@ -39,7 +39,7 @@ override PREFIX_CHUNK_WIDTH : u32 = 4096u >> (24 - ENTITY_COUNT_LOG2);
     let data_vector = entities_buffer_meta[global_index];
     let gjk_counts = ((data_vector >> vec4u(24, 24, 24, 24)) & vec4u(0xFu, 0xFu, 0xFu, 0xFu));
 
-    let entity_type = data_vector.y >> 28 + ((data_vector.z >> 28) << 4) + ((data_vector.w >> 28) << 8);
+    let entity_type = (data_vector.y >> 28) + ((data_vector.z >> 28) << 4) + ((data_vector.w >> 28) << 8);
     entities_buffer_meta[index_offset + global_index] += vec4u(
         entity_type,
         (gjk_counts.x + gjk_counts.y + gjk_counts.z + gjk_counts.w) * (data_vector.x >> 28),

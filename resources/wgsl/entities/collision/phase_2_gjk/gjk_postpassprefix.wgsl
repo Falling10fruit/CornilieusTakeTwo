@@ -21,8 +21,8 @@ struct EntityData {
 
 // it's postpassprefix because it's my project i can do whatever i want
 override ENTITY_COUNT_LOG2 : u32 = 24;
-override PREFIX_CHUNK_WIDTH : u32 = 256u >> (24 - ENTITY_COUNT_LOG2);
-
+override PREFIX_CHUNK_WIDTH : u32 = 256u >> (24u - ENTITY_COUNT_LOG2);
+ // dumb wgsl-analyzer, this script doesn't actually have any issues
 var<workgroup> shared_local_prefix : array<u32, PREFIX_CHUNK_WIDTH>;
 // 2048 workgroups - 2048 chunks
 @compute @workgroup_size(PREFIX_CHUNK_WIDTH) fn local_sums(

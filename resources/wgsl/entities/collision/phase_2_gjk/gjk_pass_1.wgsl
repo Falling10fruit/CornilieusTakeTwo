@@ -75,7 +75,7 @@ var<private> collision_vector : vec4u;
     let latter_type_id = (collision_vector.w >> 12) & 0x3FFu;
 
     rotations = (entities_buffer_meta[former_type_id | (1u << (ENTITY_COUNT_LOG2 - 1))].x >> 10) + 
-        (entities_buffer_meta[latter_type_id | (1u << (ENTITY_COUNT_LOG2 - 1))].x >> 10) << 12;
+        ((entities_buffer_meta[latter_type_id | (1u << (ENTITY_COUNT_LOG2 - 1))].x >> 10) << 12);
 
     load_entity_nodes(former_boundary_id, former_type_id, latter_boundary_id, latter_type_id);
 
@@ -280,14 +280,14 @@ fn load_entity_nodes(former_boundary_id : u32, former_type_id : u32, latter_boun
 
         // E4M3 without NaN because :) precision doesn't grow on trees kiddo
         let former_node_mantissa = (former_node_cast >> vec2u(20, 20)) & vec2u(0x7u, 0x7u);
-        let former_node_exponent = ((former_node_cast >> vec2u(23, 23)) & vec2u(0xFFu, 0xFFu) - vec2u(120, 120));
+        let former_node_exponent = (((former_node_cast >> vec2u(23, 23)) & vec2u(0xFFu, 0xFFu)) - vec2u(120, 120));
         let former_node_packed =
             former_node_mantissa +
             (former_node_exponent << vec2u(3, 3)) +
             (former_node_cast & vec2u(0x80000000u, 0x80000000u));
 
         let latter_node_mantissa = (latter_node_cast >> vec2u(20, 20)) & vec2u(0x7u, 0x7u);
-        let latter_node_exponent = ((latter_node_cast >> vec2u(23, 23)) & vec2u(0xFFu, 0xFFu) - vec2u(120, 120));
+        let latter_node_exponent = (((latter_node_cast >> vec2u(23, 23)) & vec2u(0xFFu, 0xFFu)) - vec2u(120, 120));
         let latter_node_packed =
             latter_node_mantissa +
             (latter_node_exponent << vec2u(3, 3)) +
@@ -295,7 +295,7 @@ fn load_entity_nodes(former_boundary_id : u32, former_type_id : u32, latter_boun
 
         private_entity_nodes[i] =
             (former_node_packed.x & 0xFFu) + ((former_node_packed.y & 0xFFu) << 8) +
-            (latter_node_packed.x & 0xFFu) + ((latter_node_packed.y & 0xFFu) << 8) << 16;
+            (((latter_node_packed.x & 0xFFu) + ((latter_node_packed.y & 0xFFu) << 8)) << 16);
     }
 
     node_meta = boundary_count_max;

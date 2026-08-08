@@ -65,7 +65,7 @@ const IMPROVEMENT_EPSILON : f32 = 0.1; // idk
 ) {
     let index_offset = arrayLength(&entities_buffer_0)/2;
     let global_index = global_invocation_id.x + global_invocation_id.y * 1024 * 32;
-    let collision_vector = entities_buffer_1[global_index];
+    var collision_vector = entities_buffer_1[global_index];
     
     let former_entity_type = (collision_vector.z >> 12) & 0x3FFu;
     let former_boundary_id = collision_vector.x >> 24;
@@ -77,9 +77,9 @@ const IMPROVEMENT_EPSILON : f32 = 0.1; // idk
         let former_vertex_id : u32 = (collision_vector.z >> shift) & 0xFu;
         let latter_vertex_id : u32 = (collision_vector.w >> shift) & 0xFu;
 
-        let support_point = bitcast<vec2u>(vertex_indicies_to_support(former_vertex_id, latter_vertex_id));
+        let support_point = bitcast<vec2u>(vertex_indicies_to_support(former_vertex_id, latter_vertex_id).pos);
         let support_point_vec2f8 = vec2f8(support_point);
-        let support_point_packed = support_point_vec2f8.x + support_point_vec2f8.y << 8;
+        let support_point_packed = support_point_vec2f8.x + (support_point_vec2f8.y << 8);
         
         traversed_support_points[i >> 1] += support_point_packed << (16 * (i & 1u));
     }
@@ -90,7 +90,7 @@ const IMPROVEMENT_EPSILON : f32 = 0.1; // idk
     //                   ----------------- f16 normal x
     // 01010101 01010101 01010101 01010101 w
     //                   ----------------- f16 normal y
-    collision.z = 0;
+    collision_vector.z = 0;
 
     // Wow it's almost as if AI vehemently advised against GJK (and by extension EPA) because they knew how divergent it would be
     for (var i : u32 = 0; i < 9; i++) {

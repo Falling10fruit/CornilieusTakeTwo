@@ -61,7 +61,7 @@ fn cross2d_vec_scalar(a: vec2f, b: f32) -> vec2f { return vec2f(b * a.y, -b * a.
         for (var i : u32; i < 4; i++) {
             let latter_boundary_count = collider_boundary_counts[i];
             let latter_collider_index = collider_data_vector[i] & 0xFFFFFFu;
-            let latter_collider_rotation = entities_buffer_meta[latter_collider_index | 1u << (ENTITY_COUNT_LOG2 - 1)].x >> 10;
+            let latter_collider_rotation = entities_buffer_meta[latter_collider_index | ((1u << (ENTITY_COUNT_LOG2 - 1)) - 1u)].x >> 10;
 
             for (var latter_boundary_index : u32 = 0; latter_boundary_index < latter_boundary_count; latter_boundary_index++) {
                 let memory_index = memory_offset + former_boundary_index;

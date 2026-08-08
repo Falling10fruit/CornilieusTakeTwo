@@ -2,7 +2,7 @@ const pi = 3.1415926535;
 //    Entity index (creation order)
 // 01010101 01010101 01010101 01010101
 // type = 0 means no entity
-// type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (4 * 8 pixels divided by 2^8)     rotation 2^13 
+// type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (2 * 16 pixels divided by 2^8)     rotation 2^13 
 //  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |
 // x_vel      y_vel      rotate_vel
 // 0101010101 0101010101 010101010101 
@@ -68,7 +68,6 @@ var<private> chunk_index : u32;
 var<private> chunk_position : vec2u;
 var<private> local_position : vec2f;
 var<private> velocity : vec2f;
-var<private> rotation_raw : u32;
 var<private> rotation : f32; // in the 2^13 format 0 - 8191
 var<private> rotation_vel : f32; // not in radians
 var<private> current_sprite : u32;
@@ -223,7 +222,7 @@ const sprite_index_map = SpriteIndexMapStruct(
         velocity.x = parse_from_10_bit((entity_vector.z >> 22) & 0x3FFu);
         velocity.y = parse_from_10_bit((entity_vector.z >> 12) & 0x3FFu);
 
-        rotation_raw = entity_vector.y & 0x1FFFu;
+        var rotation_raw = entity_vector.y & 0x1FFFu;
         rotation = f32(rotation_raw);
         rotation_vel = get_rotation_vel(entity_vector);
 
@@ -234,23 +233,31 @@ const sprite_index_map = SpriteIndexMapStruct(
     if (entity_type == 4) { main_rope(); }
     
         do_the_physics();
-
-        entity_vector = save_entity_to_vec4u();
+        
+        chunk_position += vec2u(local_position >= vec2f(CHUNK_LENGTH_PIXELS, CHUNK_LENGTH_PIXELS)) - vec2u(local_position < vec2f(0.0, 0.0));
+        let chunk_index = chunk_position.x + chunk_position.y * WORLD_WIDTH_IN_CHUNKS;
+        let local_position_raw = vec2u((local_position + CHUNK_LENGTH_PIXELS) * POS_CHUNK_RATIO) & vec2u(0xFFu, 0xFFu);
+        rotation_raw = u32(round(rotation)) & 4095u;
+        
+        entity_vector.x += chunk_index >> 3;
+        entity_vector.y +=
+            ((chunk_index & 7u) << 29) +
+            (local_position_raw.x << 21) + 
+            (local_position_raw.y << 13) + rotation_raw;
 
         // if (entity_index == 0) { debug_buffer = local_position.y; }
 
-        //     524288 (2^19)                      2^24                   63        2^6         511     
-        //     sprite index                   chunk index              x pos      y pos      rotation
-        // 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 101010 ] [ 101010 ] [ 101010101 ]
-        let chunk_index = chunk_position.x + WORLD_WIDTH_IN_CHUNKS * chunk_position.y;
+        //     524288 (2^19)                      2^24                  31        2^5         2^11     
+        //     sprite index                   chunk index              x pos     y pos      rotation
+        // 01010101 01010101 010] [ 10101 01010101 |  01010101 010 ] [ 10101 ] [ 01010 ] [ 10101010101 ]
         let serialized_rotation = u32(round(rotation * 512.0 / (pi * 2.0))) % 511;
         let local_position_int = vec2u(local_position);
         let target_sprite_vector = vec2u(
             (current_sprite << 13) +
             (chunk_index >> 11), (chunk_index << 23) +
-            ((local_position_int.x & 0x3Fu) << 15) +
-            ((local_position_int.y & 0x3Fu) << 9) +
-            rotation_raw
+            ((local_position_int.x & 0x1Fu) << 16) +
+            ((local_position_int.y & 0x1Fu) << 11) +
+            (rotation_raw >> 2)
         );
         sprites_target[entity_index] = target_sprite_vector;
 
@@ -293,23 +300,6 @@ fn collide_world () {
     if (tile_health > 0) {
         debug_buffer = 1.0;
     }
-}
-
-fn save_entity_to_vec4u() -> vec4u {
-    var new_entity_vector = vec4u(entity_type << 21, 0, 0, 0);
-    
-    chunk_position += vec2u(local_position >= vec2f(CHUNK_LENGTH_PIXELS, CHUNK_LENGTH_PIXELS)) - vec2u(local_position < vec2f(0.0, 0.0));
-    let chunk_index = chunk_position.x + chunk_position.y * WORLD_WIDTH_IN_CHUNKS;
-    let local_position_raw = vec2u((local_position + CHUNK_LENGTH_PIXELS) * POS_CHUNK_RATIO) & vec2u(0xFFu, 0xFFu);
-    rotation_raw = u32(round(rotation)) & 4095u;
-    
-    new_entity_vector.x += chunk_index >> 3;
-    new_entity_vector.y +=
-        ((chunk_index & 7u) << 29) +
-        (local_position_raw.x << 21) + 
-        (local_position_raw.y << 13) + rotation_raw;
-
-    return new_entity_vector;
 }// entity john
 
 // @group(0) @binding(0) var<storage, read_write> entities_indicies : array<u32>;

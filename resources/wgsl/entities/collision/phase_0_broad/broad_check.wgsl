@@ -22,6 +22,7 @@ struct EntityData {
 override WORLD_WIDTH_IN_CHUNKS : u32; 
 override WORLD_HEIGHT_IN_CHUNKS : u32;
 override CHUNK_LENGTH : u32;
+override LOCAL_POSITION_BIT_COUNT : u32 = 8;
 
 const chunk_offsets : array<vec2u, 4> = array(
     vec2u(1, 1),
@@ -51,15 +52,16 @@ var<private> insert_entity_index_pointer : u32;
     let this_entity_type_id = ((entity_broad_vector.z >> 2) & 0x1Fu) + ((entity_broad_vector.w << 3) & 0x3E0u);
     let this_extent = bitcast<vec2f>(entity_broad_vector.zw & vec2u(0xFFFFE000u, 0xFFFFE000u));
 
-    let entity_chunk_position = entity_broad_vector.xy >> vec2u(13, 13);
-    let local_position_bias = ((entity_broad_vector.xy & vec2u(0x1000u, 0x1000u)) >> vec2u(12, 12));
+    let entity_chunk_position = entity_broad_vector.xy >> vec2u(LOCAL_POSITION_BIT_COUNT, LOCAL_POSITION_BIT_COUNT);
+    let local_position_left_bit_shift_vec2u = vec2u(LOCAL_POSITION_BIT_COUNT, LOCAL_POSITION_BIT_COUNT) - 1;
+    let local_position_bias = ((entity_broad_vector.xy & (vec2u(1, 1) << local_position_left_bit_shift_vec2u)) >> local_position_left_bit_shift_vec2u);
     let chunk_edge_check = vec2u(entity_chunk_position == vec2u(WORLD_WIDTH_IN_CHUNKS - 1, WORLD_HEIGHT_IN_CHUNKS - 1));
-    let chunk_bias = local_position_bias * chunk_edge_check;
+    let chunk_bias = local_position_bias * chunk_edge_check; // so that entities at the edge don't check beyond the edge by zeroing out the bias
     let chunk_base = entity_chunk_position + chunk_bias;
 
     for (var i = 0; i < 4; i++) {
         let chunk_offset = chunk_offsets[i];
-        let chunk_position = chunk_base - chunk_offset;
+        let chunk_position = chunk_base - chunk_offset; // Because the bias later on shifts it positively
         let chunk_index = chunk_position.x + chunk_position.y * WORLD_WIDTH_IN_CHUNKS;
         let current_chunk_first_entity_index = chunk_indicies[chunk_index];
         var next_chunk_first_entity_index = chunk_indicies[chunk_index + 1];
