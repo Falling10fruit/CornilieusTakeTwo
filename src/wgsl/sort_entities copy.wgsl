@@ -1,184 +1,151 @@
+// type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (2 * 16 pixels divided by 2^8)     rotation 2^13 
+//  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |
+
 @group(0) @binding(0) var<storage, read_write> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 
-@group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 16>>; // length 8192 for 2^24 entities
-@group(1) @binding(1) var<storage, read_write> global_prefix : array<array<u32, 16>>; // length 32 for 2^24 entities (8192 / 256)
-
+@group(1) @binding(0) var<storage, read_write> digit_prefix : array<array<u32, 256>>; // length 65536 for 2^24 entities (2^24)/256 = 65536 (64 MiB)
+@group(1) @binding(1) var<storage, read_write> global_prefix : array<array<u32, 256>>; // length 256 for 2^24 entities (65536 / 256)
 // @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
 
-override BIT_SHIFT : u32 = 0; // four passes to get all 4 bits of 2 bytes
+override BYTE_SHIFT : u32 = 0; // 0 -> 2
+override ENTITY_COUNT_LOG2 : u32 = 24u;
 
-var<workgroup> shared_digit_prefix : array<array<u32, 256>, 16>;
-
-var<private> private_accumulation : vec2u;
-
-@compute @workgroup_size(256) fn accumulate( // 8192 workgroups for 2^24 entities
+var<workgroup> shared_digit : array<atomic<u32>, 256>;
+// 65536 workgroups for 2^24 entities
+@compute @workgroup_size(256) fn local_accumulation( 
+    @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
-    for (var i = 0u; i < 8; i++) {
-        let entity_vector = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256];
-        let entity_type = entity_vector.x >> 23;
-
-        if (entity_type != 0) {
-            let digit = (entity_vector.x >> (7 + BIT_SHIFT)) & 0xFu;
-            private_accumulation[digit >> 3] += 1u << (4 * (digit & 7u));
-        }
+    let entity_vector = entity_buffer_0[global_invocation_id.y];
+    
+    var chunk_byte: u32;
+    if (BYTE_SHIFT == 0u) {
+        chunk_byte = ((entity_vector.x & 0x1Fu) << 3) + (entity_vector.y >> 29);
+    } else {
+        chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
     }
-    // if (workgroup_id.x == 0 && local_id == 1) {
-    //     let i = 0u;
-    //     let digit = 0u;
-    //     // debug_buffer = private_accumulation.x;
-    //     debug_buffer = private_accumulation[digit >> 3] >> (4 * (digit & 7u));
-    //     // debug_buffer = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256].x;
-    //     // debug_buffer = (entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256].x >> (7 + BIT_SHIFT)) & 0xFu;
-    //     // debug_buffer = workgroup_id.x * 2048 + local_id + i * 256;
-    // }
-// .w. :p
 
-    for (var digit = 0u; digit < 16; digit++) {
-        shared_digit_prefix[digit][local_id] += (private_accumulation[digit >> 3] >> (4 * (digit & 7u))) & 0xFu;
-    }
+    atomicAdd(&(shared_digit[chunk_byte]), 1u);
     workgroupBarrier();
- 
-    // for (var digit = 0u; digit < 16; digit++) {
-    //     digit_prefix[local_id][digit] = shared_digit_prefix[digit][local_id];
-    // } workgroupBarrier();
-
-    for (var stride = 1u; stride < 256; stride <<= 1) {
-        var temp: array<u32, 16>;
-        for (var digit = 0u; digit < 16; digit++) { if (local_id >= stride) {
-            temp[digit] = shared_digit_prefix[digit][local_id - stride];
-        } }
-        workgroupBarrier();
-
-        for (var digit = 0u; digit < 16; digit++) { if (local_id >= stride) {
-            shared_digit_prefix[digit][local_id] += temp[digit];
-        } }
-        workgroupBarrier();
-
-    }
-
-    let array_length = arrayLength(&digit_prefix);
-    if (local_id < 16) { digit_prefix[workgroup_id.x][local_id] = shared_digit_prefix[local_id][255]; }
+    digit_prefix[workgroup_id.x][local_id] = atomicLoad(&(shared_digit[local_id]));
 }
 
-override ENTITY_COUNT_LOG2 : u32 = 24u;
+var<workgroup> shared_accumulation : array<u32, 2048>;
+// 256 (* 256) workgroups for 2^24 entities. A work group for every 256 chunk
+@compute @workgroup_size(256) fn global_accumulation(
+    @builtin(global_invocation_id) global_invocation_id : vec3u,
+    @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(local_invocation_index) local_id : u32
+) {
+    shared_accumulation[local_id] = digit_prefix[global_invocation_id.x][workgroup_id.y];
+    workgroupBarrier();
 
-// 32 * 16 workgroups. A work group for every 256 chunk in the 8192 length buffer
+    for (var exponent = 1u; exponent < 8; exponent += 1) {
+        let stride = 1u << exponent; if (local_id > stride) {
+            shared_accumulation[
+                (local_id         ) + (exponent    ) * 256
+            ] += shared_accumulation[
+                (local_id - stride) + (exponent - 1) * 256
+            ];
+        } workgroupBarrier();
+    }
+
+    digit_prefix[global_invocation_id.x][workgroup_id.y] = shared_accumulation[1792 + local_id];
+    if (local_id == 0) { global_prefix[workgroup_id.x][workgroup_id.y] = shared_accumulation[2047]; }
+}
+
+// TEST if it's better to have a smaller shared memory but bottleneck with workgroup barriers
+override GLOBAL_PREFIX_SUM_ITERATION_COUNT : u32 = 8 - (24 - ENTITY_COUNT_LOG2);
+override GLOBAL_PREFIX_SUM_SHARED_ARRAY_CHUNK_LENGTH : u32 = 256u >> (24 - ENTITY_COUNT_LOG2);
+override GLOBAL_PREFIX_SUM_SHARED_ARRAY_LENGTH : u32 = GLOBAL_PREFIX_SUM_ITERATION_COUNT * GLOBAL_PREFIX_SUM_SHARED_ARRAY_CHUNK_LENGTH;
+var<workgroup> global_prefix_sum_shared_array : array<u32, GLOBAL_PREFIX_SUM_SHARED_ARRAY_LENGTH>;
+// 256 workgroups
+@compute @workgroup_size(GLOBAL_PREFIX_SUM_SHARED_ARRAY_CHUNK_LENGTH) fn global_prefix_sum(
+    @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(local_invocation_index) local_id : u32
+) {
+    global_prefix_sum_shared_array[local_id] = global_prefix[local_id][workgroup_id.x];
+    workgroupBarrier();
+
+    for (var exponent = 1u; exponent < GLOBAL_PREFIX_SUM_ITERATION_COUNT; exponent += 1) { 
+        let stride = 1u << exponent; if (local_id > stride) {
+            global_prefix_sum_shared_array[
+                (local_id         ) + (exponent    ) * GLOBAL_PREFIX_SUM_SHARED_ARRAY_CHUNK_LENGTH
+            ] += global_prefix_sum_shared_array[
+                (local_id - stride) + (exponent - 1) * GLOBAL_PREFIX_SUM_SHARED_ARRAY_CHUNK_LENGTH
+            ];
+        } workgroupBarrier();
+    }
+
+    global_prefix[local_id][workgroup_id.x] = global_prefix_sum_shared_array[GLOBAL_PREFIX_SUM_SHARED_ARRAY_LENGTH - GLOBAL_PREFIX_SUM_SHARED_ARRAY_CHUNK_LENGTH + local_id];
+}
+
+var<workgroup> local_prefix_sum_shared_array : array<u32, 2048>; // 256 * 8
+// 256 (* 256) workgroups for 2^24 entities
 @compute @workgroup_size(256) fn local_prefix_sum(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
-    shared_digit_prefix[workgroup_id.y][local_id] += select(digit_prefix[global_invocation_id.x][workgroup_id.y], 0, global_invocation_id.x == 0);
-    workgroupBarrier();
+    // local_prefix_sum_shared_array[local_id] = digit_prefix[global_invocation_id.x][workgroup_id.y];
+    // workgroupBarrier();
 
-    for (var stride = 1u; stride < 256; stride <<= 1) {
-        var temp: u32;
-        if (local_id >= stride) { temp = shared_digit_prefix[workgroup_id.y][local_id - stride]; }
-        workgroupBarrier();
-
-        if (local_id >= stride) { shared_digit_prefix[workgroup_id.y][local_id] += temp; }
-        workgroupBarrier();
-    }
-    
-    let final_accumulation = shared_digit_prefix[workgroup_id.y][local_id];
-    digit_prefix[global_invocation_id.x][workgroup_id.x] = final_accumulation;
-    if (local_id == 0u) { global_prefix[workgroup_id.x][workgroup_id.y] = final_accumulation; }
-}
-
-override GLOBAL_PREFIX_SUM_LENGTH : u32 = 32u >> (24 - ENTITY_COUNT_LOG2); // how many numbers to run a prefix sum over
-override EXPONENT_ITERATIONS_COUNT : u32 = countTrailingZeros(GLOBAL_PREFIX_SUM_LENGTH);
-override SHARED_ARRAY_WORKGROUP_SHIFT : u32 = GLOBAL_PREFIX_SUM_LENGTH * (EXPONENT_ITERATIONS_COUNT + 1); // Or how big is the allocated memory on the shared array for each workgroup
-var<workgroup> shared_global_prefix_sum_array : array<u32, SHARED_ARRAY_WORKGROUP_SHIFT * 16>;
-// 16 workgroups
-@compute @workgroup_size(GLOBAL_PREFIX_SUM_LENGTH) fn global_prefix_sum(
-    @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_id : u32
-) {
-    shared_global_prefix_sum_array[workgroup_id.x * SHARED_ARRAY_WORKGROUP_SHIFT + local_id] = global_prefix[workgroup_id.x][local_id];
-
-    workgroupBarrier();
- 
-    // first element is zero so the last iteration would increment by nothing
-    for (var exponent: u32 = 1u; exponent < EXPONENT_ITERATIONS_COUNT; exponent += 1) { 
+    for (var exponent = 1u; exponent < 8; exponent += 1) {
         let stride = 1u << exponent; if (local_id > stride) {
-            shared_global_prefix_sum_array[
-                workgroup_id.x * SHARED_ARRAY_WORKGROUP_SHIFT +
-                (local_id         ) + (exponent + 1) * GLOBAL_PREFIX_SUM_LENGTH
-            ] += shared_global_prefix_sum_array[
-                workgroup_id.x * SHARED_ARRAY_WORKGROUP_SHIFT +
-                (local_id - stride) + (exponent    ) * GLOBAL_PREFIX_SUM_LENGTH
+            local_prefix_sum_shared_array[
+                (local_id         ) + (exponent    ) * 256
+            ] += global_prefix_sum_shared_array[
+                (local_id - stride) + (exponent - 1) * 256
             ];
         } workgroupBarrier();
     }
 
-    global_prefix[local_id][workgroup_id.x] = shared_global_prefix_sum_array[
-        SHARED_ARRAY_WORKGROUP_SHIFT * workgroup_id.x +
-        local_id + (EXPONENT_ITERATIONS_COUNT - 1) * GLOBAL_PREFIX_SUM_LENGTH];
+    var global_increment: u32;
+    if (workgroup_id.x == 0) { global_increment = 0; }
+    else { global_increment = global_prefix[workgroup_id.x - 1][workgroup_id.y]; }
+
+    //                                                                                  256 * 7
+    digit_prefix[global_invocation_id.x][workgroup_id.y] = local_prefix_sum_shared_array[1792 + local_id] + global_increment;
 }
 
-// 32 * 16 workgroups. 255 threads because the first element of every chunk is the global prefix
-@compute @workgroup_size(255) fn increment_by_global_prefix(
-    @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_id : u32
-) {
-    let global_index = workgroup_id.x * 256 + 1 + local_id;
-    digit_prefix[global_index][workgroup_id.y] += global_prefix[workgroup_id.x * 256][workgroup_id.y];
-}
-
-
-var<private> private_prefix : array<vec2u, 8>;
-// test if it's better to use private or shared + private memory
-var<private> entity_vectors : array<vec4u, 8>;
-
+var<workgroup> digit_offset : atomic<u32>;
+// 65536 (* 256) workgroups for 2^24 entities
 @compute @workgroup_size(256) fn rescatter(
+    @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
-    var sum_so_far = vec2u(0, 0);
-    for (var i = 0u; i < 8; i++) {
-        entity_vectors[i] = entity_buffer_0[workgroup_id.x * 2048 + local_id + i * 256];
-        let entity_type = entity_vectors[i].x >> 23;
+    if (local_id < workgroup_id.y) { atomicAdd(&digit_offset, global_prefix[arrayLength(&global_prefix) - 1][local_id]); }
 
-        if (entity_type != 0) {
-            let digit = (entity_vectors[i].x >> (7 + BIT_SHIFT)) & 0xFu;
-            sum_so_far[digit >> 3] += 1u << ((digit & 7u) * 4);
-            private_prefix[i] = sum_so_far;
-        }
+    let entity_vector = entity_buffer_0[global_invocation_id.x];
+
+    var chunk_byte: u32;
+    if (BYTE_SHIFT == 0u) {
+        chunk_byte = ((entity_vector.x & 0x1Fu) << 3) + (entity_vector.y >> 29);
+    } else {
+        chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
     }
 
-    for (var digit = 0u; digit < 16; digit++) { shared_digit_prefix[digit][local_id] += private_accumulation[digit]; }
+    if (chunk_byte == workgroup_id.y) { local_prefix_sum_shared_array[local_id] = 1u; };
     workgroupBarrier();
-
-    for (var stride = 1u; stride < 256; stride <<= 1) {
-        var temp: array<u32, 16>;
-        for (var digit = 0u; digit < 16; digit++) { 
-            if (local_id >= stride) { temp[digit] = shared_digit_prefix[digit][local_id - stride]; }
-        }
-        workgroupBarrier();
-
-        for (var digit = 0u; digit < 16; digit++) {
-            if (local_id >= stride) { shared_digit_prefix[digit][local_id] += temp[digit]; }
-        }
-        workgroupBarrier();
+    
+    for (var exponent = 1u; exponent < 8; exponent += 1) {
+        let stride = 1u << exponent; if (local_id > stride) {
+            local_prefix_sum_shared_array[
+                (local_id         ) + (exponent    ) * 256
+            ] += global_prefix_sum_shared_array[
+                (local_id - stride) + (exponent - 1) * 256
+            ];
+        } workgroupBarrier();
     }
 
-    let array_size = arrayLength(&digit_prefix);
-    var digit_offset = 0u;
+    if (chunk_byte == workgroup_id.y) {
+        var global_increment: u32;
+        if (workgroup_id.x == 0) { global_increment = 0u; }
+        else { global_increment = digit_prefix[workgroup_id.x - 1][chunk_byte]; } // TODO figure out which digit I'm supposed to use.
 
-    for (var digit = 0u; digit < 16; digit++) {
-        digit_offset += select(digit_prefix[array_size - 1][digit - 1], 0, digit == 0);
-        let global_offset = digit_prefix[workgroup_id.x][digit];
-        let local_offset = select(shared_digit_prefix[digit][local_id], 0, local_id == 0);
-
-        for (var i = 0u; i < 8; i++) {
-            let index = digit_offset + global_offset + local_offset + private_accumulation[digit];
-            
-            if (entity_vectors[i].x >> 23 != 0u) {
-                entity_buffer_1[index] = entity_vectors[i];
-            }
-        }
+        entity_buffer_1[atomicLoad(&digit_offset) + global_increment + select(local_prefix_sum_shared_array[1792 + local_id - 1], 0u, local_id == 0)] = entity_vector;
     }
 }

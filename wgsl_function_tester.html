@@ -4,8 +4,7 @@
         <title>I made this so I can definitely see how extractBits counts</title>
     </head>
     <body>
-        <script>
-            
+        <script type="module">
             const adapter = await navigator.gpu.requestAdapter();
 
             const device = await adapter.requestDevice({
@@ -20,14 +19,15 @@
             });
 
             const buffer = device.createBuffer({ label: "buffer", size: 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC });
-            const buffer_mapping = device.createBuffer({ label: "buffer mapping", size: 4, usage: GPUBufferUsage.MAP_ASYNC | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC });
+            const buffer_mapping = device.createBuffer({ label: "buffer mapping", size: 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST });
             
             const bind_group_layout = device.createBindGroupLayout({
                 label: "bind group layout",
-                entries: [{ binding: 0, buffer: { type: "storage" } }]
+                entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
             });
             const bind_group = device.createBindGroup({
                 label: "bind group",
+                layout: bind_group_layout,
                 entries: [{ binding: 0, resource: { buffer }}]
             });
 
@@ -40,7 +40,7 @@
                 compute: {
                     module: device.createShaderModule({
                         label: "shader module",
-                        code: `@group(0) @binding(0) var<storage, read_write> buffer : u32; @compute @workgroup_size(1) fn shader() { buffer = extractBits(0xFEDCBA98, 0, 4); }`,  
+                        code: `@group(0) @binding(0) var<storage, read_write> buffer : u32; @compute @workgroup_size(1) fn shader() { buffer = extractBits(0xFEDCBA98u, 4, 4); }`,  
                     }),
                     entryPoint: "shader"
                 }
@@ -48,15 +48,15 @@
 
             const command_encoder = device.createCommandEncoder({ label: "command encoder" });
             const compute_pass = command_encoder.beginComputePass({ label: "compute pass" });
-            compute_pass.setBindGroup(bind_group, 0);
+            compute_pass.setBindGroup(0, bind_group);
             compute_pass.setPipeline(pipeline);
             compute_pass.dispatchWorkgroups(1);
             compute_pass.end();
             command_encoder.copyBufferToBuffer(buffer, buffer_mapping);
             device.queue.submit([command_encoder.finish()]);
             
-            buffer_mapping.mapAsync(GPUMapMode.READ_ASYNC).then(() =>{
-                console.log((new Uint32Array(buffer_mapping.getMappedRange()))[0].toString(2));
+            buffer_mapping.mapAsync(GPUMapMode.READ).then(() => {
+                console.log((new Uint32Array(buffer_mapping.getMappedRange()))[0]);
             });
 
         </script>

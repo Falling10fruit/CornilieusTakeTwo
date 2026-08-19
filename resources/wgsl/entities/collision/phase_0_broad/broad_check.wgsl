@@ -35,6 +35,12 @@ var<private> colliding_entity_distances_squared : array<f32, 4>;
 var<private> colliding_entity_indicies : array<u32, 4>;
 var<private> insert_entity_index_pointer : u32;
 
+// extra data +         colliding entity id
+// gjk boundary count 0101 0101....0101 
+// this entity type_0 0101 0101....0101 
+// this entity type_1 0101 0101....0101
+// this entity type_2 0101 0101....0101
+
 @compute @workgroup_size(32) fn main(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
 ) {

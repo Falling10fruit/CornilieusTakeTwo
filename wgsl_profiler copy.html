@@ -118,12 +118,12 @@
             });
             const digit_prefix_buffer = device.createBuffer({
                 label: `digital prefix buffer`,
-                size: 4 * 4 * 8192 >> (24 - ENTITY_COUNT_LOG2),
+                size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2), // dw it's 64 MiB
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
             const global_prefix_buffer = device.createBuffer({
                 label: `global prefix buffer`,
-                size: 4 * 16 * 32 >> (24 - ENTITY_COUNT_LOG2),
+                size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2),
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
 
@@ -237,9 +237,10 @@
                     }),
                     compute: {
                         module: sort_shader_module,
-                        entryPoint: "accumulate",
+                        entryPoint: "local_accumulation",
                         constants: {
-                            BIT_SHIFT: 0
+                            BYTE_SHIFT: 0,
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
                         }
                     }
                 }),
@@ -254,9 +255,9 @@
                     }),
                     compute: {
                         module: sort_shader_module,
-                        entryPoint: "local_prefix_sum",
+                        entryPoint: "global_accumulation",
                         constants: {
-                            BIT_SHIFT: 0,
+                            BYTE_SHIFT: 0,
                             ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
                         }
                     }
@@ -275,7 +276,7 @@
                         module: sort_shader_module,
                         entryPoint: "global_prefix_sum",
                         constants: {
-                            BIT_SHIFT: 0,
+                            BYTE_SHIFT: 0,
                             ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
                         }
                     }
@@ -292,9 +293,9 @@
                     }),
                     compute: {
                         module: sort_shader_module,
-                        entryPoint: "increment_by_global_prefix",
+                        entryPoint: "local_prefix_sum",
                         constants: {
-                            BIT_SHIFT: 0,
+                            BYTE_SHIFT: 0,
                             ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
                         }
                     }
@@ -313,7 +314,8 @@
                         module: sort_shader_module,
                         entryPoint: "rescatter",
                         constants: {
-                            BIT_SHIFT: 0
+                            BYTE_SHIFT: 0,
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
                         }
                     }
                 }),
@@ -394,15 +396,15 @@
                 compute_pass.setBindGroup(2, gpu_debug_buffer_bind_group);
                 
                 compute_pass.setPipeline(accumulate_pipeline);
-                compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+                compute_pass.dispatchWorkgroups(65536 >> (24 - ENTITY_COUNT_LOG2));
                 compute_pass.setPipeline(local_prefix_sum_pipeline);
-                compute_pass.dispatchWorkgroups(32 >> (24 - ENTITY_COUNT_LOG2), 16);
+                compute_pass.dispatchWorkgroups(256 >> (24 - ENTITY_COUNT_LOG2), 256);
                 compute_pass.setPipeline(global_prefix_sum_pipeline);
-                compute_pass.dispatchWorkgroups(16);
+                compute_pass.dispatchWorkgroups(256);
                 compute_pass.setPipeline(increment_by_global_prefix_pipeline);
-                compute_pass.dispatchWorkgroups(32 >> (24 - ENTITY_COUNT_LOG2), 16);
+                compute_pass.dispatchWorkgroups(256 >> (24 - ENTITY_COUNT_LOG2), 256);
                 compute_pass.setPipeline(rescatter_pipeline);
-                compute_pass.dispatchWorkgroups(8192 >> (24 - ENTITY_COUNT_LOG2));
+                compute_pass.dispatchWorkgroups(65536 >> (24 - ENTITY_COUNT_LOG2), 256);
                 
                 compute_pass.end();
 

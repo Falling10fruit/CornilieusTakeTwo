@@ -52,7 +52,7 @@ fn extract_sprite_data(sprite_vector: vec2u) -> SpriteData {
     let new_local_position = bitcast<vec2u>((new_position + CHUNK_LENGTH_PIXELS) % CHUNK_LENGTH_PIXELS);
 
     let angle_delta_clockwise = target_sprite.angle - current_sprite.angle;
-    let angle_delta_size = angle_delta_clockwise >> 9;
+    let angle_delta_size = angle_delta_clockwise >> 9 ;
     let angle_delta_smallest = angle_delta_clockwise ^ (0xFFFFFFFFu * angle_delta_size);
     let new_angle = (current_sprite.angle + (angle_delta_smallest >> 1)) & 0x1FFu;
 

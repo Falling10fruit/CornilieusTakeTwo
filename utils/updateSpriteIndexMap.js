@@ -18,7 +18,7 @@ const spritesArray : array<spriteDataStruct, ${sprites_array.length}> = array(
         vec2f(${sprite_data.pivot.map(floater).join(", ")})
     )`).join(`,
     `)}
-);` + sprite_vertex_split[1];
+);` + sprite_vertex_split[2];
 
 const sprite_vertex_out_path = path.join("resources", "wgsl", "spritesVertex.wgsl")
 writeFile(sprite_vertex_out_path, sprite_vertex_out);

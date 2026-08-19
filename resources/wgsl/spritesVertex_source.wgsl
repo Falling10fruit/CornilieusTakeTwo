@@ -1,7 +1,7 @@
 struct TransformStruct {
     @location(0) translate : vec2f,
     @location(1) scale : f32,
-    @location(2) rotation : f32,
+    @location(2) rotation : u32,
 }
 
 @group(0) @binding(0) var<uniform> uTransform : TransformStruct;
@@ -35,6 +35,14 @@ struct spriteDataStruct {
 //      spriteDataStruct(vec4f(0.0, 0.0, 16.0, 16.0), vec2f(8.0, 8.0))
 // );
 // insert here
+const spritesArray : array<spriteDataStruct, 1> = array(
+    spriteDataStruct(
+        vec4f(16.0, 15.0, 25.0, 30.0),
+        vec2f(5.0, 7.0)
+    )
+);
+// insert here
+
 
 struct v_out {
     @builtin(position) position : vec4f,
@@ -66,7 +74,7 @@ struct v_out {
 
     let cameraTranslate : mat3x3f = createTranslateMatrix(-vec2f(uTransform.translate.x, uTransform.translate.y));
     let cameraScale : mat3x3f = createScaleMatrix(vec2f(1.0, 1.0) * uTransform.scale);
-    let cameraRotate : mat3x3f = createRotateMatrix(-uTransform.rotation * 512.0 / 2.0 / 3.1415926535);
+    let cameraRotate : mat3x3f = createRotateMatrix(0xFFFFFFFFu - uTransform.rotation);
     let cameraTransform : mat3x3f = cameraRotate * cameraScale * cameraTranslate;
     
     let position : vec3f = cameraTransform * transform * vec3f(vertexArray[vertexIndex], 1.0);
@@ -74,9 +82,9 @@ struct v_out {
 
     // I do not want to deal with integer interpolation, I can already imagine the edge cases of the math on top of the convoluted implementation the WebGPU engineers probably went over if it even exists. Anyways, the bottlneck is cpu gpu communication not interstage.
     switch (vertexIndex) {
-        case 0: { out.texCoord = vec2f(0.0, sprite_atlas.y - sprite_atlas.w); }
-        case 1: { out.texCoord = vec2f(0.0, 0.0); }
-        case 2: { out.texCoord = vec2f(sprite_atlas.z - sprite_atlas.x, 0.0); }
+        case 0u: { out.texCoord = vec2f(0.0, sprite_atlas.y - sprite_atlas.w); }
+        case 1u: { out.texCoord = vec2f(0.0, 0.0); }
+        case 2u: { out.texCoord = vec2f(sprite_atlas.z - sprite_atlas.x, 0.0); }
         default { out.texCoord = vec2f(0.0, 0.0); }
     }
     out.texCoord *= vertexArray[vertexIndex];

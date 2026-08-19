@@ -31,17 +31,18 @@ override HALF_PHASE : u32;
 // z
 //      \/ flag for collision  found         boundary node id 2 | boundary node id 1 | boundary node id 0    :) each with 4 bits ig eheh
 //       0 101 01010101                            0101                 0101                0101                
-// w        ----------- former entity type
+// w       ------------ former entity type
 //      \/ flag for collision not found yet  boundary node id 2 | boundary node id 1 | boundary node id 0     wow so cool
 //       0 101 01010101                            0101                 0101                0101         
-//          ----------- latter entity type 
+//         ------------ latter entity type 
 
-var<private> node_meta : u32;
+var<private> node_meta : u32; // as of august 2026 it only contains the maximum of boundaries there is to iterate through
 var<private> private_entity_nodes : array<u32, 16>;
 
 var<private> rotations : u32;
-var<private> center_delta : vec2f;
+var<private> center_delta : vec2f; // TODO figure out how to resolve this
 
+// support points positions are stored in 16 bit words with 8 bits for each component
 var<private> traversed_support_points : vec3u;
 
 struct SupportNode {
@@ -54,7 +55,7 @@ struct CandidateNormal {
     distance : f32,
     former_vertex_id : u32,
     latter_vertex_id : u32,
-    normal : vec2u
+    normal : vec2f
 }
 
 const IMPROVEMENT_EPSILON : f32 = 0.1; // idk
@@ -67,24 +68,27 @@ const IMPROVEMENT_EPSILON : f32 = 0.1; // idk
     let global_index = global_invocation_id.x + global_invocation_id.y * 1024 * 32;
     var collision_vector = entities_buffer_1[global_index];
     
-    let former_entity_type = (collision_vector.z >> 12) & 0x3FFu;
+    let former_entity_type = (collision_vector.z >> 12) & 0x7FFu;
     let former_boundary_id = collision_vector.x >> 24;
-    let latter_entity_type = (collision_vector.z >> 12) & 0x3FFu;
+    let latter_entity_type = (collision_vector.z >> 12) & 0x7FFu;
     let latter_boundary_id = collision_vector.x >> 24;
 
-    for (var i : u32 = 0; i < 3; i++) {
+    load_entity_nodes(former_boundary_id, former_entity_type, latter_boundary_id, latter_entity_type);
+    for (var i : u32 = 0; i < 3; i++) { // packs the initial 3 support points into traversed_support_points
         let shift = i * 4;
         let former_vertex_id : u32 = (collision_vector.z >> shift) & 0xFu;
         let latter_vertex_id : u32 = (collision_vector.w >> shift) & 0xFu;
 
-        let support_point = bitcast<vec2u>(vertex_indicies_to_support(former_vertex_id, latter_vertex_id).pos);
+        let support_point = vertex_indicies_to_support(former_vertex_id, latter_vertex_id).pos;
         let support_point_vec2f8 = vec2f8(support_point);
         let support_point_packed = support_point_vec2f8.x + (support_point_vec2f8.y << 8);
         
         traversed_support_points[i >> 1] += support_point_packed << (16 * (i & 1u));
     }
 
-    //
+    // EPA format
+    // x same as GJK
+    // y same as GJK
     // \/ normal found flag
     // 01010101 01010101 01010101 01010101 z
     //                   ----------------- f16 normal x
@@ -105,26 +109,31 @@ const IMPROVEMENT_EPSILON : f32 = 0.1; // idk
             }
         }
 
-        collision_vector.zw += vec2f32_to_vec2f16(best_candidate_for_normal.normal);
-        let new_support = support_function(best_candidate_for_normal.normal);
+        // insert the new normal because later in the for loop the thread may terminate so we save the collision normal ((2^24)/(2^16) / (64/4)
+        collision_vector &= vec4u(0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFF0000u, 0xFFFF0000u);
+        collision_vector += vec4u(0u, 0u, vec2f32_to_vec2f16(best_candidate_for_normal.normal));
+
+        let new_support = vec2f8(support_function(best_candidate_for_normal.normal).pos);
+        let new_support_packed = new_support.x + (new_support.y << 8);
         for (var support_index : u32 = 0; support_index < support_count; support_index++) {
             let traversed_support = traversed_support_points[support_index >> 1] >> ((support_index & 1u) * 16);
 
-            if (traversed_support == new_support) {
+            if (traversed_support == new_support_packed) {
                 entities_buffer_1[global_index] = collision_vector;
                 return;
             }
-        }
+        } traversed_support_points[i >> 1] += new_support_packed << (16 * (i & 1u));
     }
 }
 
 fn vec2f32_to_vec2f16(vec2f32: vec2f) -> vec2u {
     let vec2f32_casted = bitcast<vec2u>(vec2f32);
     let mantissa = (vec2f32_casted >> vec2u(13, 13)) & vec2u(0x3FFu, 0x3FFu);
-    let exponent = bitcast<vec2i>((vec2f32_casted >> vec2u(23, 23)) & vec2u(0x3FFu, 0xFFu)) - vec2u(128, 128) + vec2u(15, 15);
-    return (vec2f32_casted & vec2u(0x80000000u, 0x80000000u)) + (mantissa << vec2u(10, 10)) + mantissa;
+    let exponent = bitcast<vec2i>(((vec2f32_casted >> vec2u(23, 23)) & vec2u(0x3FFu, 0xFFu)) - vec2u(127, 127) + vec2u(15, 15));
+    return ((vec2f32_casted & vec2u(0x80000000u, 0x80000000u)) >> vec2u(16, 16)) + (mantissa << vec2u(10, 10)) + mantissa;
 }
 
+// it uh does something I forgot
 fn candidate_normal(support_count: u32, support_index: u32) -> CandidateNormal {
     let former_support_packed = (traversed_support_points[support_index >> 1] >> ((support_index & 1u) * 16));
     let latter_index = support_index % support_count;
@@ -191,7 +200,7 @@ fn support_function(direction : vec2f) -> SupportNode {
         dot(first_node_vector.zy, direction)
     );
     
-    let boundary_count_max = node_meta & 0xFu;
+    let boundary_count_max = node_meta & 0xFu; // as of august 2026 it only contains the maximum of boundaries there is to iterate through
     for (var i : u32 = 1; i < boundary_count_max; i++) {
         let node_data = private_entity_nodes[0];
         let node_vector = vec4f8_to_vec4f32(vec4u(
@@ -244,25 +253,24 @@ fn load_entity_nodes(former_boundary_id : u32, former_type_id : u32, latter_boun
         let former_index = former_boundary_nodes_index + i;
         let latter_index = latter_boundary_nodes_index + i;
 
-        var former_node_cast = vec2u(0, 0);
-        if (i < former_boundary_data.y) { former_node_cast = bitcast<vec2u>(entity_nodes[former_index]); }
-        var latter_node_cast = vec2u(0, 0);
-        if (i < latter_boundary_data.y) { latter_node_cast = bitcast<vec2u>(entity_nodes[latter_index]); }
+        var former_node_packed = vec2u(0, 0);
+        if (i < former_boundary_data.y) { former_node_packed = vec2f8(entity_nodes[former_index]); }
+        var latter_node_packed = vec2u(0, 0);
+        if (i < latter_boundary_data.y) { latter_node_packed = vec2f8(entity_nodes[latter_index]); }
 
-        let former_node_packed = vec2f8(former_node_cast);
-        let latter_node_packed = vec2f8(latter_node_cast);
         private_entity_nodes[i] =
             (former_node_packed.x & 0xFFu) + ((former_node_packed.y & 0xFFu) << 8) +
-            (latter_node_packed.x & 0xFFu) + ((latter_node_packed.y & 0xFFu) << 8) << 16;
+            (((latter_node_packed.x & 0xFFu) + ((latter_node_packed.y & 0xFFu) << 8)) << 16);
     }
 
-    node_meta = boundary_count_max;
+    node_meta = boundary_count_max; // as of august 2026 it only contains the maximum of boundaries there is to iterate through
 }
 
 // E4M3 without NaN because :) precision doesn't grow on trees kiddo
-fn vec2f8(casted_vec2f : vec2u) -> vec2u {
+fn vec2f8(vector : vec2f) -> vec2u {
+    let casted_vec2f = bitcast<vec2u>(vector);
     let mantissa = (casted_vec2f >> vec2u(20, 20)) & vec2u(0x7u, 0x7u);
-    let exponent = ((casted_vec2f >> vec2u(23, 23)) & vec2u(0xFFu, 0xFFu) - vec2u(120, 120));
+    let exponent = (((casted_vec2f >> vec2u(23, 23)) & vec2u(0xFFu, 0xFFu)) - vec2u(120, 120));
 
     return
         mantissa +

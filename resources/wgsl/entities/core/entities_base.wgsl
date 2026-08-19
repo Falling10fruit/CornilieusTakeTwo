@@ -74,61 +74,22 @@ var<private> current_sprite : u32;
 
 fn index_entity_integer(index : u32) -> u32 {
     switch index {
-        case 0: { return entity_vector.x; }
-        case 1: { return entity_vector.y; }
-        case 2: { return entity_vector.z; }
-        case 3: { return entity_vector.w; }
-        default: { return 0; }
+        case 0u: { return entity_vector.x; }
+        case 1u: { return entity_vector.y; }
+        case 2u: { return entity_vector.z; }
+        case 3u: { return entity_vector.w; }
+        default: { return 0u; }
     }
 }
 
 fn set_entity_integer(index : u32, new_int : u32) {
     switch index {
-        case 0: { entity_vector.x = new_int; }
-        case 1: { entity_vector.y = new_int; }
-        case 2: { entity_vector.z = new_int; }
-        case 3: { entity_vector.w = new_int; }
-        default: { }
+        case 0u: { entity_vector.x = new_int; }
+        case 1u: { entity_vector.y = new_int; }
+        case 2u: { entity_vector.z = new_int; }
+        case 3u: { entity_vector.w = new_int; }
+        default: {}
     }
-}
-
-fn get_sub_integer_entity(range : vec2u) -> u32 {
-    let offset_0 = (range.x >> 5) << 5;
-    let start_0 = clamp(range.x - offset_0, 0, 31);
-    let end_0 = clamp(range.y - offset_0, 0, 31);
-    let bits_0 = extractBits(index_entity_integer(offset_0 >> 5), 31 - min(end_0, 31), min(end_0, 31) - max(start_0, 0) + 1);
-    let offset_1 = (range.y >> 5) << 5;
-    let start_1 = clamp(range.x - offset_1, 0, 31);
-    let end_1 = clamp(range.y - offset_1, 0, 31);
-    let bits_1 = extractBits(index_entity_integer(offset_1 >> 5), 31 - min(end_1, 31), min(end_1, 31) - max(start_1, 0) + 1);
-
-    return (bits_0 << (offset_1 - offset_0 + end_1 - end_0)) | bits_1;
-}
-
-fn set_sub_integer_entity(range : vec2u, new_value : u32) {
-    let start_index = range.x >> 5; 
-    var start_integer = index_entity_integer(start_index);
-
-    let offset_0 = start_index << 5;
-    let start_0 = range.x - offset_0;
-    let end_0 = clamp(range.y - offset_0, 0, 31);
-    let sub_value_0 = new_value >> select(0, range.y - offset_0 - 31, range.y > offset_0 + 31);
-    start_integer = insertBits(start_integer, sub_value_0, 31 - end_0, end_0 - start_0 + 1);
-    set_entity_integer(start_index, start_integer);
-
-    let end_index = range.y >> 5;
-    if (start_index != end_index) {
-        var end_integer = index_entity_integer(end_index);
-
-        let offset_1 = end_index << 5;
-        let start_1 = clamp(range.x - offset_1, 0, 31);
-        let end_1 = range.y - offset_1;
-        let sub_value_1 = new_value >> select(0, range.y - offset_1 - 31, range.y > offset_1 + 31);
-        end_integer = insertBits(end_integer, sub_value_1, 31 - end_1, end_1 - start_1 + 1);
-
-        set_entity_integer(end_index, end_integer);
-    }
-
 }
 
 fn parse_local_position(entity_vector : vec4u) -> vec2f {
@@ -145,7 +106,7 @@ fn serialize_to_10_bit (number : f32) -> u32 {
     let rounding = (ieee_754 >> 18) & 1u;
     let mantissa = ((ieee_754 >> 19) & 0xFu) + rounding;
 
-    return (sign << 9) + min((exponent << 4) + mantissa, 0x1FF);
+    return (sign << 9) + min((exponent << 4) + mantissa, 0x1FFu);
 }
 
 fn parse_from_10_bit (bits : u32) -> f32 {
@@ -273,12 +234,11 @@ fn do_the_physics() {
     velocity.y -= 0.0981;
     velocity.y *= 0.97;
 
-    velocity.x = select(velocity.x, 0,
+    velocity.x = select(velocity.x, 0.0,
         ((local_position.x > f32(CHUNK_LENGTH * 16)) && (chunk_position.x == WORLD_WIDTH_IN_CHUNKS - 1)) ||
         ((local_position.x < 0.0)                    && (chunk_position.x == 0))
     );
-    velocity.y = select
-    (velocity.y, 0,
+    velocity.y = select(velocity.y, 0.0,
         ((local_position.y > f32(CHUNK_LENGTH * 16)) && (chunk_position.y == WORLD_HEIGHT_IN_CHUNKS - 1)) ||
         ((local_position.y < 0.0)                    && (chunk_position.y == 0))
     );

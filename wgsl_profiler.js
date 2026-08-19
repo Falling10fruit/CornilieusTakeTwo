@@ -4,22 +4,22 @@ import { join } from "path";
 
 createServer(async (req, res) => {
     const concated_html = await return_html_with_file_paths([
-        join("wgsl_profiler.html"),
+        join("wgsl_profiler copy.html"),
         join("src", "wgsl", "render_buffer.wgsl"),
-        join("src", "wgsl", "sort_entities.wgsl"),
+        join("src", "wgsl", "sort_entities copy.wgsl"),
     ]);
-
+    
     res.writeHead(200, { "Content-Type": "text/html"});
     res.end(concated_html);
 }).listen(8408, "localhost", () => { console.log("running server on http://localhost:8408")});
 
 createServer(async (req, res) => {
     const concated_html = await return_html_with_file_paths([
-        join("wgsl_profiler copy.html"),
+        join("wgsl_profiler.html"),
         join("src", "wgsl", "render_buffer.wgsl"),
-        join("src", "wgsl", "sort_entities copy.wgsl"),
+        join("src", "wgsl", "sort_entities.wgsl"),
     ]);
-    
+
     res.writeHead(200, { "Content-Type": "text/html"});
     res.end(concated_html);
 }).listen(8080, "localhost", () => { console.log("running server on http://localhost:8080")});
