@@ -7,7 +7,8 @@
     "dev": "vite",
     "tauri": "tauri",
     "build": "tsc && vite build",
-    "test": "vitest"
+    "test": "vitest",
+    "profile": "node 'wgsl_profiler copy.js'"
   },
   "keywords": [
     "game",
