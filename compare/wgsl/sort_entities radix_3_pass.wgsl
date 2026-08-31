@@ -67,8 +67,10 @@ var<workgroup> shared_prefix : array<u32, 512>;
     if (local_id == 0) { global_histogram[workgroup_id.y][workgroup_id.x] = shared_prefix[255]; }
 }
 
+
 // 256 workgroups for each digit
-@compute @workgroup_size(256) fn global_prefix(
+override THREAD_COUNT: u32 = 256u >> (24 - ENTITY_COUNT_LOG2);
+@compute @workgroup_size(THREAD_COUNT) fn global_prefix(
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {

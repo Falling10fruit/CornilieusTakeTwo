@@ -393,11 +393,11 @@
                 compute_pass.setPipeline(local_accumulation_pipeline);
                 compute_pass.dispatchWorkgroups(256, 256, 256 >> (24 - ENTITY_COUNT_LOG2));
                 compute_pass.setPipeline(global_accumulation_pipeline);
-                compute_pass.dispatchWorkgroups(256, 256);
+                compute_pass.dispatchWorkgroups(256, 256 >> (24 - ENTITY_COUNT_LOG2));
                 compute_pass.setPipeline(global_prefix_pipeline);
                 compute_pass.dispatchWorkgroups(256);
                 compute_pass.setPipeline(local_prefix_pipeline);
-                compute_pass.dispatchWorkgroups(256, 256);
+                compute_pass.dispatchWorkgroups(256, 256 >> (24 - ENTITY_COUNT_LOG2));
                 compute_pass.setPipeline(rescatter_pipeline);
                 compute_pass.dispatchWorkgroups(256, 256, 256 >> (24 - ENTITY_COUNT_LOG2));
                 
