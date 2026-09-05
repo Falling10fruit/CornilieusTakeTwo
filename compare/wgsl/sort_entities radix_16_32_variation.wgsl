@@ -12,17 +12,27 @@ override BYTE_SHIFT : u32 = 0; // 0 -> 2
 override ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
 override ITERATION_COUNT : u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
 
-var<workgroup> shared_prefix : array<u32, 512>; // 65536/(256 * 4)
-// (256 *) 4,096  workgroups for 2^24 entities
+// each digit takes up 8 bits, we don't do the last iteration of the hillis steele loop and just add the first and last elements manually
+// 16*4*4*256 = 65536 16*4*4
+var<workgroup> shared_prefix : array<array<vec4u, 16>, 256>;
+fn shared_prefix_fetch(thread_id: u32, digit: u32) -> u32 {
+    return (shared_prefix[thread_id][digit >> 4][(digit >> 2) & 3u] >> (4 * (digit & 3u))) & 0xFu;
+}
+
+// 8192  workgroups for 2^24 entities (2^24)/256/16/16
 @compute @workgroup_size(256) fn local_accumulation( 
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
-    let offset = workgroup_id.y * 256 * ITERATION_COUNT + local_id;
+    let offset = workgroup_id.y * 256 * ITERATION_COUNT + local_id * 256;
     var accumulation = 0u;
+
+    let entities_array_length = arrayLength(&entity_buffer_0);
     for (var i = 0u; i < ITERATION_COUNT; i++) {
-        let entity_vector = entity_buffer_0[offset + i * 256];
+        let index = offset + i * 256;
+        if (index >= entities_array_length) { return; }
+        let entity_vector = entity_buffer_0[index];
 
         var chunk_byte: u32;
         if (BYTE_SHIFT == 0u) {
@@ -30,22 +40,26 @@ var<workgroup> shared_prefix : array<u32, 512>; // 65536/(256 * 4)
         } else {
             chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
         }
+        
+        shared_prefix[local_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += accumulation << ((chunk_byte & 3u) * 8u);
+    } workgroupBarrier();
 
-        if (chunk_byte == workgroup_id.x) { accumulation += 1u; }
-    } shared_prefix[local_id] = accumulation;
-    workgroupBarrier();
+    for (var exponent = 0u; exponent < 5; exponent += 1) {
+        let stride = 1u << exponent; // 1 << 8
+        
+        for (var index = 0u; index < 16; index++) {
+            var temp: u32;
+            if (local_id >= stride) {
+                temp = 
+            } workgroupBarrier();
 
-    for (var exponent = 0u; exponent < 8; exponent += 1) {
-        let stride = 1u << exponent; if (local_id > stride) {
-            shared_prefix[
-                (local_id         ) + (1 - (exponent & 1u)) * 256
-            ] += shared_prefix[
-                (local_id - stride) + (    (exponent & 1u)) * 256
-            ];
-        } workgroupBarrier();
+            if ( local_id >= stride) {
+                shared_prefix[][index] += temp
+            } workgroupBarrier();
+        } 
     }
 
-    if (local_id == 0) { workgroup_prefix[workgroup_id.y][workgroup_id.x] = shared_prefix[255]; }
+    workgroup_prefix[workgroup_id.x][local_id] = shared_prefix_fetch(, );
 }
 
 // 256 workgroups for each digit
