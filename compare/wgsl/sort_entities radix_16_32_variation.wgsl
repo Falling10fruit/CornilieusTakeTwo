@@ -5,22 +5,22 @@ requires packed_4x8_integer_dot_product;
 @group(0) @binding(0) var<storage, read_write> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 
-@group(1) @binding(0) var<storage, read_write> workgroup_prefix : array<array<u32, 256>>; // 16384*256*4/(2^20)
+@group(1) @binding(0) var<storage, read_write> workgroup_prefix : array<array<u32, 256>>; // (2^24)/256
 @group(1) @binding(1) var<storage, read_write> digit_prefix : array<array<u32, 256>>; // 128*256*4/(2^10)
 // @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
 
 override BYTE_SHIFT : u32 = 0; // 0 -> 2
 override ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
-override ITERATION_COUNT : u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
+override ITERATION_COUNT : u32 = 4u >> (24 - ENTITY_COUNT_LOG2);
 
-// each digit takes up 8 bits, we don't do the last iteration of the hillis steele loop and just add the first and last elements manually
-// 16*4*4*256 = 65536 16*4*4
+// each digit takes up 16 bits, we don't do the last iteration of the hillis steele loop and just add the first and last elements manually
+// 2^16 = 65535
 var<workgroup> shared_prefix : array<array<vec4u, 16>, 256>;
 fn shared_prefix_fetch(prefix_index: u32, digit: u32) -> u32 {
     return (shared_prefix[prefix_index][digit >> 4][(digit >> 2) & 3u] >> (4 * (digit & 3u))) & 0xFu;
 }
 
-// 16384 workgroups for 2^24 entities (2^24)/256/16 
+// 16384 workgroups for 2^24 entities (2^24)/2/256
 @compute @workgroup_size(256) fn local_accumulation( 
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
@@ -56,10 +56,14 @@ fn shared_prefix_fetch(prefix_index: u32, digit: u32) -> u32 {
         } workgroupBarrier();
     }
 
-    workgroup_prefix[workgroup_id.x][local_id] = shared_prefix_fetch(0, local_id) + shared_prefix_fetch(255, local_id);
+    workgroup_prefix[workgroup_id.x][local_id] =
+        shared_prefix_fetch(63, local_id) +
+        shared_prefix_fetch(127, local_id) +
+        shared_prefix_fetch(191, local_id) +
+        shared_prefix_fetch(255, local_id);
 }
 
-var<workgroup> 
+var<workgroup> shared_workgroup_prefix: array<array<vec4u, 16>, 256>;
 // 8192 (* 32) workgroups for each digit
 @compute @workgroup_size(256) fn global_prefix(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
@@ -79,7 +83,9 @@ var<workgroup>
     }
     workgroupBarrier();
 
-    for ()
+    for (var i = 1u; i < 128; i <<= 1;) {
+
+    }
 }
 
 // (256 *) 4,096 workgroups for 2^24 entities
