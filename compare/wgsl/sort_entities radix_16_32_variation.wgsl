@@ -1,11 +1,12 @@
+requires packed_4x8_integer_dot_product;
 // type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (2 * 16 pixels divided by 2^8)     rotation 2^13 
 //  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |
 
 @group(0) @binding(0) var<storage, read_write> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 
-@group(1) @binding(0) var<storage, read_write> workgroup_prefix : array<array<u32, 256>>; // length 4096 for 2^24 entities (2^24)/256 = 65536 (64 MiB)
-@group(1) @binding(1) var<storage, read_write> digit_prefix : array<u32>; // length 256 for every digit
+@group(1) @binding(0) var<storage, read_write> workgroup_prefix : array<array<u32, 256>>; // 16384*256*4/(2^20)
+@group(1) @binding(1) var<storage, read_write> digit_prefix : array<array<u32, 256>>; // 128*256*4/(2^10)
 // @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
 
 override BYTE_SHIFT : u32 = 0; // 0 -> 2
@@ -15,17 +16,17 @@ override ITERATION_COUNT : u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
 // each digit takes up 8 bits, we don't do the last iteration of the hillis steele loop and just add the first and last elements manually
 // 16*4*4*256 = 65536 16*4*4
 var<workgroup> shared_prefix : array<array<vec4u, 16>, 256>;
-fn shared_prefix_fetch(thread_id: u32, digit: u32) -> u32 {
-    return (shared_prefix[thread_id][digit >> 4][(digit >> 2) & 3u] >> (4 * (digit & 3u))) & 0xFu;
+fn shared_prefix_fetch(prefix_index: u32, digit: u32) -> u32 {
+    return (shared_prefix[prefix_index][digit >> 4][(digit >> 2) & 3u] >> (4 * (digit & 3u))) & 0xFu;
 }
 
-// 8192  workgroups for 2^24 entities (2^24)/256/16/16
+// 16384 workgroups for 2^24 entities (2^24)/256/16 
 @compute @workgroup_size(256) fn local_accumulation( 
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
 ) {
-    let offset = workgroup_id.y * 256 * ITERATION_COUNT + local_id * 256;
+    let offset = workgroup_id.y * 256 * ITERATION_COUNT + local_id;
     var accumulation = 0u;
 
     let entities_array_length = arrayLength(&entity_buffer_0);
@@ -44,53 +45,41 @@ fn shared_prefix_fetch(thread_id: u32, digit: u32) -> u32 {
         shared_prefix[local_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += accumulation << ((chunk_byte & 3u) * 8u);
     } workgroupBarrier();
 
-    for (var exponent = 0u; exponent < 5; exponent += 1) {
-        let stride = 1u << exponent; // 1 << 8
-        
-        for (var index = 0u; index < 16; index++) {
-            var temp: u32;
-            if (local_id >= stride) {
-                temp = 
-            } workgroupBarrier();
+    for (var stride = 1u; stride <= 128; stride <<= 1) {
+        var temp: array<vec4u, 16>;
+        if (local_id >= stride) {
+            for (var i = 0u; i < 16; i++) { temp[i] = shared_prefix[local_id - stride][i]; }
+        } workgroupBarrier();
 
-            if ( local_id >= stride) {
-                shared_prefix[][index] += temp
-            } workgroupBarrier();
-        } 
+        if (local_id >= stride) {
+            for (var i = 0u; i < 16; i++) { shared_prefix[local_id][i] += temp[i]; }
+        } workgroupBarrier();
     }
 
-    workgroup_prefix[workgroup_id.x][local_id] = shared_prefix_fetch(, );
+    workgroup_prefix[workgroup_id.x][local_id] = shared_prefix_fetch(0, local_id) + shared_prefix_fetch(255, local_id);
 }
 
-// 256 workgroups for each digit
+var<workgroup> 
+// 8192 (* 32) workgroups for each digit
 @compute @workgroup_size(256) fn global_prefix(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_id : u32
-) { 
-    var private_prefix: array<u32, 16>;
+) {
+    let offset = workgroup_id.y * 256 * ITERATION_COUNT + local_id;
+
     var accumulation = 0u;
-    for (var i = 0u; i < 16; i++) { // 256 * 16
-        accumulation += workgroup_prefix[local_id + i * 256][workgroup_id.x];
-        private_prefix[i] = accumulation;
-    } shared_prefix[local_id] = accumulation;
+    for (var i = 0u; i < 16; i++) {
+        let vector = workgroup_prefix[workgroup_id.x][i];
+        accumulation += 
+            dot4U8Packed(vector.x, 0x01010101u) +
+            dot4U8Packed(vector.y, 0x01010101u) +
+            dot4U8Packed(vector.z, 0x01010101u) +
+            dot4U8Packed(vector.w, 0x01010101u); 
+    }
     workgroupBarrier();
 
-    for (var exponent = 0u; exponent < 8; exponent += 1) {
-        let stride = 1u << exponent; if (local_id > stride) {
-            shared_prefix[
-                (local_id         ) + (1 - (exponent & 1u)) * 256
-            ] += shared_prefix[
-                (local_id - stride) + (    (exponent & 1u)) * 256
-            ];
-        } workgroupBarrier();
-    }
-
-    for (var i = 0u; i < 16; i++) {
-        workgroup_prefix[local_id + i * 256][workgroup_id.x] = shared_prefix[local_id] + private_prefix[i];
-    }
-
-    if (local_id == 0) { digit_prefix[workgroup_id.x] = shared_prefix[255]; }
+    for ()
 }
 
 // (256 *) 4,096 workgroups for 2^24 entities
@@ -140,41 +129,4 @@ fn shared_prefix_fetch(thread_id: u32, digit: u32) -> u32 {
     for (var i = 0u; i < private_prefix_length; i++) { entity_buffer_1[digit_offset + workgroup_offset + i] = entity_vectors[i]; }
 }
 
-
-// 1 4 7  2  5  8  3  6  9
-// 1 5 12 14 19 27 30 36 45
-// thread 1: 1 2 3 -> 1  3  6
-// thread 2: 4 5 6 -> 4  9  15
-// thread 3: 7 8 9 -> 7  15 24
-// global prefix: 6 21 45
-// thread 1: 1  3  6  -> 1 9 27
-// thread 2: 4  9  15 -> 4 15 31
-// thread 3: 7  15 24 -> 7 21 45
-// 1 4 7 9 1 5 21 27 31 45
-// 1 4 7 2 5  8  3  6  9
-
-// 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
-// workgroup 0:
-//  thread 0: 1  3  -> 4
-//  thread 1: 2  4  -> 6
-// workgroup 1:
-//  thread 0: 5  7  -> 12
-//  thread 1: 6  8  -> 14
-// workgroup 2:
-//  thread 0: 9  11 -> 20
-//  thread 1: 10 12 -> 22
-// workgroup 3:
-//  thread 0: 13 15 -> 28
-//  thread 1: 14 16 -> 30
-// workgroup 4:
-//  thread 0: 17 19 -> 36
-//  thread 1: 18 20 -> 38
-// workgroup 5:
-//  thread 0: 21 23 -> 44
-//  thread 1: 22 24 -> 46
-// workgroup 6:
-//  thread 0: 25 27 -> 52
-//  thread 1: 26 28 -> 54
-// workgroup 7:
-//  thread 0: 29 31 -> 60
-//  thread 1: 30 32 -> 62
+// Every pass takes 2^n elements and puts them together
