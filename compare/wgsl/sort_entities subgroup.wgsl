@@ -15,6 +15,7 @@ override ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
 override MINIMUM_SUBGROUP_SIZE : u32 = 32u; // or 16
 override SHARED_PREFIX_SIZE : u32 = 256u / MINIMUM_SUBGROUP_SIZE;
 var<workgroup> shared_prefix : array<array<vec4u, 16>, SHARED_PREFIX_SIZE>; // 32 * 16 * 4 * 4 = 8192/2^10
+var<workgroup> shared_prefix_8 : array<array<vec2u, 32>, 32>;
 
 // 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(256) fn local_accumulation(
@@ -51,9 +52,12 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, SHARED_PREFIX_SIZE>; // 3
         var total = subgroupAdd(select(0u, shared_prefix[sub_id][subgroup_id], sub_id < subgroup_size));
         workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = (total[(sub_id >> 2) & 3u] >> (8 * (sub_id & 3u))) & 0xFFu;
     } else { // 32 subgroups
-        let total_0 = subgroupAdd(shared_prefix[sub_id][subgroup_id]);
-        let total_0 = subgroupAdd(shared_prefix[sub_id][subgroup_id]);
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = (total[(sub_id >> 2) & 3u] >> (8 * (sub_id & 3u))) & 0xFFu;
+        var totals: array<vec4u, 4>;
+        for (var i = 0u; i < 4; i++) { if (subgroup_id < 16) {
+            totals[i] = subgroupAdd(shared_prefix[sub_id + i * 4][subgroup_id]);
+        }}
+
+        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = totals[(subgroup_id >> 1) & 3u][((subgroup_id & 1u) << 1u) + (sub_id >> 2)] << (8 * (sub_id & 3u));
     }
 }
 
