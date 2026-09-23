@@ -330,7 +330,7 @@
             const eyedropper_p = document.getElementById("eyedropper");
             var frame_buffer_data = undefined;
 
-            const use_interval = true;
+            const use_interval = <node_inject>use_interval</node_inject>;
             if (use_interval) {
                 setInterval(tick, 200);
             } else { tick(); }

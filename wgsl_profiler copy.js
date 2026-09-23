@@ -3,25 +3,38 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 
 [
-    "master",
-    "byte_digit_radix_16_256_variation",
-    "radix_3_pass",
-].forEach((suffix, index) => {
+    {
+        suffix: "master",
+        use_interval: true
+    },
+    {
+        suffix: "byte_digit_radix_16_256_variation",
+        use_interval: true
+    },
+    {
+        suffix: "radix_3_pass",
+        use_interval: true
+    }
+].forEach((record, index) => {
     createServer(async (req, res) => {
-        const concated_html = await return_html_with_file_paths({suffix, file_paths: [
-            join("compare", "html", `wgsl_profiler ${suffix}.html`),
-            join("src", "wgsl", "render_buffer.wgsl"),
-            join("compare", "wgsl", `sort_entities ${suffix}.wgsl`),
-        ]});
+        const concated_html = await return_html_with_file_paths({
+            file_paths: [
+                join("compare", "html", `wgsl_profiler ${record.suffix}.html`),
+                join("src", "wgsl", "render_buffer.wgsl"),
+                join("compare", "wgsl", `sort_entities ${record.suffix}.wgsl`),
+            ],
+            suffix: record.suffix, 
+            use_interval: record.use_interval
+        });
         
         res.writeHead(200, { "Content-Type": "text/html"});
         res.end(concated_html);
-    }).listen(8400 + index, "localhost", () => { console.log(`${suffix} running on http://localhost:${8400 + index}`)});
+    }).listen(8400 + index, "localhost", () => { console.log(`${record.suffix} running on http://localhost:${8400 + index}`)});
 
 })
 
 async function return_html_with_file_paths(parameters) {
-    const {suffix, file_paths} = parameters;
+    const {suffix, file_paths, use_interval} = parameters;
 
     const [
         html,
@@ -36,7 +49,8 @@ async function return_html_with_file_paths(parameters) {
     return do_the_express_thing(html, {
         title: suffix,
         render_source: render_buffer_source,
-        sort_source: sort_entities_source
+        sort_source: sort_entities_source,
+        use_interval
     });
 }
 

@@ -33,10 +33,10 @@
             const canvas = document.getElementById("canvas");
             canvas.width = 64 * 3;
             canvas.height = 36 * 3;
-
+            
             const render_buffer_source = `<node_inject>render_source</node_inject>`
             const sort_entities_source = `<node_inject>sort_source</node_inject>`;
-            
+
             const chunk_prefix_source = ``;
             const chunk_prefix_workgroup_source = ``;
             const chunk_rescatter_source = ``;
@@ -47,7 +47,10 @@
                 requiredLimits: {
                     maxStorageBuffersPerShaderStage: 12,
                 },
-                requiredFeatures: ["timestamp-query"]
+                requiredFeatures: [
+                    "timestamp-query",
+                    "subgroups"
+                ]
             });
 
             const query_set = device.createQuerySet({
@@ -72,7 +75,7 @@
                 usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
             });
 
-            const ENTITY_COUNT_LOG2 = 21;
+            const ENTITY_COUNT_LOG2 = 21;  // only down to 20
 
             const viewport_buffer = device.createBuffer({
                 label: "viewport buffer",
@@ -111,14 +114,14 @@
                 size: 4,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
-            const digit_prefix_buffer = device.createBuffer({
+            const workgroup_histogram = device.createBuffer({
                 label: `digital prefix buffer`,
-                size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2), // dw it's 64 MiB
+                size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2),
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
-            const global_prefix_buffer = device.createBuffer({
+            const global_histogram = device.createBuffer({
                 label: `global prefix buffer`,
-                size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2),
+                size: 4 * 256 * 256,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
             });
 
@@ -147,14 +150,13 @@
                 label: "gpu debug buffer bind group layout",
                 entries: [ { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
             });
-            
 
             const render_buffer_shader_module = device.createShaderModule({
                 label: "render buffer shader module",
                 code: render_buffer_source
             });
             const sort_shader_module = device.createShaderModule({
-                label: `chunk count shader module`,
+                label: `sort shader module`,
                 code: sort_entities_source
             });
 
@@ -190,11 +192,11 @@
             const [
                 render_buffer_pipeline,
 
-                accumulate_pipeline,
-                local_prefix_sum_pipeline,
-                global_prefix_sum_pipeline,
-                increment_by_global_prefix_pipeline,
-                rescatter_pipeline,
+                local_accumulation_pipeline,
+                global_accumulation_pipeline,
+                global_prefix_pipeline,
+                local_prefix_pipeline,
+                rescatter_pipeline
             ] = await Promise.all([
                 device.createRenderPipelineAsync({
                     label: "render buffer pipeline",
@@ -221,9 +223,9 @@
                     },
                 }),
                 device.createComputePipelineAsync({
-                    label: "accumulate pipeline",
+                    label: "local accumulation pipeline",
                     layout: device.createPipelineLayout({
-                        label: "accumulate pipeline layoute",
+                        label: "local accumulation pipeline layoute",
                         bindGroupLayouts: [
                             entity_bind_group_layout,
                             sort_bind_group_layout,
@@ -235,14 +237,15 @@
                         entryPoint: "local_accumulation",
                         constants: {
                             BYTE_SHIFT: 0,
-                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
+                            MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
                         }
                     }
                 }),
                 device.createComputePipelineAsync({
-                    label: "local_prefix_sum pipeline",
+                    label: "global accumulation pipeline",
                     layout: device.createPipelineLayout({
-                        label: "local_prefix_sum pipeline layoute",
+                        label: "global accumulation pipeline layoute",
                         bindGroupLayouts: [
                             entity_bind_group_layout,
                             sort_bind_group_layout
@@ -253,14 +256,15 @@
                         entryPoint: "global_accumulation",
                         constants: {
                             BYTE_SHIFT: 0,
-                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
+                            MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
                         }
                     }
                 }),
                 device.createComputePipelineAsync({
-                    label: "global_prefix_sum pipeline",
+                    label: "global prefix pipeline",
                     layout: device.createPipelineLayout({
-                        label: "global_prefix_sum pipeline layoute",
+                        label: "global prefix pipeline layoute",
                         bindGroupLayouts: [
                             entity_bind_group_layout,
                             sort_bind_group_layout,
@@ -269,17 +273,18 @@
                     }),
                     compute: {
                         module: sort_shader_module,
-                        entryPoint: "global_prefix_sum",
+                        entryPoint: "global_prefix",
                         constants: {
                             BYTE_SHIFT: 0,
-                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
+                            MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
                         }
                     }
                 }),
                 device.createComputePipelineAsync({
-                    label: "increment_by_global_prefix pipeline",
+                    label: "local prefix pipeline",
                     layout: device.createPipelineLayout({
-                        label: "increment_by_global_prefix pipeline layoute",
+                        label: "local prefix pipeline layoute",
                         bindGroupLayouts: [
                             entity_bind_group_layout,
                             sort_bind_group_layout,
@@ -288,15 +293,16 @@
                     }),
                     compute: {
                         module: sort_shader_module,
-                        entryPoint: "local_prefix_sum",
+                        entryPoint: "local_prefix",
                         constants: {
                             BYTE_SHIFT: 0,
-                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
+                            MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
                         }
                     }
                 }),
                 device.createComputePipelineAsync({
-                    label: "rescatter pipeline",
+                    label: "rescatter prefix pipeline",
                     layout: device.createPipelineLayout({
                         label: "rescatter pipeline layoute",
                         bindGroupLayouts: [
@@ -310,7 +316,8 @@
                         entryPoint: "rescatter",
                         constants: {
                             BYTE_SHIFT: 0,
-                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2
+                            ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
+                            MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
                         }
                     }
                 }),
@@ -321,7 +328,7 @@
                 layout: render_buffer_bind_group_layout,
                 entries: [
                     { binding: 0, resource: { buffer: viewport_buffer } },
-                    { binding: 1, resource: { buffer: digit_prefix_buffer } },
+                    { binding: 1, resource: { buffer: workgroup_histogram } },
                 ]
             });
             const gpu_debug_buffer_bind_group = device.createBindGroup({
@@ -341,8 +348,8 @@
                 label: "sort bind group",
                 layout: sort_bind_group_layout,
                 entries: [
-                    { binding: 0, resource: { buffer: digit_prefix_buffer } },
-                    { binding: 1, resource: { buffer: global_prefix_buffer } },
+                    { binding: 0, resource: { buffer: workgroup_histogram } },
+                    { binding: 1, resource: { buffer: global_histogram } },
                 ]
             });
 
@@ -390,16 +397,17 @@
                 compute_pass.setBindGroup(1, sort_bind_group);
                 compute_pass.setBindGroup(2, gpu_debug_buffer_bind_group);
                 
-                compute_pass.setPipeline(accumulate_pipeline);
-                compute_pass.dispatchWorkgroups(65536 >> (24 - ENTITY_COUNT_LOG2));
-                compute_pass.setPipeline(local_prefix_sum_pipeline);
-                compute_pass.dispatchWorkgroups(256 >> (24 - ENTITY_COUNT_LOG2), 256);
-                compute_pass.setPipeline(global_prefix_sum_pipeline);
+                console.log(256 >> (24 - ENTITY_COUNT_LOG2));
+                compute_pass.setPipeline(local_accumulation_pipeline);
+                compute_pass.dispatchWorkgroups(256, 256, 256 >> (24 - ENTITY_COUNT_LOG2));
+                compute_pass.setPipeline(global_accumulation_pipeline);
+                compute_pass.dispatchWorkgroups(256, 256 >> (24 - ENTITY_COUNT_LOG2));
+                compute_pass.setPipeline(global_prefix_pipeline);
                 compute_pass.dispatchWorkgroups(256);
-                compute_pass.setPipeline(increment_by_global_prefix_pipeline);
-                compute_pass.dispatchWorkgroups(256 >> (24 - ENTITY_COUNT_LOG2), 256);
+                compute_pass.setPipeline(local_prefix_pipeline);
+                compute_pass.dispatchWorkgroups(256, 256 >> (24 - ENTITY_COUNT_LOG2));
                 compute_pass.setPipeline(rescatter_pipeline);
-                compute_pass.dispatchWorkgroups(65536 >> (24 - ENTITY_COUNT_LOG2), 256);
+                compute_pass.dispatchWorkgroups(256, 256, 256 >> (24 - ENTITY_COUNT_LOG2));
                 
                 compute_pass.end();
 
