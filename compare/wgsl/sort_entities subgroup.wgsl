@@ -36,28 +36,44 @@ var<workgroup> shared_prefix_8 : array<array<vec2u, 32>, 32>;
         chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
     }
 
-    var havent_finished = true;
-    while (havent_finished) {
-        if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
-            let total = subgroupAdd(1u);
-            if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
-            havent_finished = false;
-        }
-    } workgroupBarrier();
-
     if (subgroup_size > 8u) {
-        // size 64 -> 4 subgroups
-        // size 32 -> 8 subgroups
-        // size 16 -> 16 subgroups
-        var total = subgroupAdd(select(0u, shared_prefix[sub_id][subgroup_id], sub_id < subgroup_size));
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = (total[(sub_id >> 2) & 3u] >> (8 * (sub_id & 3u))) & 0xFFu;
+        var havent_finished = true;
+        while (havent_finished) {
+            if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
+                let total = subgroupAdd(1u);
+                if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
+                havent_finished = false;
+            }
+        } workgroupBarrier();
+
+        let this_increment = shared_prefix[sub_id][subgroup_id];
+        var total = subgroupAdd(select(0u, this_increment, sub_id < subgroup_size));
+        
+        let vector_index = (sub_id >> 2) & 3u;
+        let integer_shift = 8 * (sub_id & 3u);
+        let greater_than_0_mask = 0xFFu * u32((this_increment[vector_index] >> integer_shift) == 0u); // 1111^0000 ; 0000^1010
+        let final_value = (total[vector_index] >> integer_shift) & 0xFFu;
+        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = final_value ^ greater_than_0_mask;
     } else { // 32 subgroups
+        var havent_finished = true;
+        while (havent_finished) {
+            if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
+                let total = subgroupAdd(1u);
+                if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); } // GOOD MORNING YOGA, PLEASE MAKE THIS IF BRANCH USE SHARED_PREFIX_8
+                havent_finished = false;
+            }
+        } workgroupBarrier();
+
         var totals: array<vec4u, 4>;
         for (var i = 0u; i < 4; i++) { if (subgroup_id < 16) {
-            totals[i] = subgroupAdd(shared_prefix[sub_id + i * 4][subgroup_id]);
+            totals[i] = subgroupAdd(shared_prefix[sub_id + i * subgroup_size][subgroup_id]);
         }}
 
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = totals[(subgroup_id >> 1) & 3u][((subgroup_id & 1u) << 1u) + (sub_id >> 2)] << (8 * (sub_id & 3u));
+        let total_index = (subgroup_id >> 1) & 3u;
+        let vector_index = ((subgroup_id & 1u) << 1u) + (sub_id >> 2);
+        let greater_than_0_mask = (total[vector_index] >> integer_shift) & 0xFFu;
+        let final_value = totals[total_index][vector_index] << (8 * (sub_id & 3u));
+        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = ;
     }
 }
 
