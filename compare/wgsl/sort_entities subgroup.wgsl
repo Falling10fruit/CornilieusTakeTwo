@@ -13,9 +13,8 @@ override BYTE_SHIFT : u32 = 0; // 0 -> 2
 override ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
 
 override MINIMUM_SUBGROUP_SIZE : u32 = 32u; // or 16
-override SHARED_PREFIX_SIZE : u32 = 256u / MINIMUM_SUBGROUP_SIZE;
-var<workgroup> shared_prefix : array<array<vec4u, 16>, SHARED_PREFIX_SIZE>; // 32 * 16 * 4 * 4 = 8192/2^10
-var<workgroup> shared_prefix_8 : array<array<vec2u, 32>, 32>;
+override MAXIMUM_SUBGROUP_COUNT : u32 = 256u / MINIMUM_SUBGROUP_SIZE;
+var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; // 32 * 16 * 4 * 4 = 8192/2^10
 
 // 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(256) fn local_accumulation(
@@ -59,20 +58,20 @@ var<workgroup> shared_prefix_8 : array<array<vec2u, 32>, 32>;
         while (havent_finished) {
             if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
                 let total = subgroupAdd(1u);
-                if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); } // GOOD MORNING YOGA, PLEASE MAKE THIS IF BRANCH USE SHARED_PREFIX_8
+                if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
                 havent_finished = false;
             }
         } workgroupBarrier();
 
-        var totals: array<vec4u, 4>;
+        var totals: array<vec4u, 8>;
         for (var i = 0u; i < 4; i++) { if (subgroup_id < 16) {
             totals[i] = subgroupAdd(shared_prefix[sub_id + i * subgroup_size][subgroup_id]);
         }}
 
-        let total_index = (subgroup_id >> 1) & 3u;
-        let vector_index = ((subgroup_id & 1u) << 1u) + (sub_id >> 2);
-        let greater_than_0_mask = (total[vector_index] >> integer_shift) & 0xFFu;
-        let final_value = totals[total_index][vector_index] << (8 * (sub_id & 3u));
+        let vector_index = sub_id >> 2;
+        let integer_shift = 8 * (sub_id & 3u);
+        let greater_than_0_mask = (totals[subgroup_id][vector_index] >> integer_shift) & 0xFFu;
+        let final_value = (totals[subgroup_id][vector_index] >> integer_shift) & 0xFFu;
         workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = ;
     }
 }
