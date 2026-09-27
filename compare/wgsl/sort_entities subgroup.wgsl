@@ -54,7 +54,7 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; 
         
         let is_final_zero = final_value == 0u;
         let is_this_zero = ((this_increment[vector_index] >> integer_shift) & 0xFFu) == 0u;
-        let is_overflow = is_final_zero && !is_this_zero;
+        let is_overflow = is_final_zero && !is_this_zero; 
         
         if (subgroupAny(is_overflow)) { // the thread with the overflow has to share the same vec4u aka be in the same subgroup
             workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = subgroupShuffleDown(final_value, 1u) * 256;
@@ -78,9 +78,22 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; 
             total = subgroupAdd(select(0u, shared_prefix[sub_id][subgroup_id], sub_id < 2));
             if (subgroupElect()) { shared_prefix[0][subgroup_id] = total; }
         } workgroupBarrier();
-
         if (subgroup_id >= 16) { total = shared_prefix[0][vec4u_index]; }
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = total[(subgroup_shift << 1) + (sub_id >> 2)] << (8 * (sub_id & 3u));
+
+        let total_index = (subgroup_shift << 1) + (sub_id >> 2);
+        let integer_shift = 8 * (sub_id & 3u);
+        let final_value = (total[total_index] >> integer_shift) & 0xFFu;
+        let this_value = (this_increment[total_index] >> integer_shift) & 0xFFu;
+
+        let is_final_zero = final_value == 0u;
+        let is_this_zero = this_value == 0u;
+        let is_overflow = is_final_zero && !is_this_zero;
+
+        if (subgroupAny(is_overflow)) {
+            workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = final_value;
+        } else {
+            workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = final_value;
+        }
     }
 }
 
