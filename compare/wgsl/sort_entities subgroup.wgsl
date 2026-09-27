@@ -14,7 +14,7 @@ override ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
 
 override MINIMUM_SUBGROUP_SIZE : u32 = 32u; // or 16
 override MAXIMUM_SUBGROUP_COUNT : u32 = 256u / MINIMUM_SUBGROUP_SIZE;
-var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; // 32 * 16 * 4 * 4 = 8192/2^10
+var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; // overflow means that all but 
 
 // 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(256) fn local_accumulation(
@@ -35,44 +35,52 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; 
         chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
     }
 
-    if (subgroup_size > 8u) {
-        var havent_finished = true;
-        while (havent_finished) {
-            if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
-                let total = subgroupAdd(1u);
-                if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
-                havent_finished = false;
-            }
-        } workgroupBarrier();
+    var havent_finished = true;
+    while (havent_finished) {
+        if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
+            let total = subgroupAdd(1u);
+            if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
+            havent_finished = false;
+        }
+    } workgroupBarrier();
 
-        let this_increment = shared_prefix[sub_id][subgroup_id];
-        var total = subgroupAdd(select(0u, this_increment, sub_id < subgroup_size));
+    if (subgroup_size > 8u) { // later split this function into two to check which subgroup size the compiler decides to use
+        let this_increment: vec4u = shared_prefix[sub_id][subgroup_id]; 
+        var total = subgroupAdd(select(vec4u(0, 0, 0, 0), this_increment, sub_id < subgroup_size));
         
         let vector_index = (sub_id >> 2) & 3u;
         let integer_shift = 8 * (sub_id & 3u);
-        let greater_than_0_mask = 0xFFu * u32((this_increment[vector_index] >> integer_shift) == 0u); // 1111^0000 ; 0000^1010
-        let final_value = (total[vector_index] >> integer_shift) & 0xFFu;
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = final_value ^ greater_than_0_mask;
+        var final_value = (total[vector_index] >> integer_shift) & 0xFFu;
+        
+        let is_final_zero = final_value == 0u;
+        let is_this_zero = ((this_increment[vector_index] >> integer_shift) & 0xFFu) == 0u;
+        let is_overflow = is_final_zero && !is_this_zero;
+        
+        if (subgroupAny(is_overflow)) { // the thread with the overflow has to share the same vec4u aka be in the same subgroup
+            workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = subgroupShuffleDown(final_value, 1u) * 256;
+        } else {
+            workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = final_value;
+        }
+
     } else { // 32 subgroups
-        var havent_finished = true;
-        while (havent_finished) {
-            if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
-                let total = subgroupAdd(1u);
-                if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
-                havent_finished = false;
-            }
+        let vec4u_index = subgroup_id & 0xFu;
+        let subgroup_shift = subgroup_id >> 4;
+        let this_shift = subgroup_shift * 16 + sub_id * 2;
+        let this_increment: vec4u = shared_prefix[this_shift][vec4u_index] + shared_prefix[this_shift + 1][vec4u_index];
+        let total = subgroupAdd(this_increment);
+
+        workgroupBarrier();
+        if (subgroupElect()) { shared_prefix[subgroup_shift][vec4u_index] = total; }
+        workgroupBarrier();
+
+        var total: vec4u;
+        if (subgroup_id < 16) {
+            total = subgroupAdd(select(0u, shared_prefix[sub_id][subgroup_id], sub_id < 2));
+            if (subgroupElect()) { shared_prefix[0][subgroup_id] = total; }
         } workgroupBarrier();
 
-        var totals: array<vec4u, 8>;
-        for (var i = 0u; i < 4; i++) { if (subgroup_id < 16) {
-            totals[i] = subgroupAdd(shared_prefix[sub_id + i * subgroup_size][subgroup_id]);
-        }}
-
-        let vector_index = sub_id >> 2;
-        let integer_shift = 8 * (sub_id & 3u);
-        let greater_than_0_mask = (totals[subgroup_id][vector_index] >> integer_shift) & 0xFFu;
-        let final_value = (totals[subgroup_id][vector_index] >> integer_shift) & 0xFFu;
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = ;
+        if (subgroup_id >= 16) { total = shared_prefix[0][vec4u_index]; }
+        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = total[(subgroup_shift << 1) + (sub_id >> 2)] << (8 * (sub_id & 3u));
     }
 }
 
