@@ -61,7 +61,6 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; 
         } else {
             workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = final_value;
         }
-
     } else { // 32 subgroups
         let vec4u_index = subgroup_id & 0xFu;
         let subgroup_shift = subgroup_id >> 4;
@@ -90,7 +89,7 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, MAXIMUM_SUBGROUP_COUNT>; 
         let is_overflow = is_final_zero && !is_this_zero;
 
         if (subgroupAny(is_overflow)) {
-            workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = final_value;
+            workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = subgroupShuffleDown(final_value, 1u) * 256;
         } else {
             workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = final_value;
         }
