@@ -18,17 +18,7 @@ override SUBGROUP_SIZE : u32 = 32u; // or 16
 override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
 var<workgroup> shared_prefix : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overflow means that all but 
 
-// 256 * 256 = 65536  workgroups for 2^24 entities
-@compute @workgroup_size(256) fn local_accumulation(
-    @builtin(global_invocation_id) global_invocation_id : vec3u,
-    @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_id : u32,
-    @builtin(subgroup_id) subgroup_id : u32,
-    @builtin(subgroup_invocation_id) sub_id : u32,
-    @builtin(subgroup_size) subgroup_size : u32
-) {
-    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
+fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_id: u32, subgroup_id: u32){
     let entity_vector = entity_buffer_0[workgroup_index * 256 + local_id];
 
     var chunk_byte: u32;
@@ -39,14 +29,28 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overf
     }
 
     var havent_finished = true;
-    while (havent_finished) {
-        if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
+    while (subgroupAny(havent_finished)) {
+        if (havent_finished) { if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
             let total = subgroupAdd(1u);
             if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
             havent_finished = false;
-            workgroupBarrier();
-        }
+        } } workgroupBarrier();
     }
+}
+
+// 256 * 256 = 65536  workgroups for 2^24 entities
+@compute @workgroup_size(256) fn local_accumulation(
+    @builtin(global_invocation_id) global_invocation_id : vec3u,
+    @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(local_invocation_index) local_id : u32,
+    @builtin(subgroup_id) subgroup_id : u32,
+    @builtin(subgroup_invocation_id) sub_id : u32,
+    @builtin(subgroup_size) subgroup_size : u32
+) {
+    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
+    
+    let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
+    get_chunk_byte_into_shared_prefix(workgroup_index, local_id, subgroup_id);
 
     let this_increment: vec4u = shared_prefix[sub_id][subgroup_id]; 
     var total = subgroupAdd(select(vec4u(0, 0, 0, 0), this_increment, sub_id < subgroup_size));
@@ -60,9 +64,9 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overf
     let is_overflow = is_final_zero && !is_this_zero; 
     
     if (subgroupAny(is_overflow)) { // the thread with the overflow has to share the same vec4u aka be in the same subgroup
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = subgroupShuffleDown(final_value, 1u) * 256;
+        workgroup_histogram[workgroup_index][sub_id + subgroup_id * subgroup_size] = subgroupShuffleDown(final_value, 1u) * 256;
     } else {
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][sub_id + subgroup_id * subgroup_size] = final_value;
+        workgroup_histogram[workgroup_index][sub_id + subgroup_id * subgroup_size] = final_value;
     }
 }
 
@@ -74,24 +78,7 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overf
     @builtin(subgroup_invocation_id) sub_id : u32
 ) {
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
-    let entity_vector = entity_buffer_0[workgroup_index * 256 + local_id];
-
-    var chunk_byte: u32;
-    if (BYTE_SHIFT == 0u) {
-        chunk_byte = ((entity_vector.x & 0x1Fu) << 3) + (entity_vector.y >> 29);
-    } else {
-        chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
-    }
-
-    var havent_finished = true;
-    while (havent_finished) {
-        if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
-            let total = subgroupAdd(1u);
-            if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
-            havent_finished = false;
-            workgroupBarrier();
-        }
-    }
+    get_chunk_byte_into_shared_prefix(workgroup_index, local_id, subgroup_id);
 
     let vec4u_index = subgroup_id & 0xFu;
     let subgroup_shift = subgroup_id >> 4;
@@ -120,9 +107,9 @@ var<workgroup> shared_prefix : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overf
     let is_overflow = is_final_zero && !is_this_zero;
 
     if (subgroupAny(is_overflow)) {
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = subgroupShuffleDown(final_value, 1u) * 256;
+        workgroup_histogram[workgroup_index][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = subgroupShuffleDown(final_value, 1u) * 256;
     } else {
-        workgroup_histogram[workgroup_id.x + workgroup_id.y * 256][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = final_value;
+        workgroup_histogram[workgroup_index][(vec4u_index << 4) + (subgroup_shift << 3) + sub_id] = final_value;
     }
 }
 
