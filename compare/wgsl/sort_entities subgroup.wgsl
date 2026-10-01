@@ -30,11 +30,11 @@ fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_id: u32, subgro
 
     var havent_finished = true;
     while (subgroupAny(havent_finished)) {
-        if (havent_finished) { if (chunk_byte == subgroupBroadcastFirst(chunk_byte)) {
-            let total = subgroupAdd(1u);
-            if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
-            havent_finished = false;
-        } } workgroupBarrier();
+        let is_active = havent_finished && (chunk_byte == subgroupBroadcastFirst(chunk_byte));
+        let total = subgroupAdd(select(0u, 1u, is_active));
+        if (subgroupElect()) { shared_prefix[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += total << (8 * (chunk_byte & 3u)); }
+        havent_finished = havent_finished && !is_active;
+        workgroupBarrier();
     }
 }
 
