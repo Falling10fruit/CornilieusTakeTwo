@@ -8,10 +8,10 @@ requires subgroup_id;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 // wesl override
 const ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
-const WORKGROUP_HISTORGRAM_LENGTH = (1u << ENTITY_COUNT_LOG2) >> 8;
-const GLOBAL_HISTORGRAM_LENGTH = WORKGROUP_HISTORGRAM_LENGTH >> 8;
-@group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<array<u32, WORKGROUP_HISTORGRAM_LENGTH>, 256>;
-@group(1) @binding(1) var<storage, read_write> global_histogram : array<array<u32, GLOBAL_HISTORGRAM_LENGTH>, 256>;
+const WORKGROUP_HISTOGRAM_LENGTH = (1u << ENTITY_COUNT_LOG2) >> 8u;
+const GLOBAL_HISTOGRAM_LENGTH = WORKGROUP_HISTOGRAM_LENGTH >> 8u;
+@group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<array<u32, WORKGROUP_HISTOGRAM_LENGTH>, 256>;
+@group(1) @binding(1) var<storage, read_write> global_histogram : array<array<u32, GLOBAL_HISTOGRAM_LENGTH>, 256>;
 @group(2) @binding(0) var<storage, read_write> read_subgroup_size : u32;
 // @group(2) @binding(1) var<storage, read_write> debug_buffer : u32;
 
