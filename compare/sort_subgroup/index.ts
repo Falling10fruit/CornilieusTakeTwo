@@ -4,14 +4,14 @@ import App from './App.tsx'
 const root = document.getElementById('root')
 if (root) render(App, root);
 
+import render_buffer_source from "./wesl/render_buffer.wesl?static"
+import sort_entities_source from "./wesl/main.wesl?static"
 import { get_device } from './ts/get_device.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 canvas.width = 64 * 3;
 canvas.height = 36 * 3;
 
-const render_buffer_source = `<node_inject>render_source</node_inject>`
-const sort_entities_source = `<node_inject>sort_source</node_inject>`;
 
 const { device, ctx } = await get_device();
 
@@ -148,7 +148,7 @@ const mapped_timed_buffers = [
         usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
     }),
 ];
-let gpu_time_spent = [];
+var gpu_time_spent:Array<number>;
 
 const [
     render_buffer_pipeline,
@@ -337,9 +337,9 @@ window.onkeydown = (e) => {
     update_eyedropper_pointer();
 };
 const eyedropper_p = document.getElementById("eyedropper");
-var frame_buffer_data = undefined;
+let frame_buffer_data: Uint8Array;
 
-const use_interval = <node_inject>use_interval</node_inject>;
+const use_interval = true;
 if (use_interval) {
     setInterval(tick, 200);
 } else { tick(); }

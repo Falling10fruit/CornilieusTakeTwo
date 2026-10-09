@@ -24,7 +24,5 @@
     "jsxImportSource": "solid-js"
   },
   "include": ["src", "images.d.ts"],
-  "files": ["src/globals.d.ts"],
-  "types": ["@webgpu/types"],
-  "typeRoots": ["./node_modules/@webgpu/types", "./node_modules/@types"]
+  "files": ["src/globals.d.ts"]
 }

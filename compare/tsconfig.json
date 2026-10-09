@@ -21,9 +21,8 @@
 
     /* tsx */
     "jsx": "preserve",
-    "jsxImportSource": "solid-js"
+    "jsxImportSource": "solid-js",
   },
-  "include": ["/*"],
-  "types": ["@webgpu/types"],
-  "typeRoots": ["./node_modules/@webgpu/types", "./node_modules/@types"]
+  "include": ["**/*"],
+  "files": ["./webgpu.d.ts"],
 }
