@@ -5,60 +5,25 @@ const root = document.getElementById('root')
 if (root) render(App, root);
 
 import render_buffer_source from "./wesl/render_buffer.wesl?static"
-import sort_entities_source from "./wesl/main.wesl?static"
-import { get_device } from './ts/get_device.ts';
+import { get_gpu } from './ts/get_device.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 canvas.width = 64 * 3;
 canvas.height = 36 * 3;
 
+window.ENTITY_COUNT_LOG2 = 21;  // only down to 20
+const { device, ctx } = await get_gpu();
 
-const { device, ctx } = await get_device();
-
-const query_set = device.createQuerySet({
-    type: "timestamp",
-    count: 2
-});
-const resolve_buffer = device.createBuffer({
-    label: " resolve buffer",
-    size: query_set.count * 8,
-    usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC
+const render_buffer_shader_module = device.createShaderModule({
+    label: "render buffer shader module",
+    code: render_buffer_source
 });
 
-device.lost.then((e) => {
-    console.error(e);
-});
+device.queue.writeBuffer(window.gpu_main.render.viewport_buffer, 0,
+    new Float32Array([ ctx.canvas.width, ctx.canvas.height ])
+);
 
-ctx.configure({
-    device: device,
-    format: navigator.gpu.getPreferredCanvasFormat(),
-    alphaMode: "premultiplied",
-    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
-});
-
-const ENTITY_COUNT_LOG2 = 21;  // only down to 20
-
-const viewport_buffer = device.createBuffer({
-    label: "viewport buffer",
-    size: 2 * 4,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
-});
-device.queue.writeBuffer(viewport_buffer, 0, new Float32Array([
-    ctx.canvas.width, ctx.canvas.height
-]));
-
-const entity_buffer_0 = device.createBuffer({
-    label: `entity buffer 0`,
-    size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-});
-const entity_buffer_1 = device.createBuffer({
-    label: `entity buffer 0`,
-    size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-});
-
-device.queue.writeBuffer(entity_buffer_0, 0, new Uint32Array([
+device.queue.writeBuffer(window.gpu_main.entity_buffer_0, 0, new Uint32Array([
     (1 << 23) + (1 << 7), 0, 0, 0,
     (1 << 23) + (2 << 7), 0, 0, 0,
     (1 << 23) + (3 << 7), 0, 0, 0,
@@ -70,100 +35,18 @@ device.queue.writeBuffer(entity_buffer_0, 0, new Uint32Array([
     (1 << 23) + (35 << 7), 0, 0, 0,
 ]));
 
-const gpu_debug_buffer = device.createBuffer({
-    label: "gpu debug buffer",
-    size: 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-});
-const workgroup_histogram = device.createBuffer({
-    label: `digital prefix buffer`,
-    size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2),
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-});
-const global_histogram = device.createBuffer({
-    label: `global prefix buffer`,
-    size: 4 * 256 * 256,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-});
-
-const render_buffer_bind_group_layout = device.createBindGroupLayout({
-    label: "render buffer bind group layout",
-    entries: [
-        { binding: 0, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "uniform" } },
-        { binding: 1, visibility: GPUShaderStage.FRAGMENT, buffer: { type: "storage" } },
-    ]
-});
-const entity_bind_group_layout = device.createBindGroupLayout({
-    label: `entity bind group layout`,
-    entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-    ]
-});
-const sort_bind_group_layout = device.createBindGroupLayout({
-    label: "sort bind group layoute",
-    entries: [
-        { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-        { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
-    ]
-});
-const gpu_debug_buffer_bind_group_layout = device.createBindGroupLayout({
-    label: "gpu debug buffer bind group layout",
-    entries: [ { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
-});
-
-const render_buffer_shader_module = device.createShaderModule({
-    label: "render buffer shader module",
-    code: render_buffer_source
-});
-const sort_shader_module = device.createShaderModule({
-    label: `sort shader module`,
-    code: sort_entities_source
-});
-
-const debug_buffer = device.createBuffer({
-    label: "debug buffer",
-    size: 4,
-    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-});
-const frame_buffer = device.createBuffer({
-    label: "frame buffer",
-    size: 4 * ctx.canvas.width * ctx.canvas.height,
-    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-});
-const mapped_timed_buffers = [
-    device.createBuffer({
-        label: "query result buffer",
-        size: resolve_buffer.size,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    }),
-    device.createBuffer({
-        label: "query result buffer",
-        size: resolve_buffer.size,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    }),
-    device.createBuffer({
-        label: "query result buffer",
-        size: resolve_buffer.size,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    }),
-];
 var gpu_time_spent:Array<number>;
 
 const [
     render_buffer_pipeline,
 
     local_accumulation_pipeline,
-    global_accumulation_pipeline,
-    global_prefix_pipeline,
-    local_prefix_pipeline,
-    rescatter_pipeline
 ] = await Promise.all([
     device.createRenderPipelineAsync({
         label: "render buffer pipeline",
         layout: device.createPipelineLayout({
             label: "render buffer pipeline layout",
-            bindGroupLayouts: [ render_buffer_bind_group_layout ]
+            bindGroupLayouts: [ window.gpu_main.render.bind_group_layout ]
         }),
         vertex: { module: render_buffer_shader_module, entryPoint: "vertex" },
         fragment: { module: render_buffer_shader_module, entryPoint: "fragment",
@@ -196,85 +79,6 @@ const [
         compute: {
             module: sort_shader_module,
             entryPoint: "local_accumulation",
-            constants: {
-                BYTE_SHIFT: 0,
-                ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
-                MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
-            }
-        }
-    }),
-    device.createComputePipelineAsync({
-        label: "global accumulation pipeline",
-        layout: device.createPipelineLayout({
-            label: "global accumulation pipeline layoute",
-            bindGroupLayouts: [
-                entity_bind_group_layout,
-                sort_bind_group_layout
-            ]
-        }),
-        compute: {
-            module: sort_shader_module,
-            entryPoint: "global_accumulation",
-            constants: {
-                BYTE_SHIFT: 0,
-                ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
-                MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
-            }
-        }
-    }),
-    device.createComputePipelineAsync({
-        label: "global prefix pipeline",
-        layout: device.createPipelineLayout({
-            label: "global prefix pipeline layoute",
-            bindGroupLayouts: [
-                entity_bind_group_layout,
-                sort_bind_group_layout,
-                gpu_debug_buffer_bind_group_layout
-            ]
-        }),
-        compute: {
-            module: sort_shader_module,
-            entryPoint: "global_prefix",
-            constants: {
-                BYTE_SHIFT: 0,
-                ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
-                MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
-            }
-        }
-    }),
-    device.createComputePipelineAsync({
-        label: "local prefix pipeline",
-        layout: device.createPipelineLayout({
-            label: "local prefix pipeline layoute",
-            bindGroupLayouts: [
-                entity_bind_group_layout,
-                sort_bind_group_layout,
-                gpu_debug_buffer_bind_group_layout
-            ]
-        }),
-        compute: {
-            module: sort_shader_module,
-            entryPoint: "local_prefix",
-            constants: {
-                BYTE_SHIFT: 0,
-                ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
-                MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
-            }
-        }
-    }),
-    device.createComputePipelineAsync({
-        label: "rescatter prefix pipeline",
-        layout: device.createPipelineLayout({
-            label: "rescatter pipeline layoute",
-            bindGroupLayouts: [
-                entity_bind_group_layout,
-                sort_bind_group_layout,
-                gpu_debug_buffer_bind_group_layout
-            ]
-        }),
-        compute: {
-            module: sort_shader_module,
-            entryPoint: "rescatter",
             constants: {
                 BYTE_SHIFT: 0,
                 ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
@@ -477,3 +281,5 @@ function update_eyedropper_pointer() {
     eyedropper_pointer.style.left = `${eyedropper_x + 5}px`;
     eyedropper_pointer.style.top = `${eyedropper_y + 5}px`;
 }
+
+export { ENTITY_COUNT_LOG2 }

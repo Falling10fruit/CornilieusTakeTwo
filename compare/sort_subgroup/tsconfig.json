@@ -23,6 +23,6 @@
     "jsx": "preserve",
     "jsxImportSource": "solid-js",
   },
-  "include": ["**/*"],
-  "files": ["./webgpu.d.ts"],
+  "include": ["./**/*"],
+  "files": ["../webgpu.d.ts", "./sort.d.ts"],
 }

@@ -7,13 +7,14 @@ requires subgroup_id;
 @group(0) @binding(0) var<storage, read_write> entity_buffer_0 : array<vec4u>;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 // wesl override
-const ENTITY_COUNT_LOG2 : u32 = 24u; // only down to 20
+const ENTITY_COUNT_LOG2 : u32 = constants::ENTITY_COUNT_LOG2; // only down to 20
 const WORKGROUP_HISTOGRAM_LENGTH = (1u << ENTITY_COUNT_LOG2) >> 8u;
 const GLOBAL_HISTOGRAM_LENGTH = WORKGROUP_HISTOGRAM_LENGTH >> 8u;
 @group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<array<u32, WORKGROUP_HISTOGRAM_LENGTH>, 256>;
 @group(1) @binding(1) var<storage, read_write> global_histogram : array<array<u32, GLOBAL_HISTOGRAM_LENGTH>, 256>;
-@group(2) @binding(0) var<storage, read_write> read_subgroup_size : u32;
-// @group(2) @binding(1) var<storage, read_write> debug_buffer : u32;
+// @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
+
+@group(3) @binding(0) var<storage, read_write> read_subgroup_size : u32;
 
 override BYTE_SHIFT : u32 = 0; // 0 -> 2
 
@@ -118,28 +119,72 @@ fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_index: u32, sub
 var<workgroup> shared_prefix_2 : array<array<vec4u, 2>, SUBGROUP_COUNT>;
 // 256 (* 16) workgroups
 @compute @workgroup_size(256) fn global_accumulation(
-    @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(workgroup_id) workgroup_id : vec3u, 
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_invocation_id) sub_id : u32,
     @builtin(subgroup_size) subgroup_size : u32
 ) {
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
     let local_index = subgroup_id * subgroup_size + sub_id;
-
-    let digit = workgroup_id.y * 16 + (local_index >> 4);
+    
+    let digit = (workgroup_id.y << 4) + (local_index >> 4);
     var this_increment = vec4u(0, 0, 0, 0);
+    var not_empty: bool = workgroup_histogram[digit][workgroup_id.x * 256 + (local_index & 0xFu)] > 0u; // I'm sure that the next time it'll request this on the first iteration it'll already be in cache so it wouldn't be that bad
     for (var stride = 0u; stride < 16; stride++) {
         let index = workgroup_id.x * 256 + (local_index & 0xFu) + stride * 16;
         this_increment[(digit >> 1) & 3u] += workgroup_histogram[digit][index] << (16 * (digit & 1u));
     }
-    let total = subgroupAdd(this_increment);
+
+    let is_overflow = (this_increment[(digit >> 1) & 3u] >> (16 * (digit & 3u)) == 0u && not_empty); 
+    if (subgroupAny(is_overflow)) {
+        if (is_overflow) { global_histogram[digit][workgroup_id.x] = 65536u; }
+        return;
+    }
+
+    let total = subgroupAdd(this_increment); // this increment can hold digits from 0-127 in case you were wondering if we have to isolate each digit's subgroup add
     if (subgroupElect()) { shared_prefix_2[subgroup_id][digit >> 3] = this_increment; }
     workgroupBarrier();
 
     // workgroup_size > 8
     let final_total: vec4u = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_2[sub_id][local_index >> 7], sub_id < subgroup_size));
     if (sub_id < 8) {
-        let this_total = final_total[(digit >> 1) & 3u] << (16 * (digit & 1u));
+        let this_total = final_total[(digit >> 1) & 3u] >> (16 * (digit & 1u));
+        global_histogram[digit][workgroup_id.x] = this_total;
+    }
+}
+
+
+@compute @workgroup_size(256) fn global_accumulation_8(
+    @builtin(workgroup_id) workgroup_id : vec3u, 
+    @builtin(subgroup_id) subgroup_id : u32,
+    @builtin(subgroup_invocation_id) sub_id : u32,
+    @builtin(subgroup_size) subgroup_size : u32
+) {
+    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
+    let local_index = subgroup_id * subgroup_size + sub_id;
+    
+    let digit = (workgroup_id.y << 4) + (local_index >> 4);
+    var this_increment = vec4u(0, 0, 0, 0);
+    var not_empty: bool = workgroup_histogram[digit][workgroup_id.x * 256 + (local_index & 0xFu)] > 0u; // I'm sure that the next time it'll request this on the first iteration it'll already be in cache so it wouldn't be that bad
+    for (var stride = 0u; stride < 16; stride++) {
+        let index = workgroup_id.x * 256 + (local_index & 0xFu) + stride * 16;
+        this_increment[(digit >> 1) & 3u] += workgroup_histogram[digit][index] << (16 * (digit & 1u));
+    }
+
+    let is_overflow = (this_increment[(digit >> 1) & 3u] >> (16 * (digit & 3u)) == 0u && not_empty); 
+    if (subgroupAny(is_overflow)) {
+        if (is_overflow) { global_histogram[digit][workgroup_id.x] = 65536u; }
+        return;
+    }
+    
+    let total = subgroupAdd(this_increment); // this increment can hold digits from 0-127 in case you were wondering if we have to isolate each digit's subgroup add
+    if (subgroupElect()) { shared_prefix_2[subgroup_id][digit >> 3] = this_increment; }
+    workgroupBarrier();
+
+    // workgroup_size > 8
+    let final_total: vec4u = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_2[sub_id][local_index >> 7], sub_id < subgroup_size));
+    if (sub_id < 8) {
+        let this_total = final_total[(digit >> 1) & 3u] >> (16 * (digit & 1u));
         global_histogram[digit][workgroup_id.x] = this_total;
     }
 }

@@ -1,8 +1,10 @@
+import { requestWeslDevice } from "wesl";
+
 /** Create the WebGPU device and context.
  * @async
  * 
- * Implementation at {@link get_device}.ts*/
-async function get_device () {
+ * Implementation at {@link get_gpu}.ts*/
+async function get_gpu () {
     if (!navigator.gpu) { console.error({
         title: "WebGPU is not supported in this browser",
         message: "you should never see this error"
@@ -14,7 +16,7 @@ async function get_device () {
         message: "your device does not support WebGPU"
     }) }
 
-    const device = await adapter.requestDevice({
+    const device = await requestWeslDevice(adapter, {
         requiredLimits: {
             maxStorageBuffersPerShaderStage: 12,
         },
@@ -29,7 +31,7 @@ async function get_device () {
             message: e.message
         });
 
-        if (e.reason !== "destroyed") get_device();
+        if (e.reason !== "destroyed") get_gpu();
     });
 
     const ctx = (document.getElementById("canvas") as HTMLCanvasElement)
@@ -38,9 +40,10 @@ async function get_device () {
         device: device,
         format: navigator.gpu.getPreferredCanvasFormat(),
         alphaMode: "premultiplied",
+        usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC
     });
 
     return { device, ctx };
 };
 
-export { get_device }
+export { get_gpu }
