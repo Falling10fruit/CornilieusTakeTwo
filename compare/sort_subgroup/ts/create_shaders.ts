@@ -47,7 +47,7 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
             label: `${entry_point} test pipeline layoute`,
             bindGroupLayouts: [
                 window.gpu_main.entity_bind_group_layout,
-                window.gpu_main.sort_bind_group_layout,
+                window.gpu_sort.bind_group_layout,
                 window.gpu_main.debug.gpu_bind_group_layout,
                 
                 window.gpu_main.subgroup_test.bind_group_layout

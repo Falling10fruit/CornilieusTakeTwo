@@ -145,51 +145,15 @@ var<workgroup> shared_prefix_2 : array<array<vec4u, 2>, SUBGROUP_COUNT>;
     if (subgroupElect()) { shared_prefix_2[subgroup_id][digit >> 3] = this_increment; }
     workgroupBarrier();
 
-    // workgroup_size > 8
     let final_total: vec4u = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_2[sub_id][local_index >> 7], sub_id < subgroup_size));
     if (sub_id < 8) {
         let this_total = final_total[(digit >> 1) & 3u] >> (16 * (digit & 1u));
         global_histogram[digit][workgroup_id.x] = this_total;
     }
-}
+} 
 
-
-@compute @workgroup_size(256) fn global_accumulation_8(
-    @builtin(workgroup_id) workgroup_id : vec3u, 
-    @builtin(subgroup_id) subgroup_id : u32,
-    @builtin(subgroup_invocation_id) sub_id : u32,
-    @builtin(subgroup_size) subgroup_size : u32
-) {
-    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    let local_index = subgroup_id * subgroup_size + sub_id;
-    
-    let digit = (workgroup_id.y << 4) + (local_index >> 4);
-    var this_increment = vec4u(0, 0, 0, 0);
-    var not_empty: bool = workgroup_histogram[digit][workgroup_id.x * 256 + (local_index & 0xFu)] > 0u; // I'm sure that the next time it'll request this on the first iteration it'll already be in cache so it wouldn't be that bad
-    for (var stride = 0u; stride < 16; stride++) {
-        let index = workgroup_id.x * 256 + (local_index & 0xFu) + stride * 16;
-        this_increment[(digit >> 1) & 3u] += workgroup_histogram[digit][index] << (16 * (digit & 1u));
-    }
-
-    let is_overflow = (this_increment[(digit >> 1) & 3u] >> (16 * (digit & 3u)) == 0u && not_empty); 
-    if (subgroupAny(is_overflow)) {
-        if (is_overflow) { global_histogram[digit][workgroup_id.x] = 65536u; }
-        return;
-    }
-    
-    let total = subgroupAdd(this_increment); // this increment can hold digits from 0-127 in case you were wondering if we have to isolate each digit's subgroup add
-    if (subgroupElect()) { shared_prefix_2[subgroup_id][digit >> 3] = this_increment; }
-    workgroupBarrier();
-
-    // workgroup_size > 8
-    let final_total: vec4u = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_2[sub_id][local_index >> 7], sub_id < subgroup_size));
-    if (sub_id < 8) {
-        let this_total = final_total[(digit >> 1) & 3u] >> (16 * (digit & 1u));
-        global_histogram[digit][workgroup_id.x] = this_total;
-    }
-}
-
-var<workgroup> shared_prefix_4 : array<array<vec4u, 4>, SUBGROUP_COUNT>;
+override SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH: u32 = 64u / SUBGROUP_SIZE;
+var<workgroup> shared_prefix_4_global_prefix : array<array<vec4u, 4>, SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH>;
 // 16 workgroups for no of digit / 16
 override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
 @compute @workgroup_size(256) fn global_prefix( // 0101-digit 0101-index 
@@ -201,21 +165,20 @@ override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
     let local_index = subgroup_id * subgroup_size + sub_id;
 
-    let digit = workgroup_id.y * 16 + (local_index >> 4);
+    let digit = (workgroup_id.y << 4) + (local_index >> 4);
     var this_increment = vec4u(0, 0, 0, 0);
-    for (var stride = 0u; stride < ITERATION_COUNT; stride++) {
-        let index = (local_index & 0xFu) + stride * 16;
+    for (var offset = 0u; offset < ITERATION_COUNT; offset++) {
+        let index = ((local_index & 0xFu) << 4) + offset; // unfortunately we can't do the fun strided access thing but it'll be fine
         this_increment[digit & 3u] += global_histogram[digit][index]; 
     }
 
-    for (var i = 0u; i < 4; i++) {
-        let digit_prefix = subgroupExclusiveAdd(select(vec4u(0, 0, 0, 0), this_increment, ((digit >> 2) & 3u) == i));
-        let max = subgroupMax(digit_prefix) + this_increment;
-        if (subgroupElect()) { shared_prefix_4[subgroup_id][(digit >> 2) & 3u] = digit_prefix; }
-    } workgroupBarrier();
+    let digit_prefix = subgroupExclusiveAdd(this_increment);
+    let max = subgroupMax(digit_prefix) + this_increment;
+    if (subgroupElect()) { shared_prefix_4_global_prefix[subgroup_id & (SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH - 1u)][(digit >> 2) & 3u] = digit_prefix; }
+    workgroupBarrier();
 
     
-    let this_total = shared_prefix_4[]
+    let this_total = shared_prefix_4_global_prefix[]
     
 }
 
