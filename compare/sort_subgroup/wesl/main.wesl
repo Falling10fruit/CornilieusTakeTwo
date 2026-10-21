@@ -152,9 +152,9 @@ var<workgroup> shared_prefix_2 : array<array<vec4u, 2>, SUBGROUP_COUNT>;
     }
 } 
 
-override SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH: u32 = 64u / SUBGROUP_SIZE;
-var<workgroup> shared_prefix_4_global_prefix : array<array<vec4u, 4>, SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH>;
-// 16 workgroups for no of digit / 16
+override SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH: u32 = 256u / SUBGROUP_SIZE;
+var<workgroup> shared_prefix_4_global_prefix : array<u32, SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH>;
+// 256 workgroups for 256 digits
 override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
 @compute @workgroup_size(256) fn global_prefix( // 0101-digit 0101-index 
     @builtin(workgroup_id) workgroup_id : vec3u,
@@ -165,32 +165,21 @@ override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
     let local_index = subgroup_id * subgroup_size + sub_id;
 
-    let digit = (workgroup_id.y << 4) + (local_index >> 4);
-    var this_increment = vec4u(0, 0, 0, 0);
-    for (var offset = 0u; offset < ITERATION_COUNT; offset++) {
-        let index = ((local_index & 0xFu) << 4) + offset; // unfortunately we can't do the fun strided access thing but it'll be fine
-        this_increment[digit & 3u] += global_histogram[digit][index]; 
-    }
+    var this_increment = global_histogram[workgroup_id.y][local_index];
+    var this_prefix = subgroupExclusiveAdd(this_increment);
+    var subgroup_max = subgroupMax(this_prefix + this_increment);
+    if (subgroupElect()) { shared_prefix_4_global_prefix[subgroup_id] = subgroup_max; }
 
-    let digit_prefix = subgroupExclusiveAdd(this_increment);
-    let max = subgroupMax(digit_prefix) + this_increment;
-    if (subgroupElect()) { shared_prefix_4_global_prefix[subgroup_id & (SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH - 1u)][(digit >> 2) & 3u] = digit_prefix; }
-    workgroupBarrier();
-
-    
-    let this_total = shared_prefix_4_global_prefix[]
-    
+    var subgroup_prefix = subgroupExclusiveAdd(select(0u, shared_prefix_4_global_prefix[sub_id], sub_id < SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH));
+    global_histogram[workgroup_id.y][local_index] = subgroup_prefix + this_increment;
 }
 
-// (256 *) 256 workgroups for each digit
-@compute @workgroup_size(1, 256) fn local_prefix(
+// 256 (* 256) workgroups for each digit
+@compute @workgroup_size(256) fn local_prefix(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_index : u32
-) { 
-    let global_offset = global_histogram[workgroup_id.y][workgroup_id.x];
-    workgroup_histogram[global_invocation_id.y][workgroup_id.x] += global_offset;
-}
+) { workgroup_histogram[workgroup_id.y][global_invocation_id.x] += global_histogram[workgroup_id.y][workgroup_id.x]; }
 
 var<workgroup> digit_offset: atomic<u32>;
 
@@ -200,35 +189,17 @@ var<workgroup> digit_offset: atomic<u32>;
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_index : u32
 ) {
-    if (local_index < workgroup_id.x - 1) { atomicAdd(&digit_offset, global_histogram[255][workgroup_id.x]); }
-
-    let workgroup_index = workgroup_id.y * workgroup_id.z;
-    let entity_vector = entity_buffer_0[workgroup_index * 256 + local_index];
-
-    var chunk_byte: u32;
-    if (BYTE_SHIFT == 0u) {
-        chunk_byte = ((entity_vector.x & 0x1Fu) << 3) + (entity_vector.y >> 29);
-    } else {
-        chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT));
-    }
-
-    if (chunk_byte == workgroup_id.x) { shared_prefix[workgroup_id.x] = 1u; }
-    workgroupBarrier();
-
-    for (var exponent = 0u; exponent <= 8; exponent += 1) {
-        let stride = 1u << exponent; if (local_index >= stride) {
-            shared_prefix[
-                (local_index         ) + (1 - (exponent & 1u)) * 256
-            ] += shared_prefix[
-                (local_index - stride) + (    (exponent & 1u)) * 256
-            ];
-        } workgroupBarrier();
-    }
-
-    if (chunk_byte == workgroup_id.x) { 
-        let local_offset = workgroup_histogram[workgroup_index][workgroup_id.x];
-        var shared_offset = 0u; if (local_index != 0) { shared_offset = shared_prefix[local_index - 1]; }
-
-        entity_buffer_1[atomicLoad(&digit_offset) + local_offset + shared_offset] = entity_vector;
-    }
+    
+    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
+    const subgroup_count = 256u / subgroup_size;
+    
+    let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
+    get_chunk_byte_into_shared_prefix(workgroup_index, local_index, subgroup_id);
+    // we only subgroupAdd once here because get_chunk_byte_into_shared_prefix already subgroupAdd
+    let this_increment: vec4u = select(vec4u(0, 0, 0, 0), shared_prefix_16[sub_id][subgroup_id], sub_id < subgroup_count);
+    var total = subgroupAdd(this_increment);
+    
+    let vector_index = (sub_id >> 2) & 3u;
+    let integer_shift = 8 * (sub_id & 3u);
+    var final_value = (total[vector_index] >> integer_shift) & 0xFFu;
 }
