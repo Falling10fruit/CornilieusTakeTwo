@@ -21,14 +21,19 @@ override BYTE_SHIFT : u32 = 0; // 0 -> 2
 override IS_CHECKING_SUBGROUP_SIZE : bool = true;
 override SUBGROUP_SIZE : u32 = 32u; // or 16
 override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
-var<workgroup> shared_prefix_16 : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overflow means that all but 
+var<workgroup> shared_prefix_16 : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overflow means that all but (23 oct 2026 what the hell are you trying to say yoga)
+
+fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
+    if (BYTE_SHIFT == 0u) {
+        return ((vector.x & 0x1Fu) << 3) + (vector.y >> 29);
+    } else {
+        return 0xFFu & (vector.x >> (5 + 8 * BYTE_SHIFT));
+    }
+}
 
 fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_index: u32, subgroup_id: u32){
     let entity_vector = entity_buffer_0[workgroup_index * 256 + local_index];
-
-    var chunk_byte: u32;
-    if (BYTE_SHIFT == 0u) { chunk_byte = ((entity_vector.x & 0x1Fu) << 3) + (entity_vector.y >> 29); }
-    else { chunk_byte = 0xFFu & (entity_vector.x >> (5 + 8 * BYTE_SHIFT)); }
+    let chunk_byte = get_chunk_from_entity_vector(entity_vector);
 
     var havent_finished = true;
     while (subgroupAny(havent_finished)) {
@@ -174,32 +179,36 @@ override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
     global_histogram[workgroup_id.y][local_index] = subgroup_prefix + this_increment;
 }
 
-// 256 (* 256) workgroups for each digit
-@compute @workgroup_size(256) fn local_prefix(
-    @builtin(global_invocation_id) global_invocation_id : vec3u,
-    @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_index : u32
-) { workgroup_histogram[workgroup_id.y][global_invocation_id.x] += global_histogram[workgroup_id.y][workgroup_id.x]; }
-
 var<workgroup> digit_offset: atomic<u32>;
 
-// (256 *) 256 * 256 = 65536 workgroups
+// 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(1, 256) fn rescatter(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_index : u32
+    @builtin(local_invocation_index) local_index : u32,
+    @builtin(subgroup_id) subgroup_id : u32,
+    @builtin(subgroup_invocation_id) sub_id : u32,
+    @builtin(subgroup_size) subgroup_size : u32
 ) {
-    
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    const subgroup_count = 256u / subgroup_size;
+    let local_index = subgroup_id * subgroup_size + sub_id;
     
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
-    get_chunk_byte_into_shared_prefix(workgroup_index, local_index, subgroup_id);
-    // we only subgroupAdd once here because get_chunk_byte_into_shared_prefix already subgroupAdd
-    let this_increment: vec4u = select(vec4u(0, 0, 0, 0), shared_prefix_16[sub_id][subgroup_id], sub_id < subgroup_count);
-    var total = subgroupAdd(this_increment);
-    
-    let vector_index = (sub_id >> 2) & 3u;
-    let integer_shift = 8 * (sub_id & 3u);
-    var final_value = (total[vector_index] >> integer_shift) & 0xFFu;
+    let entity_vector = entity_buffer_0[workgroup_index * 256 + local_index];
+    let chunk_byte = get_chunk_from_entity_vector(entity_vector);
+
+    var not_done = true;
+    while (subgroupAll(not_done)) {
+        let this_prefix = subgroupExclusiveAdd(select(0u, 1u, subgroupBroadcastFirst(chunk_byte) == chunk_byte));
+        let this_max = subgroupMax(this_prefix) + 1u;
+        if (subgroupElect()) { 
+            shared_prefix_16[subgroup_id][chunk_byte >> 4][(chunk_byte >> 2) & 3u] += this_max << (8 * (chunk_byte & 3u)); 
+        }
+    }
+
+    let global_prefix = global_histogram[workgroup_id.x >> 8];
+    let histogram_prefix = workgroup_histogram[workgroup_id.x & 0xFu];
+    let prefix = subgroupExclusiveAdd(shared_prefix_16[local_index & 0xFu][(local_index >> 6) & 3u])[(local_index >> 4) & 3u]; // idk im larping
+    let total_prefix = global_prefix + histogram_prefix + prefix;
+
 }
