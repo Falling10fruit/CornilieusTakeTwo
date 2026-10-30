@@ -8,10 +8,11 @@ requires subgroup_id;
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 // wesl override
 const ENTITY_COUNT_LOG2 : u32 = constants::ENTITY_COUNT_LOG2; // only down to 20
-const WORKGROUP_HISTOGRAM_LENGTH = (1u << ENTITY_COUNT_LOG2) >> 8u;
-const GLOBAL_HISTOGRAM_LENGTH = WORKGROUP_HISTOGRAM_LENGTH >> 8u;
+const WORKGROUP_HISTOGRAM_LENGTH = (1u << ENTITY_COUNT_LOG2) >> 8;
+const GLOBAL_HISTOGRAM_LENGTH = WORKGROUP_HISTOGRAM_LENGTH >> 8;
 @group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<array<u32, WORKGROUP_HISTOGRAM_LENGTH>, 256>;
 @group(1) @binding(1) var<storage, read_write> global_histogram : array<array<u32, GLOBAL_HISTOGRAM_LENGTH>, 256>;
+@group(1) @binding(2) var<storage, read_write> digit_histogram : array<u32, 256>;
 // @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
 
 @group(3) @binding(0) var<storage, read_write> read_subgroup_size : u32;
@@ -157,8 +158,8 @@ var<workgroup> shared_prefix_2 : array<array<vec4u, 2>, SUBGROUP_COUNT>;
     }
 } 
 
-override SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH: u32 = 256u / SUBGROUP_SIZE;
-var<workgroup> shared_prefix_4_global_prefix : array<u32, SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH>;
+override SHARED_PREFIX_4_LENGTH: u32 = 256u / SUBGROUP_SIZE;
+var<workgroup> shared_prefix_4 : array<u32, SHARED_PREFIX_4_LENGTH>;
 // 256 workgroups for 256 digits
 override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
 @compute @workgroup_size(256) fn global_prefix( // 0101-digit 0101-index 
@@ -170,20 +171,40 @@ override ITERATION_COUNT: u32 = 16u >> (24 - ENTITY_COUNT_LOG2);
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
     let local_index = subgroup_id * subgroup_size + sub_id;
 
-    var this_increment = global_histogram[workgroup_id.y][local_index];
-    var this_prefix = subgroupExclusiveAdd(this_increment);
-    var subgroup_max = subgroupMax(this_prefix + this_increment);
-    if (subgroupElect()) { shared_prefix_4_global_prefix[subgroup_id] = subgroup_max; }
+    let this_increment: u32 = global_histogram[workgroup_id.x][local_index];
+    let this_prefix = subgroupExclusiveAdd(this_increment);
+    let subgroup_max = subgroupMax(this_prefix) + this_increment;
+    if (subgroupElect()) { shared_prefix_4[subgroup_id] = subgroup_max; }
 
-    var subgroup_prefix = subgroupExclusiveAdd(select(0u, shared_prefix_4_global_prefix[sub_id], sub_id < SHARED_PREFIX_4_GLOBAL_PREFIX_LENGTH));
-    global_histogram[workgroup_id.y][local_index] = subgroup_prefix + this_increment;
+    let subgroup_prefix: u32 = subgroupExclusiveAdd(select(0u, shared_prefix_4[sub_id], sub_id < SHARED_PREFIX_4_LENGTH));
+    global_histogram[workgroup_id.x][local_index] = subgroup_prefix + this_increment;
+
+    if (local_index == 255) { digit_histogram[workgroup_id.x] = subgroup_prefix + subgroup_max; }
+}
+
+
+// one workgroup
+@compute @workgroup_size(256) fn digit_prefix(
+    @builtin(subgroup_id) subgroup_id : u32,
+    @builtin(subgroup_invocation_id) sub_id : u32,
+    @builtin(subgroup_size) subgroup_size : u32
+) {
+    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
+    let local_index = subgroup_id * subgroup_size + sub_id;
+
+    let this_increment: u32 = digit_histogram[local_index];
+    let this_prefix = subgroupExclusiveAdd(this_increment);
+    let subgroup_max = subgroupMax(this_prefix) + this_increment;
+    if (subgroupElect()) { shared_prefix_4[subgroup_id] = subgroup_max; }
+
+    let subgroup_prefix: u32 = subgroupExclusiveAdd(select(0u, shared_prefix_4[sub_id], sub_id < SHARED_PREFIX_4_LENGTH));
+    digit_histogram[local_index] = subgroup_prefix + this_increment;
 }
 
 var<workgroup> digit_offset: atomic<u32>;
 
 // 256 * 256 = 65536  workgroups for 2^24 entities
-@compute @workgroup_size(1, 256) fn rescatter(
-    @builtin(global_invocation_id) global_invocation_id : vec3u,
+@compute @workgroup_size(256) fn rescatter(
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(local_invocation_index) local_index : u32,
     @builtin(subgroup_id) subgroup_id : u32,
@@ -206,9 +227,11 @@ var<workgroup> digit_offset: atomic<u32>;
         }
     }
 
-    let global_prefix = global_histogram[workgroup_id.x >> 8];
-    let histogram_prefix = workgroup_histogram[workgroup_id.x & 0xFu];
+    let digit_prefix = digit_histogram[chunk_byte];
+    let global_prefix = global_histogram[workgroup_id.x >> 8][chunk_byte];
+    let histogram_prefix = workgroup_histogram[workgroup_id.x][chunk_byte];
     let prefix = subgroupExclusiveAdd(shared_prefix_16[local_index & 0xFu][(local_index >> 6) & 3u])[(local_index >> 4) & 3u]; // idk im larping
-    let total_prefix = global_prefix + histogram_prefix + prefix;
-
+    let total_prefix = digit_prefix + global_prefix + histogram_prefix + prefix;
+    
+    entity_buffer_1[total_prefix] = entity_vector;
 }
