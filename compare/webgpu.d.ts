@@ -3,7 +3,8 @@
 
 declare global {
     interface SubgroupBuffers {
-        buffer: GPUBuffer,
+        copied_buffer: GPUBuffer,
+        pasted_buffer: GPUBuffer,
         bind_group: GPUBindGroup
     }
     

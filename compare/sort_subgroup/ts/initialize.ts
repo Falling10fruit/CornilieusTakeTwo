@@ -79,17 +79,24 @@ function create_webgpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
         subgroup_test: {
             bind_group_layout,
             list: Array.from({ length: 5 }, (_, i) => {
-                const buffer = device.createBuffer({
+                const copied_buffer = device.createBuffer({
                     label: `subgroup test buffer no. ${i}`,
                     size: 4,
                     usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE
                 });
+                const pasted_buffer = device.createBuffer({
+                    label: `subgroup test buffer no. ${i}`,
+                    size: 4,
+                    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+                });
+
                 return {
-                    buffer: buffer,
+                    copied_buffer,
+                    pasted_buffer,
                     bind_group: device.createBindGroup({
                         label: `subgroup test bind group no. ${i}`,
                         layout: bind_group_layout,
-                        entries: [{ binding: 0, resource: { buffer: buffer } }]
+                        entries: [{ binding: 0, resource: { buffer: copied_buffer } }]
                     })
                 }
             })
@@ -132,13 +139,19 @@ function create_webgpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
     });
     const global_histogram = device.createBuffer({
         label: `global prefix buffer`,
-        size: 4 * 256 * 256,
+        size: 4 * 256 * 256 >> (24 - ENTITY_COUNT_LOG2),
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
+    const digit_histogram = device.createBuffer({
+        label: `data prefix buffer`,
+        size: 4 * 256,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    })
     const sort_bind_group_layout = device.createBindGroupLayout({
         label: "sort bind group layoute",
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
         ]
     }) 
@@ -146,6 +159,8 @@ function create_webgpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
     window.gpu_sort = {
         workgroup_histogram,
         global_histogram,
+        digit_histogram,
+        
         bind_group_layout,
         bind_group: device.createBindGroup({
             label: "sort bind group",
@@ -153,6 +168,7 @@ function create_webgpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
             entries: [
                 { binding: 0, resource: { buffer: workgroup_histogram } },
                 { binding: 1, resource: { buffer: global_histogram } },
+                { binding: 2, resource: { buffer: digit_histogram } }
             ]
         })
     }

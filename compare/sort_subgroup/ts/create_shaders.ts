@@ -13,31 +13,40 @@ async function test_shaders(device:GPUDevice) {
     pass.setBindGroup(0, window.gpu_main.entity_bind_group);
     pass.setBindGroup(1, window.gpu_sort.bind_group);
 
-    const workgroups = [
-        [256, 256, 1],
-        [256, 16, 1],
-        [16, 1, 1],
+    interface EntryDetails { fn_name:string; workgroups:Array<number>;}
+    const entry_id:Array<EntryDetails> = [
+        { fn_name: "local_accumulation" , workgroups: [256, 256, 1] },
+        { fn_name: "global_accumulation", workgroups: [256, 16,  1] },
+        { fn_name: "global_prefix"      , workgroups: [16,  1,   1] },
+        { fn_name: "digit_prefix"       , workgroups: [1,   1,   1] },
+        { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
     ];
-    await Promise.all([
-        generate_test_pipeline(device, shader, "local_accumulation"),
-        generate_test_pipeline(device, shader, "global_accumulation"),
-        generate_test_pipeline(device, shader, "global_prefix"),
-    ]).then((pipelines) => { pipelines.forEach((pipeline, index) => {
+
+    await Promise.all(
+        entry_id.map((entry_details) => generate_test_pipeline(device, shader, entry_details.fn_name))
+    ).then((pipelines) => { pipelines.forEach((pipeline, index) => {
         pass.setBindGroup(3, window.gpu_main.subgroup_test.list[index].bind_group);
         pass.setPipeline(pipeline);
-        pass.dispatchWorkgroups(workgroups[index][0], workgroups[index][1], workgroups[index][2]);
+        pass.dispatchWorkgroups(entry_id[index].workgroups[0], entry_id[index].workgroups[1], entry_id[index].workgroups[2]);
     })})
-
-    const subgroup_test_output_buffer = device.createBuffer({
-        label: "subgroup test output buffer",
-        size: window.gpu_main.subgroup_test.list.length,
-        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-    });
-    window.gpu_main.subgroup_test.list.forEach(({ buffer }, index) => {
-        encoder.copyBufferToBuffer(buffer, 0, subgroup_test_output_buffer, index, 1);
+    
+    window.gpu_main.subgroup_test.list.forEach(subgroup_test => {
+        encoder.copyBufferToBuffer(subgroup_test.copied_buffer, subgroup_test.pasted_buffer);
     });
 
     device.queue.submit([encoder.finish()]);
+
+    let subgroup_sizes:Array<number> = [];
+
+    await Promise.all(window.gpu_main.subgroup_test.list.map(({pasted_buffer}) => pasted_buffer.mapAsync(GPUMapMode.READ)));
+    window.gpu_main.subgroup_test.list.forEach(({pasted_buffer}, index) => {
+        const recorded_subgroup_size = (new Uint32Array(pasted_buffer.getMappedRange()))[0];
+        console.log(`${entry_id[index].fn_name} uses a subgroup size of ${recorded_subgroup_size}`);
+        
+        subgroup_sizes.push(recorded_subgroup_size);
+    });
+
+    return subgroup_sizes
 }
 
 async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, entry_point:string) {
