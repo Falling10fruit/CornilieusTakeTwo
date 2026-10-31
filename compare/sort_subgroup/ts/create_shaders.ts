@@ -1,29 +1,55 @@
 import { link, createShaderModule } from "wesl";
 import wgsl_source from "../wesl/main.wesl?link"
+const linked = await link({
+    ...wgsl_source,
+    constants: { ENTITY_COUNT_LOG2: window.ENTITY_COUNT_LOG2 }
+});
 
-async function test_shaders(device:GPUDevice) {
-    const linked = await link({
-        ...wgsl_source,
-        constants: { ENTITY_COUNT_LOG2: window.ENTITY_COUNT_LOG2 }
-    });
+interface EntryDetails { fn_name:string; workgroups:Array<number>;}
+const entry_id:Array<EntryDetails> = [
+    { fn_name: "local_accumulation" , workgroups: [256, 256, 1] },
+    { fn_name: "global_accumulation", workgroups: [256, 16,  1] },
+    { fn_name: "global_prefix"      , workgroups: [16,  1,   1] },
+    { fn_name: "digit_prefix"       , workgroups: [1,   1,   1] },
+    { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
+];
+
+async function return_pipelines(device:GPUDevice) {
     const shader = createShaderModule(linked, device, { label: "sort shader module" });;
+    const subgroup_sizes = await test_shaders(device, shader);
+
+    return await Promise.all(entry_id.map(({ fn_name }, index) => device.createComputePipelineAsync({
+        label: `${fn_name} test pipeline`,
+        layout: device.createPipelineLayout({
+            label: `${fn_name} test pipeline layoute`,
+            bindGroupLayouts: [
+                window.gpu_main.entity_bind_group_layout,
+                window.gpu_sort.bind_group_layout,
+                window.gpu_main.debug.gpu_bind_group_layout
+            ]
+        }),
+        compute: {
+            module: shader,
+            entryPoint: fn_name,
+            constants: {
+                BYTE_SHIFT: 0,
+                SUBGROUP_SIZE: subgroup_sizes[index],
+
+                IS_CHECKING_SUBGROUP_SIZE: 0
+            }
+        }
+    })));
+}
+
+async function test_shaders(device:GPUDevice, shader_module:GPUShaderModule) {
 
     const encoder = device.createCommandEncoder({ label: "test command encoder" });
     const pass = encoder.beginComputePass({ label: "test compute pass" });
     pass.setBindGroup(0, window.gpu_main.entity_bind_group);
     pass.setBindGroup(1, window.gpu_sort.bind_group);
 
-    interface EntryDetails { fn_name:string; workgroups:Array<number>;}
-    const entry_id:Array<EntryDetails> = [
-        { fn_name: "local_accumulation" , workgroups: [256, 256, 1] },
-        { fn_name: "global_accumulation", workgroups: [256, 16,  1] },
-        { fn_name: "global_prefix"      , workgroups: [16,  1,   1] },
-        { fn_name: "digit_prefix"       , workgroups: [1,   1,   1] },
-        { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
-    ];
-
     await Promise.all(
-        entry_id.map((entry_details) => generate_test_pipeline(device, shader, entry_details.fn_name))
+        entry_id.map((entry_details) => generate_test_pipeline(device, shader_module, entry_details.fn_name))
     ).then((pipelines) => { pipelines.forEach((pipeline, index) => {
         pass.setBindGroup(3, window.gpu_main.subgroup_test.list[index].bind_group);
         pass.setPipeline(pipeline);
@@ -74,3 +100,5 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
         }
     });
 }
+
+export { return_pipelines }
