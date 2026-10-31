@@ -6,6 +6,7 @@ if (root) render(App, root);
 
 import render_buffer_source from "./wesl/render_buffer.wesl?static"
 import { get_gpu } from './ts/get_device.ts';
+import { return_pipelines } from './ts/create_shaders.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 canvas.width = 64 * 3;
@@ -19,11 +20,11 @@ const render_buffer_shader_module = device.createShaderModule({
     code: render_buffer_source
 });
 
-device.queue.writeBuffer(window.gpu_main.render.viewport_buffer, 0,
+device.queue.writeBuffer(window.gpu.render.viewport_buffer, 0,
     new Float32Array([ ctx.canvas.width, ctx.canvas.height ])
 );
 
-device.queue.writeBuffer(window.gpu_main.entity_buffer_0, 0, new Uint32Array([
+device.queue.writeBuffer(window.gpu.entity_buffer_0, 0, new Uint32Array([
     (1 << 23) + (1 << 7), 0, 0, 0,
     (1 << 23) + (2 << 7), 0, 0, 0,
     (1 << 23) + (3 << 7), 0, 0, 0,
@@ -37,86 +38,8 @@ device.queue.writeBuffer(window.gpu_main.entity_buffer_0, 0, new Uint32Array([
 
 var gpu_time_spent:Array<number>;
 
-const [
-    render_buffer_pipeline,
+const pipelines = return_pipelines(device);
 
-    local_accumulation_pipeline,
-] = await Promise.all([
-    device.createRenderPipelineAsync({
-        label: "render buffer pipeline",
-        layout: device.createPipelineLayout({
-            label: "render buffer pipeline layout",
-            bindGroupLayouts: [ window.gpu_main.render.bind_group_layout ]
-        }),
-        vertex: { module: render_buffer_shader_module, entryPoint: "vertex" },
-        fragment: { module: render_buffer_shader_module, entryPoint: "fragment",
-            targets: [{
-                format: navigator.gpu.getPreferredCanvasFormat(),
-                blend: {
-                    color: {
-                        srcFactor: 'one',
-                        dstFactor: 'one-minus-src-alpha'
-                    },
-                    
-                    alpha: {
-                        srcFactor: 'one',
-                        dstFactor: 'one-minus-src-alpha'
-                    },
-                },
-            }]
-        },
-    }),
-    device.createComputePipelineAsync({
-        label: "local accumulation pipeline",
-        layout: device.createPipelineLayout({
-            label: "local accumulation pipeline layoute",
-            bindGroupLayouts: [
-                entity_bind_group_layout,
-                sort_bind_group_layout,
-                gpu_debug_buffer_bind_group_layout
-            ]
-        }),
-        compute: {
-            module: sort_shader_module,
-            entryPoint: "local_accumulation",
-            constants: {
-                BYTE_SHIFT: 0,
-                ENTITY_COUNT_LOG2: ENTITY_COUNT_LOG2,
-                MINIMUM_SUBGROUP_SIZE: adapter.info.subgroupMinSize
-            }
-        }
-    }),
-]);
-
-const render_buffer_bind_group = device.createBindGroup({
-    label: "render buffer bind group",
-    layout: render_buffer_bind_group_layout,
-    entries: [
-        { binding: 0, resource: { buffer: viewport_buffer } },
-        { binding: 1, resource: { buffer: workgroup_histogram } },
-    ]
-});
-const gpu_debug_buffer_bind_group = device.createBindGroup({
-    label: "gpu debug buffer bind group",
-    layout: gpu_debug_buffer_bind_group_layout,
-    entries: [{ binding: 0, resource: { buffer: gpu_debug_buffer } }]
-});
-const entity_bind_group = device.createBindGroup({
-    label: `entity bind group`,
-    layout: entity_bind_group_layout,
-    entries: [
-        { binding: 0, resource: { buffer: entity_buffer_0 }},
-        { binding: 1, resource: { buffer: entity_buffer_1 }},
-    ]
-});
-const sort_bind_group = device.createBindGroup({
-    label: "sort bind group",
-    layout: sort_bind_group_layout,
-    entries: [
-        { binding: 0, resource: { buffer: workgroup_histogram } },
-        { binding: 1, resource: { buffer: global_histogram } },
-    ]
-});
 
 let eyedropper_x = 0, eyedropper_y = 0;
 let mouse_x = 0, mouse_y = 0, mouse_down = false;
