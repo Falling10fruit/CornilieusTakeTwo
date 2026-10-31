@@ -4,9 +4,9 @@ import App from './App.tsx'
 const root = document.getElementById('root')
 if (root) render(App, root);
 
-import render_buffer_source from "./wesl/render_buffer.wesl?static"
 import { get_gpu } from './ts/get_device.ts';
-import { return_pipelines } from './ts/create_shaders.ts';
+import { create_gpu_objects } from './ts/initialize.ts';
+import { encode_pipelines_to_pass, return_pipelines } from './ts/compute_pipelines.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 canvas.width = 64 * 3;
@@ -14,17 +14,13 @@ canvas.height = 36 * 3;
 
 window.ENTITY_COUNT_LOG2 = 21;  // only down to 20
 const { device, ctx } = await get_gpu();
-
-const render_buffer_shader_module = device.createShaderModule({
-    label: "render buffer shader module",
-    code: render_buffer_source
-});
+create_gpu_objects(device, ctx);
 
 device.queue.writeBuffer(window.gpu.render.viewport_buffer, 0,
     new Float32Array([ ctx.canvas.width, ctx.canvas.height ])
 );
 
-device.queue.writeBuffer(window.gpu.entity_buffer_0, 0, new Uint32Array([
+device.queue.writeBuffer(window.gpu.entity.buffer_0, 0, new Uint32Array([
     (1 << 23) + (1 << 7), 0, 0, 0,
     (1 << 23) + (2 << 7), 0, 0, 0,
     (1 << 23) + (3 << 7), 0, 0, 0,
@@ -38,8 +34,7 @@ device.queue.writeBuffer(window.gpu.entity_buffer_0, 0, new Uint32Array([
 
 var gpu_time_spent:Array<number>;
 
-const pipelines = return_pipelines(device);
-
+const pipelines = await return_pipelines(device);
 
 let eyedropper_x = 0, eyedropper_y = 0;
 let mouse_x = 0, mouse_y = 0, mouse_down = false;
@@ -76,27 +71,12 @@ function tick() {
     const compute_pass = command_encoder.beginComputePass({
         label: `compute pass`,
         timestampWrites: {
-            querySet: query_set,
+            querySet: window.gpu.timing.query_set,
             beginningOfPassWriteIndex: 0,
             endOfPassWriteIndex: 1
         }
     });
-    compute_pass.setBindGroup(0, entity_bind_group);
-    compute_pass.setBindGroup(1, sort_bind_group);
-    compute_pass.setBindGroup(2, gpu_debug_buffer_bind_group);
-    
-    console.log(256 >> (24 - ENTITY_COUNT_LOG2));
-    compute_pass.setPipeline(local_accumulation_pipeline);
-    compute_pass.dispatchWorkgroups(256, 256, 256 >> (24 - ENTITY_COUNT_LOG2));
-    compute_pass.setPipeline(global_accumulation_pipeline);
-    compute_pass.dispatchWorkgroups(256, 256 >> (24 - ENTITY_COUNT_LOG2));
-    compute_pass.setPipeline(global_prefix_pipeline);
-    compute_pass.dispatchWorkgroups(256);
-    compute_pass.setPipeline(local_prefix_pipeline);
-    compute_pass.dispatchWorkgroups(256, 256 >> (24 - ENTITY_COUNT_LOG2));
-    compute_pass.setPipeline(rescatter_pipeline);
-    compute_pass.dispatchWorkgroups(256, 256, 256 >> (24 - ENTITY_COUNT_LOG2));
-    
+    encode_pipelines_to_pass(device, pipelines, compute_pass)
     compute_pass.end();
 
     const render_pass = command_encoder.beginRenderPass({

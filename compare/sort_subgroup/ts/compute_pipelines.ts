@@ -14,6 +14,17 @@ const entry_id:Array<EntryDetails> = [
     { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
 ];
 
+async function encode_pipelines_to_pass(device:GPUDevice, pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
+    pass.setBindGroup(0, window.gpu.entity.bind_group);
+    pass.setBindGroup(1, window.gpu.sort.bind_group);
+
+    pipelines.forEach((pipeline, index) => {
+        pass.setBindGroup(3, window.gpu.subgroup_test.list[index].bind_group);
+        pass.setPipeline(pipeline);
+        pass.dispatchWorkgroups(entry_id[index].workgroups[0], entry_id[index].workgroups[1], entry_id[index].workgroups[2]);
+    });
+}
+
 async function return_pipelines(device:GPUDevice) {
     const shader = createShaderModule(linked, device, { label: "sort shader module" });;
     const subgroup_sizes = await test_shaders(device, shader);
@@ -25,7 +36,7 @@ async function return_pipelines(device:GPUDevice) {
             bindGroupLayouts: [
                 window.gpu.entity.bind_group_layout,
                 window.gpu.sort.bind_group_layout,
-                window.gpu.debug.gpu_bind_group_layout
+                window.gpu.debug.bind_group_layout
             ]
         }),
         compute: {
@@ -42,11 +53,10 @@ async function return_pipelines(device:GPUDevice) {
 }
 
 async function test_shaders(device:GPUDevice, shader_module:GPUShaderModule) {
-
     const encoder = device.createCommandEncoder({ label: "test command encoder" });
     const pass = encoder.beginComputePass({ label: "test compute pass" });
-    pass.setBindGroup(0, window.gpu.entity_bind_group);
-    pass.setBindGroup(1, window.gpu_sort.bind_group);
+    pass.setBindGroup(0, window.gpu.entity.bind_group);
+    pass.setBindGroup(1, window.gpu.sort.bind_group);
 
     await Promise.all(
         entry_id.map((entry_details) => generate_test_pipeline(device, shader_module, entry_details.fn_name))
@@ -81,9 +91,9 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
         layout: device.createPipelineLayout({
             label: `${entry_point} test pipeline layoute`,
             bindGroupLayouts: [
-                window.gpu.entity_bind_group_layout,
-                window.gpu_sort.bind_group_layout,
-                window.gpu.debug.gpu_bind_group_layout,
+                window.gpu.entity.bind_group_layout,
+                window.gpu.sort.bind_group_layout,
+                window.gpu.debug.bind_group_layout,
                 
                 window.gpu.subgroup_test.bind_group_layout
             ]
@@ -101,4 +111,4 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
     });
 }
 
-export { return_pipelines }
+export { return_pipelines, encode_pipelines_to_pass }

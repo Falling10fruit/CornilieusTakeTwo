@@ -2,7 +2,7 @@ import { ENTITY_COUNT_LOG2 } from "..";
 
 const QUERY_SET_COUNT = 2;
 
-function create_webgpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
+function create_gpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
     create_timing_objects(device);
     create_debug_objects(device);
     create_subgroup_objects(device);
@@ -207,4 +207,4 @@ function create_render_objects(device:GPUDevice, ctx:GPUCanvasContext) {
     }
 }
 
-export { create_webgpu_objects }
+export { create_gpu_objects }
