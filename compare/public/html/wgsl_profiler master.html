@@ -460,7 +460,7 @@
                     const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];
 
                     console.log(debug_buffer_value);
-                    console.log(debug_buffer_value.toString(16).toString(16).toUpperCase().padStart(8, "0"));
+                    console.log(debug_buffer_value.toString(16).toUpperCase().padStart(8, "0"));
                     console.log((debug_buffer_value.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
                 }); }
 

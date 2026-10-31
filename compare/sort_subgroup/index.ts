@@ -7,12 +7,13 @@ if (root) render(App, root);
 import { get_gpu } from './ts/get_device.ts';
 import { create_gpu_objects } from './ts/initialize.ts';
 import { encode_pipelines_to_pass, return_pipelines } from './ts/compute_pipelines.ts';
+import { return_render_pipeline } from './ts/render_pipeline.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 canvas.width = 64 * 3;
 canvas.height = 36 * 3;
 
-window.ENTITY_COUNT_LOG2 = 21;  // only down to 20
+const ENTITY_COUNT_LOG2 = 21;  // only down to 20
 const { device, ctx } = await get_gpu();
 create_gpu_objects(device, ctx);
 
@@ -34,7 +35,7 @@ device.queue.writeBuffer(window.gpu.entity.buffer_0, 0, new Uint32Array([
 
 var gpu_time_spent:Array<number>;
 
-const pipelines = await return_pipelines(device);
+const [render_pipeline,compute_pipelines] = await Promise.all([return_render_pipeline(device), return_pipelines(device)]);
 
 let eyedropper_x = 0, eyedropper_y = 0;
 let mouse_x = 0, mouse_y = 0, mouse_down = false;
@@ -48,7 +49,7 @@ window.onmousemove = (e) => {
     if (mouse_y < ctx.canvas.height && mouse_y >= 0) { eyedropper_y = mouse_y; }
     update_eyedropper_pointer();
 };
-const eyedropper_pointer = document.getElementById("eyedropper_pointer");
+const eyedropper_pointer = document.getElementById("eyedropper_pointer") as HTMLDivElement;
 window.onkeydown = (e) => {
     console.log(e.key);
     if (e.key == "ArrowUp") eyedropper_y = Math.max(0, Math.min(eyedropper_y - 1, ctx.canvas.height - 1));
@@ -58,7 +59,7 @@ window.onkeydown = (e) => {
 
     update_eyedropper_pointer();
 };
-const eyedropper_p = document.getElementById("eyedropper");
+const eyedropper_p = document.getElementById("eyedropper") as HTMLParagraphElement;
 let frame_buffer_data: Uint8Array;
 
 const use_interval = true;
@@ -76,7 +77,7 @@ function tick() {
             endOfPassWriteIndex: 1
         }
     });
-    encode_pipelines_to_pass(device, pipelines, compute_pass)
+    encode_pipelines_to_pass(device, compute_pipelines, compute_pass)
     compute_pass.end();
 
     const render_pass = command_encoder.beginRenderPass({
@@ -88,32 +89,32 @@ function tick() {
             view: ctx.getCurrentTexture().createView(),
         }]
     });
-    render_pass.setPipeline(render_buffer_pipeline);
-    render_pass.setBindGroup(0, render_buffer_bind_group);
+    render_pass.setPipeline(render_pipeline);
+    render_pass.setBindGroup(0, window.gpu.render.bind_group);
     render_pass.draw(3);
     render_pass.end();
 
     let query_result_buffer = undefined;
-    if (mapped_timed_buffers.length > 0) {
-        query_result_buffer = mapped_timed_buffers[0];
-        mapped_timed_buffers.splice(0, 1);
+    if (window.gpu.timing.mapped_timed_buffers.length > 0) {
+        query_result_buffer = window.gpu.timing.mapped_timed_buffers[0];
+        window.gpu.timing.mapped_timed_buffers.splice(0, 1);
 
-        command_encoder.resolveQuerySet(query_set, 0, query_set.count, resolve_buffer, 0);
-        command_encoder.copyBufferToBuffer(resolve_buffer, 0, query_result_buffer, 0, resolve_buffer.size);
+        command_encoder.resolveQuerySet(window.gpu.timing.query_set, 0, window.gpu.timing.query_set.count, window.gpu.timing.resolve_buffer, 0);
+        command_encoder.copyBufferToBuffer(window.gpu.timing.resolve_buffer, 0, query_result_buffer, 0, window.gpu.timing.resolve_buffer.size);
     } else {
         console.warn("There aren't any mapped time buffers left, adding more :)");
-        mapped_timed_buffers.push(device.createBuffer({
+        window.gpu.timing.mapped_timed_buffers.push(device.createBuffer({
             label: "query result buffer",
-            size: resolve_buffer.size,
+            size: window.gpu.timing.resolve_buffer.size,
             usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
         }));
     }
 
-    if (debug_buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(gpu_debug_buffer, debug_buffer); }
-    if (frame_buffer.mapState == "unmapped") { command_encoder.copyTextureToBuffer(
+    if (window.gpu.debug.buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(window.gpu.debug.copied_buffer, window.gpu.debug.buffer); }
+    if (window.gpu.render.frame_buffer.mapState == "unmapped") { command_encoder.copyTextureToBuffer(
         { texture: ctx.getCurrentTexture() },
         {
-            buffer: frame_buffer,
+            buffer: window.gpu.render.frame_buffer,
             bytesPerRow: ctx.canvas.width * 4
         }, [ctx.canvas.width, ctx.canvas.height, 1]
     ); }
@@ -128,20 +129,20 @@ function tick() {
         gpu_time_spent.push(new_time);
 
         query_result_buffer.unmap();
-        mapped_timed_buffers.push(query_result_buffer);
+        window.gpu.timing.mapped_timed_buffers.push(query_result_buffer);
     }); }
     
 
-    if (debug_buffer.mapState == "unmapped") { debug_buffer.mapAsync(GPUMapMode.READ).then(() => {
-        const debug_buffer_value = (new Uint32Array(debug_buffer.getMappedRange()))[0];
+    if (window.gpu.debug.buffer.mapState == "unmapped") { window.gpu.debug.buffer.mapAsync(GPUMapMode.READ).then(() => {
+        const debug_buffer_value = (new Uint32Array(window.gpu.debug.buffer.getMappedRange()))[0];
 
         console.log(debug_buffer_value);
-        console.log(debug_buffer_value.toString(16).toString(16).toUpperCase().padStart(8, "0"));
+        console.log(debug_buffer_value.toString(16).toUpperCase().padStart(8, "0"));
         console.log((debug_buffer_value.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
     }); }
 
-    if (frame_buffer.mapState == "unmapped") { frame_buffer.mapAsync(GPUMapMode.READ).then(() => {
-        frame_buffer_data = new Uint8Array(frame_buffer.getMappedRange());
+    if (window.gpu.render.frame_buffer.mapState == "unmapped") { window.gpu.render.frame_buffer.mapAsync(GPUMapMode.READ).then(() => {
+        frame_buffer_data = new Uint8Array(window.gpu.render.frame_buffer.getMappedRange());
     }); }
     if (frame_buffer_data != undefined) { eyedropper(); }
 
