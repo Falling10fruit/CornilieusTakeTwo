@@ -5,12 +5,6 @@ import weslPlugin from "wesl-plugin/vite"
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [
-    solidPlugin(),
-    weslPlugin({
-      extensions: [linkBuildExtension],
-      weslToml: "./compare/sort_subgroup/wesl.toml"
-    })
-  ],
+  plugins: [solidPlugin(), weslPlugin({ extensions: [linkBuildExtension] })],
   server: { port: 8402 }
 }));

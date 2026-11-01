@@ -1,8 +1,10 @@
-import { ENTITY_COUNT_LOG2 } from "..";
+import { ENTITY_COUNT_LOG2 } from "./compute_pipelines";
 
 const QUERY_SET_COUNT = 2;
 
 function create_gpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
+    window.gpu = {};
+
     create_timing_objects(device);
     create_debug_objects(device);
     create_subgroup_objects(device);

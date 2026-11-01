@@ -1,9 +1,10 @@
 import { link, createShaderModule } from "wesl";
 import wesl_source from "../webgpu/main.wesl?link"
-console.log(wesl_source);
+
+const ENTITY_COUNT_LOG2 = 21;  // only down to 20
 const linked = await link({
     ...wesl_source,
-    constants: { ENTITY_COUNT_LOG2: window.ENTITY_COUNT_LOG2 }
+    constants: { ENTITY_COUNT_LOG2 }
 });
 
 interface EntryDetails { fn_name:string; workgroups:Array<number>;}
@@ -112,4 +113,4 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
     });
 }
 
-export { return_pipelines, encode_pipelines_to_pass }
+export { ENTITY_COUNT_LOG2, return_pipelines, encode_pipelines_to_pass }

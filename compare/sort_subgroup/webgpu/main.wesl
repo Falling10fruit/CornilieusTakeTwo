@@ -1,5 +1,4 @@
 enable subgroups;
-requires subgroup_id;
 // I have a lot of comments just to remind me how stuff I wrote works
 // type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (2 * 16 pixels divided by 2^8)     rotation 2^13 
 //  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |

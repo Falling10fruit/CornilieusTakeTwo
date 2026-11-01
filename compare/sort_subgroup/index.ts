@@ -13,7 +13,6 @@ const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 canvas.width = 64 * 3;
 canvas.height = 36 * 3;
 
-const ENTITY_COUNT_LOG2 = 21;  // only down to 20
 const { device, ctx } = await get_gpu();
 create_gpu_objects(device, ctx);
 
@@ -185,5 +184,3 @@ function update_eyedropper_pointer() {
     eyedropper_pointer.style.left = `${eyedropper_x + 5}px`;
     eyedropper_pointer.style.top = `${eyedropper_y + 5}px`;
 }
-
-export { ENTITY_COUNT_LOG2 }
