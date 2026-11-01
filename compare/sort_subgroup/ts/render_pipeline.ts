@@ -1,4 +1,4 @@
-import wgsl from "../wesl/render_buffer.wesl?static"
+import wgsl from "../webgpu/render_buffer.wesl?static"
 
 async function return_render_pipeline(device:GPUDevice) {
     const shader = device.createShaderModule({

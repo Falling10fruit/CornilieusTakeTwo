@@ -1,0 +1,5 @@
+# Version of WESL used in this project.
+edition = "2026_pre"
+
+# Where are the shaders located. This is the path of `package::`.
+root = "./webgpu"

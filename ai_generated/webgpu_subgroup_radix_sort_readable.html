@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WebGPU subgroup radix sort, 8-bit digits</title>
+<style>
+  /* Colour tokens. Dark values are set twice: once for the OS preference,
+     once for an explicit data-theme="dark" override. */
+  :root {
+    --bg: #f3f5f4;  --text: #14211d;  --muted: #5b6b66;
+    --line: #c9d3cf;  --accent: #0b7a5c;  --panel: #fff;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1715;  --text: #e4eeea;  --muted: #8da39b;
+      --line: #2a3a35;  --accent: #4fd1a5;  --panel: #16211e;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1715;  --text: #e4eeea;  --muted: #8da39b;
+    --line: #2a3a35;  --accent: #4fd1a5;  --panel: #16211e;
+    color-scheme: dark;
+  }
+
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
+  main { max-width: 940px; margin: 0 auto; padding: 28px 18px 48px; }
+  h1   { font: 600 26px/1.2 "IBM Plex Sans", system-ui, sans-serif; margin: 0 0 8px; }
+  p    { color: var(--muted); margin: 0 0 14px; max-width: 72ch; }
+
+  .row   { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  label  { color: var(--muted); font-size: 14px; }
+  select { font: inherit; background: var(--panel); color: var(--text);
+           border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; margin-left: 6px; }
+  button { font: inherit; font-weight: 600; background: var(--accent); color: var(--bg);
+           border: 0; border-radius: 6px; padding: 9px 18px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: wait; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+  /* Results log */
+  pre { background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+        padding: 14px; margin: 16px 0 0; overflow-x: auto; white-space: pre;
+        font: 13px/1.5 ui-monospace, Menlo, Consolas, monospace; }
+</style>
+</head>
+<body>
+<main>
+<h1>Subgroup radix sort with 8-bit digits</h1>
+<p>Two stable passes over <code>x</code> (a 16-bit key), 256 bins per pass. Workgroup size and shared-memory tables are sized from the GPU’s reported subgroup range, so laptop GPUs with small or variable subgroups still fit. <code>y</code> is the original index, and a GPU check confirms order and stability.</p>
+<p>Chrome rounds timestamps to 100 µs unless <code>chrome://flags/#enable-webgpu-developer-features</code> is on.</p>
+
+<div class="row">
+  <label>Elements<select id="n">
+    <option value="20">2²⁰</option>
+    <option value="22">2²²</option>
+    <option value="24" selected>2²⁴</option>
+  </select></label>
+  <label>Workgroup<select id="wg">
+    <option value="0" selected>auto</option>
+    <option value="64">64</option>
+    <option value="128">128</option>
+    <option value="256">256</option>
+  </select></label>
+  <button id="go">Run sort and profile</button>
+</div>
+<pre id="out">Press the button to start.</pre>
+</main>
+
+<script>
+/* =============================================================================
+ * HOW THE SORT WORKS
+ *
+ * Data: an array of vec4u records.  x = 16-bit sort key, y = original index,
+ *       z and w = payload words used only to check records move intact.
+ *
+ * LSD radix sort: sort by the low 8 bits (stable), then by the high 8 bits.
+ * Each pass runs four GPU kernels:
+ *
+ *   1. histogram   Each workgroup owns a "tile" of WG*ITEMS elements and counts
+ *                  how many have each digit (0..255). Counts are stored
+ *                  bin-major: hist[bin * numTiles + tile].
+ *   2. scanBlocks  Exclusive prefix sum over hist, in chunks of WG*16 entries
+ *                  (one workgroup per chunk). Chunk totals are appended to hist.
+ *   3. scanSums    One workgroup prefix-sums those chunk totals.
+ *   4. scatter     Each element computes its final output position =
+ *                  (start of its bin/tile from the scan) + (rank within tile),
+ *                  and is written there.
+ *
+ * Because hist is bin-major, scanning it gives every (bin, tile) pair the global
+ * position where that tile's first element with that digit belongs: all smaller
+ * digits first, then earlier tiles first. That ordering is what makes it stable.
+ *
+ * Helper kernels: "init" generates pseudo-random input, "verify" checks the result.
+ * ========================================================================== */
+
+const WGSL = /* wgsl */`
+enable subgroups;
+// All lanes do reach the subgroup operations below, but the compiler cannot prove
+// it, so silence its uniformity analysis.
+diagnostic(off, subgroup_uniformity);
+
+// ---- Constants (overridable ones are set from JavaScript at pipeline creation) ----
+override WG: u32 = 256u;      // threads per workgroup
+override MAXSG: u32 = 8u;     // max subgroups per workgroup (= WG / smallest subgroup size)
+const ITEMS = 16u;            // elements handled per thread; tile size = WG * ITEMS
+const NUM_BINS = 256u;        // 8-bit digit -> 256 bins
+const DIGIT_MASK = 255u;
+const SCAN_PER_THREAD = 16u;  // hist entries each thread scans in scanBlocks
+
+// ---- Bindings -----------------------------------------------------------------
+struct Params {
+  shift: u32,        // 0 for the low-digit pass, 8 for the high-digit pass
+  numTiles: u32,
+  numElements: u32,
+  pad: u32,
+};
+@group(0) @binding(0) var<uniform> params: Params;
+@group(0) @binding(1) var<storage, read> src: array<vec4u>;
+@group(0) @binding(2) var<storage, read_write> dst: array<vec4u>;
+// Per-tile digit counts at [bin * numTiles + tile]. After scanning, the same slots
+// hold start offsets. Scan-block totals are appended after the NUM_BINS*numTiles entries.
+@group(0) @binding(3) var<storage, read_write> hist: array<u32>;
+// verify results: [0] order errors, [1] stability errors, [2] payload errors
+@group(0) @binding(4) var<storage, read_write> verifyErrors: array<atomic<u32>, 4>;
+
+// ---- Small helpers --------------------------------------------------------------
+fn hash(i: u32) -> u32 {
+  var x = i * 0x9E3779B1u;
+  x ^= x >> 15u;  x *= 0x85EBCA77u;
+  x ^= x >> 13u;  x *= 0xC2B2AE3Du;
+  x ^= x >> 16u;
+  return x;
+}
+
+fn digitOf(key: u32) -> u32 { return (key >> params.shift) & DIGIT_MASK; }
+
+// How many bins each thread must handle so that WG threads cover all NUM_BINS.
+fn binsPerThread() -> u32 { return (NUM_BINS + WG - 1u) / WG; }
+
+fn sum4(v: vec4u) -> u32 { return v.x + v.y + v.z + v.w; }
+
+// ---- Finding lanes that share a digit -------------------------------------------
+struct DigitMatch {
+  rank: u32,     // number of lower-numbered lanes holding the same digit
+  count: u32,    // number of lanes holding this digit
+  leader: u32,   // lowest lane holding this digit
+};
+
+fn matchDigit(digit: u32, lane: u32) -> DigitMatch {
+  // Build a 128-bit lane mask of "lanes whose digit equals mine". Start with all
+  // active lanes, then for each of the 8 bits keep only lanes that agree with me.
+  var same = subgroupBallot(true);
+  for (var bit = 0u; bit < 8u; bit++) {
+    let iHaveBit = ((digit >> bit) & 1u) == 1u;
+    let ballot = subgroupBallot(iHaveBit);
+    same &= select(~ballot, ballot, iHaveBit);
+  }
+
+  // Mask of lanes below mine, spread across four 32-bit words.
+  var lowerLanes = vec4u(0u);
+  for (var word = 0u; word < 4u; word++) {
+    let firstLane = word * 32u;
+    if (lane >= firstLane + 32u)  { lowerLanes[word] = 0xffffffffu; }
+    else if (lane > firstLane)    { lowerLanes[word] = (1u << (lane - firstLane)) - 1u; }
+  }
+
+  // Lowest set bit across the four words is the leader lane.
+  var leader = 96u + firstTrailingBit(same.w);
+  if      (same.x != 0u) { leader = firstTrailingBit(same.x); }
+  else if (same.y != 0u) { leader = 32u + firstTrailingBit(same.y); }
+  else if (same.z != 0u) { leader = 64u + firstTrailingBit(same.z); }
+
+  return DigitMatch(sum4(countOneBits(same & lowerLanes)), sum4(countOneBits(same)), leader);
+}
+
+// =============================================================================
+// Kernel: init. Writes record i = (16-bit key, index, payload1, payload2).
+// =============================================================================
+@compute @workgroup_size(WG)
+fn init(@builtin(workgroup_id) workgroupId: vec3u,
+        @builtin(local_invocation_index) localIdx: u32) {
+  for (var r = 0u; r < ITEMS; r++) {
+    let i = workgroupId.x * WG * ITEMS + r * WG + localIdx;
+    dst[i] = vec4u(hash(i) & 0xFFFFu, i, hash(i + 1u), ~i);
+  }
+}
+
+// =============================================================================
+// Kernel 1: histogram. Count digits in this workgroup's tile.
+// =============================================================================
+var<workgroup> tileCounts: array<atomic<u32>, NUM_BINS>;
+
+@compute @workgroup_size(WG)
+fn histogram(@builtin(workgroup_id) workgroupId: vec3u,
+             @builtin(local_invocation_index) localIdx: u32,
+             @builtin(subgroup_invocation_id) lane: u32) {
+  let tile = workgroupId.x;
+
+  for (var k = 0u; k < binsPerThread(); k++) {          // zero the counters
+    let bin = k * WG + localIdx;
+    if (bin < NUM_BINS) { atomicStore(&tileCounts[bin], 0u); }
+  }
+  workgroupBarrier();
+
+  for (var r = 0u; r < ITEMS; r++) {
+    let digit = digitOf(src[tile * WG * ITEMS + r * WG + localIdx].x);
+    let m = matchDigit(digit, lane);
+    // Only one lane per distinct digit does the atomic add, adding the whole group.
+    if (m.rank == 0u) { atomicAdd(&tileCounts[digit], m.count); }
+  }
+  workgroupBarrier();
+
+  for (var k = 0u; k < binsPerThread(); k++) {          // publish bin-major
+    let bin = k * WG + localIdx;
+    if (bin < NUM_BINS) { hist[bin * params.numTiles + tile] = atomicLoad(&tileCounts[bin]); }
+  }
+}
+
+// =============================================================================
+// Kernel 2: scanBlocks. Exclusive scan of hist in blocks of WG*SCAN_PER_THREAD
+// entries. Each thread owns 16 consecutive entries. Block totals go to
+// hist[NUM_BINS * numTiles + block].
+// =============================================================================
+var<workgroup> subgroupTotals: array<u32, MAXSG>;
+
+@compute @workgroup_size(WG)
+fn scanBlocks(@builtin(workgroup_id) workgroupId: vec3u,
+              @builtin(local_invocation_index) localIdx: u32,
+              @builtin(subgroup_invocation_id) lane: u32,
+              @builtin(subgroup_size) sgSize: u32) {
+  let base = (workgroupId.x * WG + localIdx) * SCAN_PER_THREAD;
+
+  var vals: array<u32, SCAN_PER_THREAD>;
+  var mySum = 0u;
+  for (var i = 0u; i < SCAN_PER_THREAD; i++) { vals[i] = hist[base + i]; mySum += vals[i]; }
+
+  // Step 1: scan across the lanes of my subgroup.
+  let sumOfLowerLanes = subgroupExclusiveAdd(mySum);
+  let subgroupSum = subgroupAdd(mySum);
+  let sg = localIdx / sgSize;
+  let numSubgroups = WG / sgSize;
+  if (lane == 0u) { subgroupTotals[sg] = subgroupSum; }
+  workgroupBarrier();
+
+  // Step 2: add totals of earlier subgroups; also total the whole block.
+  var running = sumOfLowerLanes;
+  var blockTotal = 0u;
+  for (var j = 0u; j < numSubgroups; j++) {
+    let t = subgroupTotals[j];
+    if (j < sg) { running += t; }
+    blockTotal += t;
+  }
+
+  // Step 3: write the exclusive scan of my 16 entries.
+  for (var i = 0u; i < SCAN_PER_THREAD; i++) { hist[base + i] = running; running += vals[i]; }
+  if (localIdx == 0u) { hist[NUM_BINS * params.numTiles + workgroupId.x] = blockTotal; }
+}
+
+// =============================================================================
+// Kernel 3: scanSums. A single workgroup does an exclusive scan of block totals.
+// =============================================================================
+@compute @workgroup_size(WG)
+fn scanSums(@builtin(local_invocation_index) localIdx: u32,
+            @builtin(subgroup_invocation_id) lane: u32,
+            @builtin(subgroup_size) sgSize: u32) {
+  let totalsOffset = NUM_BINS * params.numTiles;
+  let numBlocks = totalsOffset / (WG * SCAN_PER_THREAD);
+  let chunk = (numBlocks + WG - 1u) / WG;     // block totals per thread
+  let base = localIdx * chunk;
+
+  var mySum = 0u;
+  for (var i = 0u; i < chunk; i++) { if (base + i < numBlocks) { mySum += hist[totalsOffset + base + i]; } }
+
+  let sumOfLowerLanes = subgroupExclusiveAdd(mySum);
+  let subgroupSum = subgroupAdd(mySum);
+  let sg = localIdx / sgSize;
+  if (lane == 0u) { subgroupTotals[sg] = subgroupSum; }
+  workgroupBarrier();
+
+  var running = sumOfLowerLanes;
+  for (var j = 0u; j < sg; j++) { running += subgroupTotals[j]; }
+  for (var i = 0u; i < chunk; i++) {
+    if (base + i < numBlocks) {
+      let v = hist[totalsOffset + base + i];
+      hist[totalsOffset + base + i] = running;
+      running += v;
+    }
+  }
+}
+
+// =============================================================================
+// Kernel 4: scatter. Move each element to its sorted position.
+//
+// Each subgroup owns a contiguous chunk of ITEMS * subgroupSize elements, so
+// iterating (round, lane) walks that chunk in input order. That keeps the sort stable.
+//
+// binTable[subgroup][bin] first counts how many of this subgroup's elements have
+// each digit, then is rewritten as the absolute output offset of the subgroup's
+// first element with that digit.
+// =============================================================================
+var<workgroup> binTable: array<u32, MAXSG * NUM_BINS>;
+
+@compute @workgroup_size(WG)
+fn scatter(@builtin(workgroup_id) workgroupId: vec3u,
+           @builtin(local_invocation_index) localIdx: u32,
+           @builtin(subgroup_invocation_id) lane: u32,
+           @builtin(subgroup_size) sgSize: u32) {
+  let sg = localIdx / sgSize;
+  let numSubgroups = WG / sgSize;
+  let tile = workgroupId.x;
+  let firstElement = tile * WG * ITEMS + sg * ITEMS * sgSize + lane;   // element for round 0
+
+  for (var k = 0u; k < MAXSG * NUM_BINS / WG; k++) { binTable[k * WG + localIdx] = 0u; }
+  workgroupBarrier();
+
+  // Phase A: for each element, find its rank among earlier elements in this
+  // subgroup's chunk that share its digit.
+  var localRank: array<u32, ITEMS>;
+  for (var r = 0u; r < ITEMS; r++) {
+    let digit = digitOf(src[firstElement + r * sgSize].x);
+    let m = matchDigit(digit, lane);
+
+    // The leader lane reads the running count for this digit and bumps it by the group size.
+    var countBefore = 0u;
+    if (m.rank == 0u) {
+      countBefore = binTable[sg * NUM_BINS + digit];
+      binTable[sg * NUM_BINS + digit] = countBefore + m.count;
+    }
+    countBefore = subgroupShuffle(countBefore, m.leader);   // everyone with this digit gets the leader's value
+    localRank[r] = countBefore + m.rank;
+    workgroupBarrier();                                     // make leader writes visible to the next round
+  }
+
+  // Phase B: turn per-subgroup counts into absolute offsets. For each bin, walk the
+  // subgroups in order, starting from the bin/tile's global offset from the scan.
+  let totalsOffset = NUM_BINS * params.numTiles;
+  for (var k = 0u; k < binsPerThread(); k++) {
+    let bin = k * WG + localIdx;
+    if (bin < NUM_BINS) {
+      let histIdx = bin * params.numTiles + tile;
+      var offset = hist[histIdx] + hist[totalsOffset + histIdx / (WG * SCAN_PER_THREAD)];
+      for (var s = 0u; s < numSubgroups; s++) {
+        let count = binTable[s * NUM_BINS + bin];
+        binTable[s * NUM_BINS + bin] = offset;
+        offset += count;
+      }
+    }
+  }
+  workgroupBarrier();
+
+  // Phase C: write each element to (my subgroup's offset for its digit) + (its rank).
+  for (var r = 0u; r < ITEMS; r++) {
+    let element = src[firstElement + r * sgSize];
+    dst[binTable[sg * NUM_BINS + digitOf(element.x)] + localRank[r]] = element;
+  }
+}
+
+// =============================================================================
+// Kernel: verify. Checks the final array, counting three kinds of error.
+// =============================================================================
+@compute @workgroup_size(WG)
+fn verify(@builtin(workgroup_id) workgroupId: vec3u,
+          @builtin(local_invocation_index) localIdx: u32,
+          @builtin(subgroup_invocation_id) lane: u32) {
+  var orderErrors = 0u;      // key smaller than the previous one
+  var stabilityErrors = 0u;  // equal keys but original indices out of order
+  var payloadErrors = 0u;    // record is not an intact original record
+
+  for (var r = 0u; r < ITEMS; r++) {
+    let i = workgroupId.x * WG * ITEMS + r * WG + localIdx;
+    let e = src[i];
+
+    if (e.y >= params.numElements || e.x != (hash(e.y) & 0xFFFFu) ||
+        e.z != hash(e.y + 1u) || e.w != ~e.y) { payloadErrors++; }
+
+    if (i > 0u) {
+      let prev = src[i - 1u];
+      if (prev.x > e.x)                         { orderErrors++; }
+      else if (prev.x == e.x && prev.y >= e.y)  { stabilityErrors++; }
+    }
+  }
+
+  // Reduce within the subgroup, then one atomic per subgroup.
+  let o = subgroupAdd(orderErrors);
+  let s = subgroupAdd(stabilityErrors);
+  let p = subgroupAdd(payloadErrors);
+  if (lane == 0u) {
+    atomicAdd(&verifyErrors[0], o);
+    atomicAdd(&verifyErrors[1], s);
+    atomicAdd(&verifyErrors[2], p);
+  }
+}`;
+
+/* =============================================================================
+ * JavaScript host code
+ * ========================================================================== */
+
+// These must match the constants in the WGSL above.
+const PASSES = 2;                  // 2 passes x 8 bits = 16-bit key
+const BITS_PER_PASS = 8;
+const NUM_BINS = 256;
+const ITEMS_PER_THREAD = 16;
+const SCAN_PER_THREAD = 16;
+const BYTES_PER_ELEMENT = 16;      // one vec4u
+
+const $ = id => document.getElementById(id);
+const outputEl = $('out');
+const runButton = $('go');
+const log = text => { outputEl.textContent += text + '\n'; };
+const median = values => { const s = [...values].sort((a, b) => a - b); return s[s.length >> 1]; };
+const fmt = (x, digits = 3) => x.toFixed(digits);
+let activeDevice = null;
+
+async function run() {
+  outputEl.textContent = '';
+
+  // ---- 1. Settings and capability checks ----------------------------------------
+  const numElements = 1 << +$('n').value;
+  const timedRuns = numElements >= 1 << 24 ? 10 : 30;      // fewer repeats for big inputs
+  const bufferBytes = numElements * BYTES_PER_ELEMENT;
+
+  if (!navigator.gpu) return log('WebGPU is not available in this browser.');
+  const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' });
+  if (!adapter) return log('No WebGPU adapter found.');
+  if (!adapter.features.has('subgroups')) return log('This adapter has no “subgroups” feature (needs Chrome 134 or newer).');
+  const hasTimestamps = adapter.features.has('timestamp-query');
+  if (adapter.limits.maxStorageBufferBindingSize < bufferBytes || adapter.limits.maxBufferSize < bufferBytes)
+    return log(`Adapter cannot bind a ${bufferBytes >> 20} MiB storage buffer. Try fewer elements.`);
+
+  // ---- 2. Choose a workgroup size -------------------------------------------------
+  // The scatter kernel keeps a (maxSubgroups x 256) table of u32 in shared memory, so the
+  // workgroup must be small enough for that table to fit. Smaller subgroups mean more
+  // subgroups per workgroup and therefore a larger table.
+  const gpuInfo = adapter.info || {};
+  const minSubgroup = gpuInfo.subgroupMinSize || 32;
+  const maxSubgroup = gpuInfo.subgroupMaxSize || 32;
+  const sharedLimit = adapter.limits.maxComputeWorkgroupStorageSize;
+  const sharedBytesFor = size => (size / minSubgroup) * (NUM_BINS * 4) + 512;   // table + 512 B headroom
+
+  const requestedWG = +$('wg').value;            // 0 = auto
+  const isAuto = requestedWG === 0;
+  let workgroupSize = Math.max(requestedWG || 256, maxSubgroup);
+  if (isAuto) {
+    while (workgroupSize > Math.max(maxSubgroup, 32) && sharedBytesFor(workgroupSize) > sharedLimit) workgroupSize /= 2;
+  }
+  if (sharedBytesFor(workgroupSize) > sharedLimit)
+    return log(`Workgroup ${workgroupSize} needs ${sharedBytesFor(workgroupSize)} B of shared memory; the adapter allows ${sharedLimit} B. Pick a smaller workgroup.`);
+
+  // Derived sizes
+  const maxSubgroupsPerWG = workgroupSize / minSubgroup;
+  const tileSize = workgroupSize * ITEMS_PER_THREAD;                    // elements per workgroup
+  const numTiles = numElements / tileSize;
+  const histEntries = NUM_BINS * numTiles;                              // one count per (bin, tile)
+  const numScanBlocks = histEntries / (workgroupSize * SCAN_PER_THREAD);
+
+  // ---- 3. Create device and compile shaders -------------------------------------
+  const device = activeDevice = await adapter.requestDevice({
+    requiredFeatures: ['subgroups', ...(hasTimestamps ? ['timestamp-query'] : [])],
+    requiredLimits: {
+      maxStorageBufferBindingSize: bufferBytes,
+      maxBufferSize: bufferBytes,
+      maxComputeWorkgroupStorageSize: Math.min(sharedLimit, Math.max(16384, sharedBytesFor(workgroupSize))),
+    },
+  });
+  log(`GPU: ${[gpuInfo.vendor, gpuInfo.architecture, gpuInfo.description].filter(Boolean).join(' ') || 'unknown'}`);
+  log(`Reported subgroup size ${minSubgroup}–${maxSubgroup}${gpuInfo.subgroupMinSize ? '' : ' (assumed; not reported)'}; timestamps: ${hasTimestamps ? 'yes' : 'no (wall clock only)'}`);
+  log(`Workgroup ${workgroupSize}, up to ${maxSubgroupsPerWG} subgroups, tile ${tileSize}, ${numTiles} tiles, ${numScanBlocks} scan blocks, ${(sharedBytesFor(workgroupSize) / 1024).toFixed(1)} KiB shared`);
+
+  const shaderModule = device.createShaderModule({ code: WGSL });
+  const compileInfo = await shaderModule.getCompilationInfo();
+  compileInfo.messages.forEach(m => log(`WGSL ${m.type} line ${m.lineNum}: ${m.message}`));
+  if (compileInfo.messages.some(m => m.type === 'error')) return;
+
+  // All kernels share one bind group layout (bindings 0-4, see the WGSL).
+  const COMPUTE = GPUShaderStage.COMPUTE, USAGE = GPUBufferUsage;
+  const bindGroupLayout = device.createBindGroupLayout({ entries: [
+    { binding: 0, visibility: COMPUTE, buffer: { type: 'uniform' } },            // params
+    { binding: 1, visibility: COMPUTE, buffer: { type: 'read-only-storage' } },  // src
+    { binding: 2, visibility: COMPUTE, buffer: { type: 'storage' } },            // dst
+    { binding: 3, visibility: COMPUTE, buffer: { type: 'storage' } },            // hist
+    { binding: 4, visibility: COMPUTE, buffer: { type: 'storage' } },            // verifyErrors
+  ] });
+  const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+  const makePipeline = entryPoint => device.createComputePipeline({
+    layout: pipelineLayout,
+    compute: { module: shaderModule, entryPoint, constants: { WG: workgroupSize, MAXSG: maxSubgroupsPerWG } },
+  });
+  const [initPipeline, histogramPipeline, scanBlocksPipeline, scanSumsPipeline, scatterPipeline, verifyPipeline] =
+    ['init', 'histogram', 'scanBlocks', 'scanSums', 'scatter', 'verify'].map(makePipeline);
+
+  // ---- 4. Buffers and bind groups -------------------------------------------------
+  const makeBuffer = (size, usage) => device.createBuffer({ size, usage });
+  const dataBuffers = [makeBuffer(bufferBytes, USAGE.STORAGE), makeBuffer(bufferBytes, USAGE.STORAGE)];  // ping-pong
+  const histBuffer = makeBuffer((histEntries + numScanBlocks) * 4, USAGE.STORAGE);
+  const errorBuffer = makeBuffer(16, USAGE.STORAGE | USAGE.COPY_SRC | USAGE.COPY_DST);   // 4 x u32 counters
+  const errorReadback = makeBuffer(16, USAGE.MAP_READ | USAGE.COPY_DST);
+
+  // One uniform buffer per pass: [shift, numTiles, numElements, padding]
+  const paramBuffers = [...Array(PASSES)].map((_, pass) => {
+    const buffer = makeBuffer(16, USAGE.UNIFORM | USAGE.COPY_DST);
+    device.queue.writeBuffer(buffer, 0, new Uint32Array([pass * BITS_PER_PASS, numTiles, numElements, 0]));
+    return buffer;
+  });
+  const makeBindGroup = (params, src, dst) => device.createBindGroup({
+    layout: bindGroupLayout,
+    entries: [params, src, dst, histBuffer, errorBuffer].map((buffer, i) => ({ binding: i, resource: { buffer } })),
+  });
+
+  // Pass i reads dataBuffers[i % 2] and writes the other one.
+  const passBindGroups = [...Array(PASSES)].map((_, i) =>
+    makeBindGroup(paramBuffers[i], dataBuffers[i & 1], dataBuffers[(i + 1) & 1]));
+  const initBindGroup   = makeBindGroup(paramBuffers[0], dataBuffers[1], dataBuffers[0]);  // init writes dataBuffers[0]
+  const verifyBindGroup = makeBindGroup(paramBuffers[0], dataBuffers[0], dataBuffers[1]);  // an even number of passes ends in dataBuffers[0]
+
+  // GPU timestamps: two per kernel (start/end) for init + verify + 4 kernels per pass.
+  const maxQueries = 2 * (2 + 4 * PASSES);
+  let querySet, queryResolveBuffer, queryReadback;
+  if (hasTimestamps) {
+    querySet = device.createQuerySet({ type: 'timestamp', count: maxQueries });
+    queryResolveBuffer = makeBuffer(maxQueries * 8, USAGE.QUERY_RESOLVE | USAGE.COPY_SRC);
+    queryReadback = makeBuffer(maxQueries * 8, USAGE.MAP_READ | USAGE.COPY_DST);
+  }
+
+  // ---- 5. One full iteration: generate -> sort -> verify -> read back ---------------
+  async function runOnce() {
+    const encoder = device.createCommandEncoder();
+    const passLabels = [];
+
+    // Record one compute pass, optionally wrapped in timestamp queries.
+    const addPass = (label, pipeline, bindGroup, workgroupCount) => {
+      const k = passLabels.length;
+      passLabels.push(label);
+      const pass = encoder.beginComputePass(hasTimestamps
+        ? { timestampWrites: { querySet, beginningOfPassWriteIndex: 2 * k, endOfPassWriteIndex: 2 * k + 1 } }
+        : {});
+      pass.setPipeline(pipeline);
+      pass.setBindGroup(0, bindGroup);
+      pass.dispatchWorkgroups(workgroupCount);
+      pass.end();
+    };
+
+    addPass('init', initPipeline, initBindGroup, numTiles);
+    for (let i = 0; i < PASSES; i++) {
+      addPass(`pass ${i} histogram`,   histogramPipeline,  passBindGroups[i], numTiles);
+      addPass(`pass ${i} scan blocks`, scanBlocksPipeline, passBindGroups[i], numScanBlocks);
+      addPass(`pass ${i} scan sums`,   scanSumsPipeline,   passBindGroups[i], 1);
+      addPass(`pass ${i} scatter`,     scatterPipeline,    passBindGroups[i], numTiles);
+    }
+    encoder.clearBuffer(errorBuffer);
+    addPass('verify', verifyPipeline, verifyBindGroup, numTiles);
+
+    if (hasTimestamps) {
+      encoder.resolveQuerySet(querySet, 0, passLabels.length * 2, queryResolveBuffer, 0);
+      encoder.copyBufferToBuffer(queryResolveBuffer, 0, queryReadback, 0, passLabels.length * 16);
+    }
+    encoder.copyBufferToBuffer(errorBuffer, 0, errorReadback, 0, 16);
+
+    const startTime = performance.now();
+    device.queue.submit([encoder.finish()]);
+    await errorReadback.mapAsync(GPUMapMode.READ);
+    const wallMs = performance.now() - startTime;
+    const errors = new Uint32Array(errorReadback.getMappedRange().slice(0));
+    errorReadback.unmap();
+
+    // Per-kernel GPU duration in nanoseconds, keyed by label.
+    const gpuNs = {};
+    if (hasTimestamps) {
+      await queryReadback.mapAsync(GPUMapMode.READ);
+      const t = new BigUint64Array(queryReadback.getMappedRange().slice(0));
+      queryReadback.unmap();
+      passLabels.forEach((label, k) => { gpuNs[label] = Number(t[2 * k + 1] - t[2 * k]); });
+    }
+    return { wallMs, errors, gpuNs };
+  }
+
+  // ---- 6. Run: one warm-up, then timed runs ---------------------------------------
+  log(`\nSorting ${numElements.toLocaleString()} vec4u (${bufferBytes >> 20} MiB). 1 warm-up + ${timedRuns} timed runs...`);
+  await runOnce();
+  const runs = [];
+  for (let i = 0; i < timedRuns; i++) runs.push(await runOnce());
+
+  // ---- 7. Report correctness --------------------------------------------------------
+  const lastErrors = runs[runs.length - 1].errors;
+  log(`\nVerification (GPU, every run): order errors ${lastErrors[0]}, stability errors ${lastErrors[1]}, payload/permutation errors ${lastErrors[2]}`);
+  log(lastErrors[0] + lastErrors[1] + lastErrors[2] === 0
+    ? 'PASS: sorted, stable, and a valid permutation.'
+    : 'FAIL: see counts above. If the workgroup was forced, the reported subgroup range may not match this GPU.');
+
+  if (!hasTimestamps) {
+    log(`\nWall clock (init + sort + verify): median ${fmt(median(runs.map(r => r.wallMs)), 2)} ms`);
+    return;
+  }
+
+  // ---- 8. Report per-kernel timings -------------------------------------------------
+  const kernelNames = ['histogram', 'scan blocks', 'scan sums', 'scatter'];
+  const kernelOf = label => label.split(' ').slice(2).join(' ');       // "pass 0 scatter" -> "scatter"
+
+  // Approximate bytes moved by each kernel, used for the GB/s column.
+  const bytesMoved = kernel =>
+    kernel === 'histogram'   ? numElements * 16 :                      // read every record
+    kernel === 'scan blocks' ? histEntries * 8 :                       // read + write each count
+    kernel === 'scan sums'   ? 0 :
+    /* scatter */              numElements * 32 + histEntries * 4;     // read + write records, read offsets
+
+  const sortLabels = Object.keys(runs[0].gpuNs).filter(l => l.startsWith('pass'));
+  const msPerRun = label => runs.map(r => r.gpuNs[label] / 1e6);
+  const totalMsPerRun = runs.map(r => sortLabels.reduce((sum, l) => sum + r.gpuNs[l], 0) / 1e6);
+  const medianTotal = median(totalMsPerRun);
+
+  const formatRow = (name, medianMs, minMs, bytes) =>
+    name.padEnd(22) + fmt(medianMs).padStart(9) + fmt(minMs).padStart(9) +
+    (fmt(100 * medianMs / medianTotal, 1) + '%').padStart(8) +
+    (bytes ? fmt(bytes / medianMs / 1e6, 0) : '').padStart(8);
+
+  log(`\n${'kernel'.padEnd(22)}${'median ms'.padStart(9)}${'min ms'.padStart(9)}${'share'.padStart(8)}${'GB/s'.padStart(8)}`);
+  for (const label of sortLabels) {
+    const ms = msPerRun(label);
+    log(formatRow(label, median(ms), Math.min(...ms), bytesMoved(kernelOf(label))));
+  }
+
+  log('');
+  for (const kernel of kernelNames) {          // totals across all passes
+    const ms = runs.map(r => [...Array(PASSES).keys()].reduce((sum, i) => sum + r.gpuNs[`pass ${i} ${kernel}`], 0) / 1e6);
+    log(formatRow(`all passes: ${kernel}`, median(ms), Math.min(...ms), bytesMoved(kernel) * PASSES));
+  }
+
+  log(`\nSort total (GPU, ${PASSES} passes): median ${fmt(medianTotal)} ms, min ${fmt(Math.min(...totalMsPerRun))} ms`);
+  log(`Throughput: ${fmt(numElements / medianTotal / 1e3, 0)} Mkeys/s   (init ${fmt(median(msPerRun('init')))} ms, verify ${fmt(median(msPerRun('verify')))} ms, not included)`);
+}
+
+runButton.onclick = async () => {
+  runButton.disabled = true;
+  try { await run(); } catch (e) { log('Error: ' + e.message); }
+  try { activeDevice && activeDevice.destroy(); } catch (e) {}
+  activeDevice = null;
+  runButton.disabled = false;
+};
+</script>
+</body>
+</html>

@@ -77,7 +77,7 @@ function tick() {
             endOfPassWriteIndex: 1
         }
     });
-    encode_pipelines_to_pass(device, compute_pipelines, compute_pass)
+    encode_pipelines_to_pass(compute_pipelines, compute_pass)
     compute_pass.end();
 
     const render_pass = command_encoder.beginRenderPass({

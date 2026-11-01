@@ -1,7 +1,8 @@
 import { link, createShaderModule } from "wesl";
-import wgsl_source from "../wesl/main.wesl?link"
+import wesl_source from "../webgpu/main.wesl?link"
+console.log(wesl_source);
 const linked = await link({
-    ...wgsl_source,
+    ...wesl_source,
     constants: { ENTITY_COUNT_LOG2: window.ENTITY_COUNT_LOG2 }
 });
 
@@ -14,7 +15,7 @@ const entry_id:Array<EntryDetails> = [
     { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
 ];
 
-async function encode_pipelines_to_pass(device:GPUDevice, pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
+async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
     pass.setBindGroup(0, window.gpu.entity.bind_group);
     pass.setBindGroup(1, window.gpu.sort.bind_group);
 

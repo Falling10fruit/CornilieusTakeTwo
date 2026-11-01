@@ -22,7 +22,7 @@ override BYTE_SHIFT : u32 = 0; // 0 -> 2
 override IS_CHECKING_SUBGROUP_SIZE : bool = true;
 override SUBGROUP_SIZE : u32 = 32u; // or 16
 override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
-var<workgroup> shared_prefix_16 : array<array<vec4u, 16>, SUBGROUP_COUNT>; // overflow means that all but (23 oct 2026 what the hell are you trying to say yoga)
+var<workgroup> shared_prefix_16 : array<array<vec4u, 16>, SUBGROUP_COUNT>;
 
 fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
     if (BYTE_SHIFT == 0u) {
