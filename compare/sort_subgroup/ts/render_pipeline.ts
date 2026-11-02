@@ -10,7 +10,7 @@ async function return_render_pipeline(device:GPUDevice) {
         label: "render buffer pipeline",
         layout: device.createPipelineLayout({
             label: "render buffer pipeline layout",
-            bindGroupLayouts: [ window.gpu.render.bind_group_layout ]
+            bindGroupLayouts: [ window.render.bind_group_layout ]
         }),
         vertex: { module: shader, entryPoint: "vertex" },
         fragment: { module: shader, entryPoint: "fragment",

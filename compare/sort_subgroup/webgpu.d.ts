@@ -10,22 +10,12 @@ declare global {
     
     interface Window {    
         ENTITY_COUNT_LOG2:number,
-        gpu: {
+        compute: {
             timing: {
                 query_set: GPUQuerySet;
                 resolve_buffer: GPUBuffer;
                 /** mapped buffers to be unmapped to recieve gpu time */
                 mapped_timed_buffers:Array<GPUBuffer>;
-            };
-
-            render: {
-                /** canvas dimensions */
-                viewport_buffer: GPUBuffer;
-                /** Extracted screen pixels for eyedropper */
-                frame_buffer: GPUBuffer;
-
-                bind_group_layout: GPUBindGroupLayout;
-                bind_group: GPUBindGroup;
             };
 
             subgroup_test: {
@@ -58,6 +48,16 @@ declare global {
                 bind_group: GPUBindGroup;
             }
         }
+        
+        render: {
+            /** canvas dimensions */
+            viewport_buffer: GPUBuffer;
+            /** Extracted screen pixels for eyedropper */
+            frame_buffer: GPUBuffer;
+
+            bind_group_layout: GPUBindGroupLayout;
+            bind_group: GPUBindGroup;
+        };
     }
 }
 

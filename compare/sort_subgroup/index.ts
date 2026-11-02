@@ -16,11 +16,11 @@ canvas.height = 36 * 3;
 const { device, ctx } = await get_gpu();
 create_gpu_objects(device, ctx);
 
-device.queue.writeBuffer(window.gpu.render.viewport_buffer, 0,
+device.queue.writeBuffer(window.render.viewport_buffer, 0,
     new Float32Array([ ctx.canvas.width, ctx.canvas.height ])
 );
 
-device.queue.writeBuffer(window.gpu.entity.buffer_0, 0, new Uint32Array([
+device.queue.writeBuffer(window.compute.entity.buffer_0, 0, new Uint32Array([
     (1 << 23) + (1 << 7), 0, 0, 0,
     (1 << 23) + (2 << 7), 0, 0, 0,
     (1 << 23) + (3 << 7), 0, 0, 0,
@@ -71,7 +71,7 @@ function tick() {
     const compute_pass = command_encoder.beginComputePass({
         label: `compute pass`,
         timestampWrites: {
-            querySet: window.gpu.timing.query_set,
+            querySet: window.compute.timing.query_set,
             beginningOfPassWriteIndex: 0,
             endOfPassWriteIndex: 1
         }
@@ -89,31 +89,31 @@ function tick() {
         }]
     });
     render_pass.setPipeline(render_pipeline);
-    render_pass.setBindGroup(0, window.gpu.render.bind_group);
+    render_pass.setBindGroup(0, window.render.bind_group);
     render_pass.draw(3);
     render_pass.end();
 
     let query_result_buffer = undefined;
-    if (window.gpu.timing.mapped_timed_buffers.length > 0) {
-        query_result_buffer = window.gpu.timing.mapped_timed_buffers[0];
-        window.gpu.timing.mapped_timed_buffers.splice(0, 1);
+    if (window.compute.timing.mapped_timed_buffers.length > 0) {
+        query_result_buffer = window.compute.timing.mapped_timed_buffers[0];
+        window.compute.timing.mapped_timed_buffers.splice(0, 1);
 
-        command_encoder.resolveQuerySet(window.gpu.timing.query_set, 0, window.gpu.timing.query_set.count, window.gpu.timing.resolve_buffer, 0);
-        command_encoder.copyBufferToBuffer(window.gpu.timing.resolve_buffer, 0, query_result_buffer, 0, window.gpu.timing.resolve_buffer.size);
+        command_encoder.resolveQuerySet(window.compute.timing.query_set, 0, window.compute.timing.query_set.count, window.compute.timing.resolve_buffer, 0);
+        command_encoder.copyBufferToBuffer(window.compute.timing.resolve_buffer, 0, query_result_buffer, 0, window.compute.timing.resolve_buffer.size);
     } else {
         console.warn("There aren't any mapped time buffers left, adding more :)");
-        window.gpu.timing.mapped_timed_buffers.push(device.createBuffer({
+        window.compute.timing.mapped_timed_buffers.push(device.createBuffer({
             label: "query result buffer",
-            size: window.gpu.timing.resolve_buffer.size,
+            size: window.compute.timing.resolve_buffer.size,
             usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
         }));
     }
 
-    if (window.gpu.debug.buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(window.gpu.debug.copied_buffer, window.gpu.debug.buffer); }
-    if (window.gpu.render.frame_buffer.mapState == "unmapped") { command_encoder.copyTextureToBuffer(
+    if (window.compute.debug.buffer.mapState == "unmapped") { command_encoder.copyBufferToBuffer(window.compute.debug.copied_buffer, window.compute.debug.buffer); }
+    if (window.render.frame_buffer.mapState == "unmapped") { command_encoder.copyTextureToBuffer(
         { texture: ctx.getCurrentTexture() },
         {
-            buffer: window.gpu.render.frame_buffer,
+            buffer: window.render.frame_buffer,
             bytesPerRow: ctx.canvas.width * 4
         }, [ctx.canvas.width, ctx.canvas.height, 1]
     ); }
@@ -128,20 +128,20 @@ function tick() {
         gpu_time_spent.push(new_time);
 
         query_result_buffer.unmap();
-        window.gpu.timing.mapped_timed_buffers.push(query_result_buffer);
+        window.compute.timing.mapped_timed_buffers.push(query_result_buffer);
     }); }
     
 
-    if (window.gpu.debug.buffer.mapState == "unmapped") { window.gpu.debug.buffer.mapAsync(GPUMapMode.READ).then(() => {
-        const debug_buffer_value = (new Uint32Array(window.gpu.debug.buffer.getMappedRange()))[0];
+    if (window.compute.debug.buffer.mapState == "unmapped") { window.compute.debug.buffer.mapAsync(GPUMapMode.READ).then(() => {
+        const debug_buffer_value = (new Uint32Array(window.compute.debug.buffer.getMappedRange()))[0];
 
         console.log(debug_buffer_value);
         console.log(debug_buffer_value.toString(16).toUpperCase().padStart(8, "0"));
         console.log((debug_buffer_value.toString(2).padStart(32, "0").match(/.{1,8}/g) || []).join(' '));
     }); }
 
-    if (window.gpu.render.frame_buffer.mapState == "unmapped") { window.gpu.render.frame_buffer.mapAsync(GPUMapMode.READ).then(() => {
-        frame_buffer_data = new Uint8Array(window.gpu.render.frame_buffer.getMappedRange());
+    if (window.render.frame_buffer.mapState == "unmapped") { window.render.frame_buffer.mapAsync(GPUMapMode.READ).then(() => {
+        frame_buffer_data = new Uint8Array(window.render.frame_buffer.getMappedRange());
     }); }
     if (frame_buffer_data != undefined) { eyedropper(); }
 

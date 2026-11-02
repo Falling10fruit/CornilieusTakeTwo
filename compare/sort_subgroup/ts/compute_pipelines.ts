@@ -17,11 +17,11 @@ const entry_id:Array<EntryDetails> = [
 ];
 
 async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
-    pass.setBindGroup(0, window.gpu.entity.bind_group);
-    pass.setBindGroup(1, window.gpu.sort.bind_group);
+    pass.setBindGroup(0, window.compute.entity.bind_group);
+    pass.setBindGroup(1, window.compute.sort.bind_group);
 
     pipelines.forEach((pipeline, index) => {
-        pass.setBindGroup(3, window.gpu.subgroup_test.list[index].bind_group);
+        pass.setBindGroup(3, window.compute.subgroup_test.list[index].bind_group);
         pass.setPipeline(pipeline);
         pass.dispatchWorkgroups(entry_id[index].workgroups[0], entry_id[index].workgroups[1], entry_id[index].workgroups[2]);
     });
@@ -30,15 +30,15 @@ async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pas
 async function return_pipelines(device:GPUDevice) {
     const shader = createShaderModule(linked, device, { label: "sort shader module" });;
     const subgroup_sizes = await test_shaders(device, shader);
-
+    console.log(subgroup_sizes);
     return await Promise.all(entry_id.map(({ fn_name }, index) => device.createComputePipelineAsync({
         label: `${fn_name} test pipeline`,
         layout: device.createPipelineLayout({
             label: `${fn_name} test pipeline layoute`,
             bindGroupLayouts: [
-                window.gpu.entity.bind_group_layout,
-                window.gpu.sort.bind_group_layout,
-                window.gpu.debug.bind_group_layout
+                window.compute.entity.bind_group_layout,
+                window.compute.sort.bind_group_layout,
+                window.compute.debug.bind_group_layout
             ]
         }),
         compute: {
@@ -57,18 +57,18 @@ async function return_pipelines(device:GPUDevice) {
 async function test_shaders(device:GPUDevice, shader_module:GPUShaderModule) {
     const encoder = device.createCommandEncoder({ label: "test command encoder" });
     const pass = encoder.beginComputePass({ label: "test compute pass" });
-    pass.setBindGroup(0, window.gpu.entity.bind_group);
-    pass.setBindGroup(1, window.gpu.sort.bind_group);
+    pass.setBindGroup(0, window.compute.entity.bind_group);
+    pass.setBindGroup(1, window.compute.sort.bind_group);
 
     await Promise.all(
         entry_id.map((entry_details) => generate_test_pipeline(device, shader_module, entry_details.fn_name))
     ).then((pipelines) => { pipelines.forEach((pipeline, index) => {
-        pass.setBindGroup(3, window.gpu.subgroup_test.list[index].bind_group);
+        pass.setBindGroup(3, window.compute.subgroup_test.list[index].bind_group);
         pass.setPipeline(pipeline);
         pass.dispatchWorkgroups(entry_id[index].workgroups[0], entry_id[index].workgroups[1], entry_id[index].workgroups[2]);
     })})
     
-    window.gpu.subgroup_test.list.forEach(subgroup_test => {
+    window.compute.subgroup_test.list.forEach(subgroup_test => {
         encoder.copyBufferToBuffer(subgroup_test.copied_buffer, subgroup_test.pasted_buffer);
     });
 
@@ -76,8 +76,8 @@ async function test_shaders(device:GPUDevice, shader_module:GPUShaderModule) {
 
     let subgroup_sizes:Array<number> = [];
 
-    await Promise.all(window.gpu.subgroup_test.list.map(({pasted_buffer}) => pasted_buffer.mapAsync(GPUMapMode.READ)));
-    window.gpu.subgroup_test.list.forEach(({pasted_buffer}, index) => {
+    await Promise.all(window.compute.subgroup_test.list.map(({pasted_buffer}) => pasted_buffer.mapAsync(GPUMapMode.READ)));
+    window.compute.subgroup_test.list.forEach(({pasted_buffer}, index) => {
         const recorded_subgroup_size = (new Uint32Array(pasted_buffer.getMappedRange()))[0];
         console.log(`${entry_id[index].fn_name} uses a subgroup size of ${recorded_subgroup_size}`);
         
@@ -93,11 +93,11 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
         layout: device.createPipelineLayout({
             label: `${entry_point} test pipeline layoute`,
             bindGroupLayouts: [
-                window.gpu.entity.bind_group_layout,
-                window.gpu.sort.bind_group_layout,
-                window.gpu.debug.bind_group_layout,
+                window.compute.entity.bind_group_layout,
+                window.compute.sort.bind_group_layout,
+                window.compute.debug.bind_group_layout,
                 
-                window.gpu.subgroup_test.bind_group_layout
+                window.compute.subgroup_test.bind_group_layout
             ]
         }),
         compute: {

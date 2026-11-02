@@ -1,4 +1,5 @@
 enable subgroups;
+diagnostic(off, subgroup_uniformity);
 // I have a lot of comments just to remind me how stuff I wrote works
 // type (2^11 = 2048)           chunk index 2^24         xPos(2^8)    yPos (2 * 16 pixels divided by 2^8)     rotation 2^13 
 //  [ 01010101 010 ][ 10101 01010101 01010101 | 010 ][ 10101 010 ]             [ 10101 010 ]             [ 10101 01010101 ] |
@@ -21,7 +22,7 @@ override BYTE_SHIFT : u32 = 0; // 0 -> 2
 override IS_CHECKING_SUBGROUP_SIZE : bool = true;
 override SUBGROUP_SIZE : u32 = 32u; // or 16
 override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
-var<workgroup> shared_prefix_16 : array<array<vec4u, 16>, SUBGROUP_COUNT>;
+var<workgroup> shared_prefix_16 : array<array<vec4u, 16>, SUBGROUP_COUNT>; // 256 * 4 * (256/8)
 
 fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
     if (BYTE_SHIFT == 0u) {
@@ -49,13 +50,13 @@ fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_index: u32, sub
 @compute @workgroup_size(256) fn local_accumulation(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_index : u32,
     @builtin(subgroup_id) subgroup_id : u32,
-    @builtin(subgroup_invocation_id) sub_id : u32,
-    @builtin(subgroup_size) subgroup_size : u32
+    @builtin(subgroup_size) subgroup_size : u32,
+    @builtin(subgroup_invocation_id) sub_id : u32
 ) {
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    const subgroup_count = 256u / subgroup_size;
+    let subgroup_count = 256u / subgroup_size;
+    let local_index = subgroup_id * subgroup_size + sub_id;
     
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
     get_chunk_byte_into_shared_prefix(workgroup_index, local_index, subgroup_id);
@@ -78,13 +79,38 @@ fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_index: u32, sub
     }
 }
 
+override LOCAL_ACCUMULATION_ITERATIONS = SUBGROUP_COUNT >> 2;
+override DIGIT_COUNT = 256u / LOCAL_ACCUMULATION_ITERATIONS;
+var<workgroup> local_accumulation_prefix = array<array<u32, DIGIT_COUNT>, SUBGROUP_COUNT>;
+@compute @workgroup(256) fn local_accumulation_iter(
+    @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(subgroup_id) subgroup_id : u32,
+    @builtin(subgroup_size) subgroup_size : u32,
+    @builtin(subgroup_invocation_id) sub_id : u32
+) {
+    let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
+    let local_index = subgroup_id * subgroup_size + sub_id;
+
+    let entity_vector = entity_buffer_0[workgroup_index * 256 + local_index];
+    let chunk_byte = get_chunk_from_entity_vector(entity_vector);
+
+    for (var i = 0u; i < LOCAL_ACCUMULATION_ITERATIONS; i++) {
+        let chunk_byte_relative = chunk_byte - DIGIT_COUNT * i;
+        
+        var havent_finished = false;
+        while (subgroupAny(havent_finished)) // YOGA FINISH THIS. NOW SINCE THEY DON'T SHARE THE SAME U32 YOU DON'T NEED BARRIERS
+
+    }
+}
+
 @compute @workgroup_size(256) fn local_accumulation_8(
     @builtin(global_invocation_id) global_invocation_id : vec3u,
     @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_index : u32,
     @builtin(subgroup_id) subgroup_id : u32,
+    @builtin(subgroup_size) subgroup_size : u32,
     @builtin(subgroup_invocation_id) sub_id : u32
 ) {
+    let local_index = subgroup_id * subgroup_size + sub_id;
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
     get_chunk_byte_into_shared_prefix(workgroup_index, local_index, subgroup_id);
 
@@ -92,15 +118,15 @@ fn get_chunk_byte_into_shared_prefix(workgroup_index: u32, local_index: u32, sub
     let subgroup_shift = subgroup_id >> 4;
     let this_shift = subgroup_shift * 16 + sub_id * 2;
     let this_increment: vec4u = shared_prefix_16[this_shift][vec4u_index] + shared_prefix_16[this_shift + 1][vec4u_index];
-    let total = subgroupAdd(this_increment);
+    let this_total = subgroupAdd(this_increment);
 
     workgroupBarrier();
-    if (subgroupElect()) { shared_prefix_16[subgroup_shift][vec4u_index] = total; }
+    if (subgroupElect()) { shared_prefix_16[subgroup_shift][vec4u_index] = this_total; }
     workgroupBarrier();
 
     var total: vec4u;
     if (subgroup_id < 16) {
-        total = subgroupAdd(select(0u, shared_prefix_16[sub_id][subgroup_id], sub_id < 2));
+        total = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_16[sub_id][subgroup_id], sub_id < 2));
         if (subgroupElect()) { shared_prefix_16[0][subgroup_id] = total; }
     } workgroupBarrier();
     if (subgroup_id >= 16) { total = shared_prefix_16[0][vec4u_index]; }
@@ -205,7 +231,6 @@ var<workgroup> digit_offset: atomic<u32>;
 // 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(256) fn rescatter(
     @builtin(workgroup_id) workgroup_id : vec3u,
-    @builtin(local_invocation_index) local_index : u32,
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_invocation_id) sub_id : u32,
     @builtin(subgroup_size) subgroup_size : u32

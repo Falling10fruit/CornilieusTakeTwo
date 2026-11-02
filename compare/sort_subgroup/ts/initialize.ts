@@ -3,20 +3,20 @@ import { ENTITY_COUNT_LOG2 } from "./compute_pipelines";
 const QUERY_SET_COUNT = 2;
 
 function create_gpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
-    window.gpu = {};
-
-    create_timing_objects(device);
-    create_debug_objects(device);
-    create_subgroup_objects(device);
-    create_entity_objects(device);
-    create_sort_objects(device);
-
-    // so its bind group 
-    create_render_objects(device, ctx);
+    window.compute = {
+        timing: create_timing_objects(device),
+        debug: create_debug_objects(device),
+        subgroup_test: create_subgroup_objects(device),
+        entity: create_entity_objects(device),
+        sort: create_sort_objects(device),
+    }
+    
+    // so its bind group can use any resource
+    window.render = create_render_objects(device, ctx)
 }
 
 function create_timing_objects(device:GPUDevice) {
-    window.gpu.timing = {
+    return {
         query_set: device.createQuerySet({
             type: "timestamp",
             count: QUERY_SET_COUNT
@@ -45,7 +45,7 @@ function create_debug_objects(device:GPUDevice) {
         entries: [ { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
     })
 
-    window.gpu.debug = {
+    return {
         copied_buffer,
         bind_group_layout,
         bind_group: device.createBindGroup({
@@ -68,7 +68,7 @@ function create_subgroup_objects(device:GPUDevice) {
         entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
     });
 
-    window.gpu.subgroup_test = {
+    return {
         bind_group_layout,
         list: Array.from({ length: 5 }, (_, i) => {
             const copied_buffer = device.createBuffer({
@@ -115,16 +115,16 @@ function create_entity_objects(device:GPUDevice) {
         ]
     });
 
-    window.gpu.entity = {
+    return {
         buffer_0,
         buffer_1,
         bind_group_layout,
         bind_group: device.createBindGroup({
-            label: "bind_group",
+            label: "entity bind group",
             layout: bind_group_layout,
             entries: [
                 { binding: 0, resource: { buffer: buffer_0 } },
-                { binding: 0, resource: { buffer: buffer_1 } },
+                { binding: 1, resource: { buffer: buffer_1 } },
             ]
         })
     }
@@ -151,11 +151,11 @@ function create_sort_objects(device:GPUDevice) {
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
         ]
     }) 
 
-    window.gpu.sort = {
+    return {
         workgroup_histogram,
         global_histogram,
         digit_histogram,
@@ -193,7 +193,7 @@ function create_render_objects(device:GPUDevice, ctx:GPUCanvasContext) {
         ]
     });
 
-    window.gpu.render = {
+    return {
         viewport_buffer,
         frame_buffer,
 
@@ -203,7 +203,7 @@ function create_render_objects(device:GPUDevice, ctx:GPUCanvasContext) {
             layout: bind_group_layout,
             entries: [
                 { binding: 0, resource: { buffer: viewport_buffer } },
-                { binding: 1, resource: { buffer: window.gpu.sort.workgroup_histogram } },
+                { binding: 1, resource: { buffer: window.compute.sort.workgroup_histogram } },
             ]
         })
     }
