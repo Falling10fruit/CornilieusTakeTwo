@@ -94,12 +94,45 @@ var<workgroup> local_accumulation_prefix = array<array<u32, DIGIT_COUNT>, SUBGRO
     let entity_vector = entity_buffer_0[workgroup_index * 256 + local_index];
     let chunk_byte = get_chunk_from_entity_vector(entity_vector);
 
-    for (var i = 0u; i < LOCAL_ACCUMULATION_ITERATIONS; i++) {
-        let chunk_byte_relative = chunk_byte - DIGIT_COUNT * i;
+    for (var sub_byte_offset = 0u; sub_byte_offset < LOCAL_ACCUMULATION_ITERATIONS; sub_byte_offset++) {
+        let chunk_byte_relative = chunk_byte - DIGIT_COUNT * sub_byte_offset;
         
-        var havent_finished = false;
-        while (subgroupAny(havent_finished)) // YOGA FINISH THIS. NOW SINCE THEY DON'T SHARE THE SAME U32 YOU DON'T NEED BARRIERS
+        var havent_finished = chunk_byte_relative < DIGIT_COUNT;
+        while (subgroupAny(havent_finished)) {
+            var is_active = false;
+            if (havent_finished) {
+                is_active = chunk_byte_relative == subgroupBroadcastFirst(chunk_byte_relative);
+            }
 
+            let digit_total = subgroupAdd(select(0u, 1u, is_active));
+            if (subgroupElect()) { local_accumulation_prefix[subgroup_id][chunk_byte_relative] = digit_total; }
+        }
+        
+        workgroupBarrier();
+        let iter_count = DIGIT_COUNT/SUBGROUP_COUNT/4u; // 64 / 16 / 4
+        let iter_shift = DIGIT_COUNT/iter_count;
+        for (var i = 0u; i < iter_count; i++) {
+            let base_index = iter_shift * i + subgroup_id * 4;
+
+            var this_accumulation = vec4u(0, 0, 0, 0);
+            if (sub_id < SUBGROUP_COUNT) { this_accumulation = vec4u(
+                local_accumulation_prefix[base_index + 0][sub_id],
+                local_accumulation_prefix[base_index + 1][sub_id],
+                local_accumulation_prefix[base_index + 2][sub_id],
+                local_accumulation_prefix[base_index + 3][sub_id]
+            ); }
+
+            var total = subgroupAdd(this_accumulation);
+            if (subgroupElect()) { for (var iu = 0; i < 4; i++) {
+                local_accumulation_prefix[base_index + i][0] = total[i];
+            } }
+        }
+        
+        workgroupBarrier();
+        if (local_index < DIGIT_COUNT) {
+            workgroup_histogram[local_index + sub_byte_offset * DIGIT_COUNT][workgroup_index] =
+                local_accumulation_prefix[local_index][0];
+        }
     }
 }
 
