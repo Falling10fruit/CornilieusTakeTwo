@@ -19,10 +19,6 @@ const GLOBAL_HISTOGRAM_LENGTH = WORKGROUP_HISTOGRAM_LENGTH >> 8;
 
 override BYTE_SHIFT : u32 = 0; // 0 -> 2
 
-override IS_CHECKING_SUBGROUP_SIZE : bool = true;
-override SUBGROUP_SIZE : u32 = 32u; // or 16
-override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
-
 fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
     if (BYTE_SHIFT == 0u) {
         return ((vector.x & 0x1Fu) << 3) + (vector.y >> 29);
@@ -30,6 +26,10 @@ fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
         return 0xFFu & (vector.x >> (5 + 8 * BYTE_SHIFT));
     }
 }
+
+override IS_CHECKING_SUBGROUP_SIZE : bool = true;
+override SUBGROUP_SIZE : u32 = 32u; // or 16
+override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
 
 override LOCAL_ACCUMULATION_ITERATIONS = SUBGROUP_COUNT >> 2;
 override DIGIT_COUNT = 256u / LOCAL_ACCUMULATION_ITERATIONS;
@@ -154,20 +154,24 @@ var<workgroup> shared_prefix_2 : array<array<vec4u, 2>, SUBGROUP_COUNT>;
         this_increment[(digit >> 1) & 3u] += workgroup_histogram[digit][index] << (16 * (digit & 1u));
     }
 
-    let is_overflow = (this_increment[(digit >> 1) & 3u] >> (16 * (digit & 3u)) == 0u && not_empty); 
-    if (subgroupAny(is_overflow)) {
-        if (is_overflow) { global_histogram[digit][workgroup_id.x] = 65536u; }
-        return; // YOGA YOU NEED TO REMOVE THIS RETURN SO THAT WORKGROUPBARRIER OCCURS AT UNIFORM CONTROL FORM
-    }
+    let is_this_overflow = (this_increment[(digit >> 1) & 3u] >> (16 * (digit & 3u)) == 0u && not_empty);
+    let is_subgroup_overflow = subgroupAny(is_this_overflow);
+    if (is_subgroup_overflow) { if (is_this_overflow) {
+        global_histogram[digit][workgroup_id.x] = 65536u;
+    } }
 
-    let total = subgroupAdd(this_increment); // this increment can hold digits from 0-127 in case you were wondering if we have to isolate each digit's subgroup add
-    if (subgroupElect()) { shared_prefix_2[subgroup_id][digit >> 3] = this_increment; }
+    if (is_subgroup_overflow) {
+        let total = subgroupAdd(this_increment); // this increment can hold digits from 0-127 in case you were wondering if we have to isolate each digit's subgroup add
+        if (subgroupElect()) { shared_prefix_2[subgroup_id][digit >> 3] = this_increment; }
+    }
     workgroupBarrier();
 
-    let final_total: vec4u = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_2[sub_id][local_index >> 7], sub_id < subgroup_size));
-    if (sub_id < 8) {
-        let this_total = final_total[(digit >> 1) & 3u] >> (16 * (digit & 1u));
-        global_histogram[digit][workgroup_id.x] = this_total;
+    if (is_subgroup_overflow) {
+        let final_total: vec4u = subgroupAdd(select(vec4u(0, 0, 0, 0), shared_prefix_2[sub_id][local_index >> 7], sub_id < subgroup_size));
+        if (sub_id < 8) {
+            let this_total = final_total[(digit >> 1) & 3u] >> (16 * (digit & 1u));
+            global_histogram[digit][workgroup_id.x] = this_total;
+        }
     }
 } 
 
