@@ -19,9 +19,9 @@ const entry_id:Array<EntryDetails> = [
 async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
     pass.setBindGroup(0, window.compute.entity.bind_group);
     pass.setBindGroup(1, window.compute.sort.bind_group);
+    pass.setBindGroup(2, window.compute.debug.bind_group);
 
     pipelines.forEach((pipeline, index) => {
-        pass.setBindGroup(3, window.compute.subgroup_test.list[index].bind_group);
         pass.setPipeline(pipeline);
         pass.dispatchWorkgroups(entry_id[index].workgroups[0], entry_id[index].workgroups[1], entry_id[index].workgroups[2]);
     });
@@ -59,6 +59,7 @@ async function test_shaders(device:GPUDevice, shader_module:GPUShaderModule) {
     const pass = encoder.beginComputePass({ label: "test compute pass" });
     pass.setBindGroup(0, window.compute.entity.bind_group);
     pass.setBindGroup(1, window.compute.sort.bind_group);
+    pass.setBindGroup(2, window.compute.debug.bind_group);
 
     await Promise.all(
         entry_id.map((entry_details) => generate_test_pipeline(device, shader_module, entry_details.fn_name))
