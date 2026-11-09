@@ -1,4 +1,4 @@
-import { ENTITY_COUNT_LOG2 } from "./compute_pipelines";
+import { ENTITY_COUNT_LOG2, ENTRY_DETAILS } from "./compute_pipelines";
 
 const QUERY_SET_COUNT = 2;
 
@@ -70,7 +70,7 @@ function create_subgroup_objects(device:GPUDevice) {
 
     return {
         bind_group_layout,
-        list: Array.from({ length: 5 }, (_, i) => {
+        list: Array.from({ length: ENTRY_DETAILS.length }, (_, i) => {
             const copied_buffer = device.createBuffer({
                 label: `subgroup test buffer no. ${i}`,
                 size: 4,

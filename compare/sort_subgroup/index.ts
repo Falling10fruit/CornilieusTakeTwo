@@ -32,7 +32,7 @@ device.queue.writeBuffer(window.compute.entity.buffer_0, 0, new Uint32Array([
     (1 << 23) + (35 << 7), 0, 0, 0,
 ]));
 
-var gpu_time_spent:Array<number>;
+var gpu_time_spent:Array<number> = [];
 
 const [render_pipeline,compute_pipelines] = await Promise.all([return_render_pipeline(device), return_pipelines(device)]);
 

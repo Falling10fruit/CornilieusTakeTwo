@@ -28,7 +28,7 @@ fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
 }
 
 override IS_CHECKING_SUBGROUP_SIZE : bool = true;
-override SUBGROUP_SIZE : u32 = 32u; // or 16
+override SUBGROUP_SIZE : u32 = 16u; // or 16
 override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
 
 override LOCAL_ACCUMULATION_ITERATIONS = SUBGROUP_COUNT >> 2;
@@ -66,6 +66,7 @@ fn insert_shared_prefix(subgroup_id:u32, digit:u32, value:u32) {
 
             let digit_total = subgroupAdd(select(0u, 1u, is_active));
             if (subgroupElect()) { insert_shared_prefix(subgroup_id, chunk_byte_relative, digit_total); }
+            havent_finished = havent_finished && !is_active;
         }
         
         workgroupBarrier();
@@ -117,6 +118,7 @@ var<workgroup> shared_prefix_8 : array<array<u32, 32>, 32>; // 32 * 32 * 4
 
             let digit_total = subgroupAdd(select(0u, 1u, is_active));
             if (subgroupElect()) { insert_shared_prefix(subgroup_id, chunk_byte_relative, digit_total); }
+            havent_finished = havent_finished && !is_active;
         }
         
         workgroupBarrier();
@@ -247,6 +249,7 @@ var<workgroup> digit_offset: atomic<u32>;
             let prefix_count = subgroupExclusiveAdd(select(0u, 1u, is_active));
             let total_count = subgroupMax(prefix_count) + 1;
             if (subgroupElect()) { insert_shared_prefix(subgroup_id, chunk_byte_relative, total_count); }
+            havent_finished = havent_finished && !is_active;
         }
 
         workgroupBarrier();
