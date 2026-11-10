@@ -13,7 +13,7 @@ const GLOBAL_HISTOGRAM_LENGTH = WORKGROUP_HISTOGRAM_LENGTH >> 8;
 @group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<array<u32, WORKGROUP_HISTOGRAM_LENGTH>, 256>;
 @group(1) @binding(1) var<storage, read_write> global_histogram : array<array<u32, GLOBAL_HISTOGRAM_LENGTH>, 256>;
 @group(1) @binding(2) var<storage, read_write> digit_histogram : array<u32, 256>;
-// @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
+@group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
 
 @group(3) @binding(0) var<storage, read_write> read_subgroup_size : u32;
 
@@ -35,11 +35,13 @@ override LOCAL_ACCUMULATION_ITERATIONS = SUBGROUP_COUNT >> 2;
 override DIGIT_COUNT = 256u / LOCAL_ACCUMULATION_ITERATIONS;
 var<workgroup> shared_prefix : array<u32, DIGIT_COUNT * SUBGROUP_COUNT>;
 fn index_shared_prefix(subgroup_id:u32, digit:u32) -> u32 {
-    return shared_prefix[subgroup_id + digit * subgroup_id];
+    return shared_prefix[subgroup_id + digit * SUBGROUP_COUNT];
 }
 fn insert_shared_prefix(subgroup_id:u32, digit:u32, value:u32) {
-    shared_prefix[subgroup_id + digit * subgroup_id] = value;
+    shared_prefix[subgroup_id + digit * SUBGROUP_COUNT] = value;
 }
+
+var<workgroup> shared_histogram:array<atomic<u32>, 256>;
 
 @compute @workgroup_size(256) fn local_accumulation(
     @builtin(workgroup_id) workgroup_id : vec3u,
@@ -65,7 +67,7 @@ fn insert_shared_prefix(subgroup_id:u32, digit:u32, value:u32) {
             }
 
             let digit_total = subgroupAdd(select(0u, 1u, is_active));
-            if (subgroupElect()) { insert_shared_prefix(subgroup_id, chunk_byte_relative, digit_total); }
+            if (is_active && subgroupElect()) { insert_shared_prefix(subgroup_id, chunk_byte_relative, digit_total); }
             havent_finished = havent_finished && !is_active;
         }
         
@@ -83,6 +85,7 @@ fn insert_shared_prefix(subgroup_id:u32, digit:u32, value:u32) {
             ); }
             
             let total = subgroupAdd(this_accumulation);
+            // let total = vec4u(0, 0, 0, 0);
             if (subgroupElect()) {
                 let base_index = sub_byte_offset * DIGIT_COUNT + iter_shift * i + subgroup_id * 4;
                 for (var total_index = 0u; total_index < 4; total_index++) {

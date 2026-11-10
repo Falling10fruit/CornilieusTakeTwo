@@ -9,11 +9,11 @@ const linked = await link({
 
 interface EntryDetails { fn_name:string; workgroups:Array<number>;}
 const ENTRY_DETAILS:Array<EntryDetails> = [
-    // { fn_name: "local_accumulation" , workgroups: [256, 256, 1] },
+    { fn_name: "local_accumulation" , workgroups: [256, 256, 1] },
     // { fn_name: "global_accumulation", workgroups: [256, 16,  1] },
     // { fn_name: "global_prefix"      , workgroups: [16,  1,   1] },
     // { fn_name: "digit_prefix"       , workgroups: [1,   1,   1] },
-    { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
+    // { fn_name: "rescatter"          , workgroups: [256, 256, 1] },
 ];
 
 async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
