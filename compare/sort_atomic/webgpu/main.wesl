@@ -25,6 +25,38 @@ fn get_chunk_from_entity_vector(vector:vec4u) -> u32 {
     }
 }
 
+fn sum4(nums:vec4u) -> u32 { return nums.x + nums.y + nums.z + nums.w; }
+fn match_digit(digit:u32, lane:u32) -> MatchedDigits {
+    var match_mask = subgroupBallot(true);
+    for (var bit = 0u; bit < 8; bit++) {
+        let my_bit = (digit >> bit) & 1u;
+        let bit_mask = subgroupBallot(my_bit == 1);
+        match_mask &= select(~bit_mask, bit_mask, my_bit == 1);
+    }
+
+    var lower_ballot = match_mask;
+    for (var i = 0u; i < 4; i++) {
+        let offset = i * 32;
+        var mask_shift = 0u;
+        if (offset < lane) { mask_shift = min(32u, offset - lane); }
+
+        let lower_mask = 0xFFFFFFFFu >> mask_shift;
+        lower_ballot[i] &= lower_mask;
+    }
+
+    let zeroes= countTrailingZeros(match_mask);
+    var leader_id = zeroes[0];
+    if (leader_id == 32) { leader_id += zeroes[1]; }
+    if (leader_id == 64) { leader_id += zeroes[2]; }
+    if (leader_id == 96) { leader_id += zeroes[3]; }
+
+    return MatchedDigits(
+        sum4(countOneBits(match_mask)),
+        sum4(countOneBits(lower_ballot)),
+        leader_id
+    );
+}
+
 override IS_CHECKING_SUBGROUP_SIZE : bool = true;
 override SUBGROUP_SIZE : u32 = 16u; // or 16
 override SUBGROUP_COUNT : u32 = 256u / SUBGROUP_SIZE;
@@ -41,12 +73,13 @@ var<workgroup> shared_histogram:array<atomic<u32>, 256>;
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
     let local_index = subgroup_id * subgroup_size + sub_id;
+    let first_element = workgroup_index * 256 * 16 + subgroup_id * 16 * subgroup_size + local_index;
 
     for (var i = 0u; i < 16; i++) {
-        let entity_vector = entity_buffer_0[workgroup_index * 256 * 16 + local_index + i * 256];
-        let chunk_byte = get_chunk_from_entity_vector(entity_vector);
+        let chunk_byte = get_chunk_from_entity_vector(entity_buffer_0[workgroup_index * 256 * 16 + local_index + i * 256]);
+        let this_result = match_digit(chunk_byte, sub_id);
 
-        atomicAdd(&shared_histogram[chunk_byte], 1u);
+        if (this_result.rank == 0u) { atomicAdd(&shared_histogram[chunk_byte], this_result.sum); }
         workgroupBarrier();
     }
     
@@ -106,40 +139,8 @@ struct MatchedDigits {
     leader:u32
 }
 
-fn sum4(nums:vec4u) -> u32 { return nums.x + nums.y + nums.z + nums.w; }
-
-fn match_digit(digit:u32, lane:u32) -> MatchedDigits {
-    var match_mask = subgroupBallot(true);
-    for (var bit = 0u; bit < 8; bit++) {
-        let my_bit = (digit >> bit) & 1u;
-        let bit_mask = subgroupBallot(my_bit == 1);
-        match_mask &= select(~bit_mask, bit_mask, my_bit == 1);
-    }
-
-    var lower_ballot = match_mask;
-    for (var i = 0u; i < 4; i++) {
-        let offset = i * 32;
-        var mask_shift = 0u;
-        if (offset < lane) { mask_shift = min(32u, offset - lane); }
-
-        let lower_mask = 0xFFFFFFFFu >> mask_shift;
-        lower_ballot[i] &= lower_mask;
-    }
-
-    let zeroes= countTrailingZeros(match_mask);
-    var leader_id = zeroes[0];
-    if (leader_id == 32) { leader_id += zeroes[1]; }
-    if (leader_id == 64) { leader_id += zeroes[2]; }
-    if (leader_id == 96) { leader_id += zeroes[3]; }
-
-    return MatchedDigits(
-        sum4(countOneBits(match_mask)),
-        sum4(countOneBits(lower_ballot)),
-        leader_id
-    );
-}
-
 var<workgroup> digit_prefix_local:array<u32, 256>;
+var<workgroup> workgroup_histogram_local:array<u32, 256>;
 var<workgroup> running_offsets:array<u32, 256 * SUBGROUP_COUNT>;
 
 // 256 * 256 = 65536  workgroups for 2^24 entities
@@ -155,6 +156,7 @@ var<workgroup> running_offsets:array<u32, 256 * SUBGROUP_COUNT>;
     let first_element = workgroup_index * 256 * 16 + subgroup_id * 16 * subgroup_size + local_index;
 
     digit_prefix_local[local_index] = digit_histogram[local_index];
+    workgroup_histogram_local[local_index] = workgroup_histogram[local_index];
 
     var private_offsets:array<u32, 16>;
     
@@ -168,5 +170,15 @@ var<workgroup> running_offsets:array<u32, 256 * SUBGROUP_COUNT>;
             running_offsets[subgroup_id + this_digit * 256] += this_result.sum;
         }
         this_offset = subgroupShuffle(this_offset, this_result.leader);
+        
+        private_offsets[subgroup_id] = this_offset + this_result.rank;
+        workgroupBarrier();
+    }
+
+    for (var i = 0u; i < 16; i++) {
+        let entity_vector = entity_buffer_0[first_element + i * subgroup_size];
+        let chunk_byte = get_chunk_from_entity_vector(entity_vector);
+        let final_offset = digit_prefix_local[chunk_byte] + workgroup_histogram_local[chunk_byte] + private_offsets[i];
+        entity_buffer_1[final_offset] = entity_vector;
     }
 }
