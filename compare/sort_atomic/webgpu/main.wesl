@@ -100,28 +100,73 @@ var<workgroup> subgroup_totals:array<u32, SUBGROUP_COUNT>;
     digit_histogram[local_index] = subgroup_prefix + subgroupShuffle(workgroup_prefix, subgroup_id);
 }
 
+struct MatchedDigits {
+    sum:u32,
+    rank:u32,
+    leader:u32
+}
+
+fn sum4(nums:vec4u) -> u32 { return nums.x + nums.y + nums.z + nums.w; }
+
+fn match_digit(digit:u32, lane:u32) -> MatchedDigits {
+    var match_mask = subgroupBallot(true);
+    for (var bit = 0u; bit < 8; bit++) {
+        let my_bit = (digit >> bit) & 1u;
+        let bit_mask = subgroupBallot(my_bit == 1);
+        match_mask &= select(~bit_mask, bit_mask, my_bit == 1);
+    }
+
+    var lower_ballot = match_mask;
+    for (var i = 0u; i < 4; i++) {
+        let offset = i * 32;
+        var mask_shift = 0u;
+        if (offset < lane) { mask_shift = min(32u, offset - lane); }
+
+        let lower_mask = 0xFFFFFFFFu >> mask_shift;
+        lower_ballot[i] &= lower_mask;
+    }
+
+    let zeroes= countTrailingZeros(match_mask);
+    var leader_id = zeroes[0];
+    if (leader_id == 32) { leader_id += zeroes[1]; }
+    if (leader_id == 64) { leader_id += zeroes[2]; }
+    if (leader_id == 96) { leader_id += zeroes[3]; }
+
+    return MatchedDigits(
+        sum4(countOneBits(match_mask)),
+        sum4(countOneBits(lower_ballot)),
+        leader_id
+    );
+}
+
+var<workgroup> digit_prefix_local:array<u32, 256>;
+var<workgroup> running_offsets:array<u32, 256 * SUBGROUP_COUNT>;
+
 // 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(256) fn rescatter(
     @builtin(workgroup_id) workgroup_id : vec3u,
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_invocation_id) sub_id : u32,
-    @builtin(subgroup_size) subgroup_size : u32
+    @builtin(subgroup_size) subgroup_size : u32,
 ) {
     if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
     let local_index = subgroup_id * subgroup_size + sub_id;
+    let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
+    let first_element = workgroup_index * 256 * 16 + subgroup_id * 16 * subgroup_size + local_index;
 
-    let digit_offset = digit_histogram[]
+    digit_prefix_local[local_index] = digit_histogram[local_index];
+
+    var private_offsets:array<u32, 16>;
     
     for (var i  = 0u; i < 16; i++) {
-        let this_increment:u32 = workgroup_histogram[local_index + i * 256];
-        let subgroup_prefix = subgroupExclusiveAdd(this_increment);
-        let highest = subgroupMax(subgroup_prefix) + this_increment;
-        if (sub_id == subgroup_size - 1) { subgroup_totals[subgroup_id] = highest; }
-        workgroupBarrier();
-
-        let workgroup_prefix = subgroupExclusiveAdd(select(0u, subgroup_totals[sub_id], sub_id < SUBGROUP_COUNT));
-        let final_prefix = subgroup_prefix + subgroupShuffle(workgroup_prefix, subgroup_id);
-        workgroup_histogram[local_index + i * 256] = final_prefix;
-        if (local_index == 255) { previous_total = highest + workgroup_prefix; }
+        let this_digit = get_chunk_from_entity_vector(entity_buffer_0[first_element + i * subgroup_size]);
+        let this_result = match_digit(this_digit, sub_id);
+        
+        var this_offset = 0u;
+        if (this_result.rank == 0u) {
+            this_offset = running_offsets[subgroup_id + this_digit * 256];
+            running_offsets[subgroup_id + this_digit * 256] += this_result.sum;
+        }
+        this_offset = subgroupShuffle(this_offset, this_result.leader);
     }
 }
