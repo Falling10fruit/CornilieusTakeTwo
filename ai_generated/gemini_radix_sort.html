@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebGPU Subgroup 8-Bit Radix Sort (16-Bit Keys, vec4u)</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --panel: #181b23;
+      --border: #2a2f3d;
+      --text: #e6e8ef;
+      --muted: #8b92a5;
+      --accent: #4f8cff;
+      --accent-hover: #3b76e8;
+      --ok: #34d399;
+      --err: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 2rem;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 920px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 0.35rem;
+    }
+    p.subtitle {
+      margin: 0 0 1.5rem;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    label {
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    select, button {
+      font-size: 0.92rem;
+      padding: 0.5rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: #222632;
+      color: var(--text);
+      cursor: pointer;
+    }
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+    button.primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.9rem 1.1rem;
+    }
+    .card .k {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+    }
+    .card .v {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-top: 0.2rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .status {
+      padding: 0.85rem 1.1rem;
+      border-radius: 8px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      margin-bottom: 1.25rem;
+    }
+    .status.ok { border-color: rgba(52, 211, 153, 0.4); color: var(--ok); }
+    .status.err { border-color: rgba(248, 113, 113, 0.4); color: var(--err); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.83rem;
+    }
+    th, td {
+      padding: 0.55rem 0.85rem;
+      text-align: right;
+      border-bottom: 1px solid var(--border);
+    }
+    th:first-child, td:first-child { text-align: left; }
+    th {
+      background: #141720;
+      color: var(--muted);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WebGPU Subgroup 8-Bit Radix Sort (16-Bit Keys)</h1>
+    <p class="subtitle">
+      2-pass LSB radix sort on <code>vec4&lt;u32&gt;</code> (<code>.x</code> = 16-bit key, <code>.y</code> = ID) using subgroup ballot multi-split.
+    </p>
+
+    <div class="controls">
+      <label for="countSelect">Element Count (<code>vec4u</code>):</label>
+      <select id="countSelect">
+        <option value="20">2^20 — 1,048,576 (16 MB)</option>
+        <option value="21">2^21 — 2,097,152 (32 MB)</option>
+        <option value="22" selected>2^22 — 4,194,304 (64 MB)</option>
+        <option value="23">2^23 — 8,388,608 (128 MB)</option>
+        <option value="24">2^24 — 16,777,216 (256 MB)</option>
+      </select>
+      <button id="runBtn" class="primary">Run 2-Pass Sort &amp; Verify</button>
+    </div>
+
+    <div class="metrics">
+      <div class="card"><div class="k">Elements</div><div class="v" id="mElements">—</div></div>
+      <div class="card"><div class="k">Sort Time (2 Passes)</div><div class="v" id="mTime">—</div></div>
+      <div class="card"><div class="k">Throughput</div><div class="v" id="mRate">—</div></div>
+      <div class="card"><div class="k">Stability &amp; Order</div><div class="v" id="mVerify">—</div></div>
+    </div>
+
+    <div id="status" class="status">Initializing WebGPU...</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Sorted Index</th>
+          <th>Key (.x, 16-bit)</th>
+          <th>Original ID (.y)</th>
+          <th>.z</th>
+          <th>.w</th>
+        </tr>
+      </thead>
+      <tbody id="previewBody">
+        <tr><td colspan="5" style="text-align:center;color:var(--muted)">Run sort to inspect output</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Embedded WGSL Compute Shader -->
+  <script id="radix-sort-wgsl" type="x-shader/x-wgsl">
+    enable subgroups;
+
+    struct SortParams {
+        num_elements: u32,
+        num_tiles: u32,
+        bit_shift: u32,
+        _pad: u32,
+    };
+
+    const WG_SIZE: u32 = 128u;
+    const ITEMS_PER_THREAD: u32 = 16u;
+    const TILE_SIZE: u32 = 2048u; // WG_SIZE * ITEMS_PER_THREAD
+    const RADIX: u32 = 256u;
+
+    @group(0) @binding(0) var<uniform> params: SortParams;
+    @group(0) @binding(1) var<storage, read> src: array<vec4<u32>>;
+    @group(0) @binding(2) var<storage, read_write> dst: array<vec4<u32>>;
+    @group(0) @binding(3) var<storage, read_write> histograms: array<u32>;   // [digit * num_tiles + tile_id]
+    @group(0) @binding(4) var<storage, read_write> digit_totals: array<u32>; // [256]
+
+    // Workgroup shared memory (~8.5 KB total, well within default 16 KB limit)
+    // Packs two 16-bit subgroup counts per u32; supports up to 16 subgroups (subgroup_size >= 8)
+    var<workgroup> sg_counts: array<atomic<u32>, 2048>; // 8 * 256 u32s
+    var<workgroup> base_shared: array<u32, 256>;
+    var<workgroup> scan_scratch: array<u32, 64>;
+    var<workgroup> chunk_total_shared: u32;
+
+    // Bitmask with bits [0 .. sg_inv_id - 1] set to 1
+    fn subgroup_lt_mask(sg_inv_id: u32) -> vec4<u32> {
+        var mask = vec4<u32>(0u);
+        if (sg_inv_id >= 32u) {
+            mask.x = 0xFFFFFFFFu;
+            if (sg_inv_id >= 64u) {
+                mask.y = 0xFFFFFFFFu;
+                if (sg_inv_id >= 96u) {
+                    mask.z = 0xFFFFFFFFu;
+                    let rem = sg_inv_id - 96u;
+                    mask.w = select(0u, (1u << (rem & 31u)) - 1u, rem > 0u);
+                } else {
+                    let rem = sg_inv_id - 64u;
+                    mask.z = select(0u, (1u << (rem & 31u)) - 1u, rem > 0u);
+                }
+            } else {
+                let rem = sg_inv_id - 32u;
+                mask.y = select(0u, (1u << (rem & 31u)) - 1u, rem > 0u);
+            }
+        } else {
+            mask.x = select(0u, (1u << (sg_inv_id & 31u)) - 1u, sg_inv_id > 0u);
+        }
+        return mask;
+    }
+
+    fn popcount_vec4(v: vec4<u32>) -> u32 {
+        return countOneBits(v.x) + countOneBits(v.y) + countOneBits(v.z) + countOneBits(v.w);
+    }
+
+    // 8-bit Subgroup Multi-Split: returns vec2(intra_subgroup_rank, total_peers_in_subgroup)
+    fn subgroup_multisplit_8bit(digit: u32, valid: bool, sg_inv_id: u32) -> vec2<u32> {
+        var peer_mask = subgroupBallot(valid);
+        for (var b = 0u; b < 8u; b = b + 1u) {
+            let bit_set = ((digit >> b) & 1u) != 0u;
+            let ballot = subgroupBallot(bit_set);
+            let matching = select(~ballot, ballot, bit_set);
+            peer_mask = peer_mask & matching;
+        }
+        let total_peers = popcount_vec4(peer_mask);
+        let lt_peers = popcount_vec4(peer_mask & subgroup_lt_mask(sg_inv_id));
+        return vec2<u32>(lt_peers, total_peers);
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage 1: Per-Tile Histogram Upsweep
+    // -------------------------------------------------------------------------
+    @compute @workgroup_size(128, 1, 1)
+    fn histogram_upsweep(
+        @builtin(workgroup_id) wg_id: vec3<u32>,
+        @builtin(local_invocation_index) tid: u32,
+        @builtin(subgroup_invocation_id) sg_inv_id: u32,
+        @builtin(subgroup_size) sg_size: u32
+    ) {
+        let tile_id = wg_id.x;
+        let tile_base = tile_id * TILE_SIZE;
+        let sg_idx = tid / sg_size;
+        let num_subgroups = WG_SIZE / sg_size;
+
+        let d0 = tid;
+        let d1 = tid + 128u;
+        var count0: u32 = 0u;
+        var count1: u32 = 0u;
+
+        for (var i = 0u; i < ITEMS_PER_THREAD; i = i + 1u) {
+            let idx = tile_base + i * WG_SIZE + tid;
+            let valid = idx < params.num_elements;
+            let key = select(0u, src[idx].x, valid);
+            let digit = (key >> params.bit_shift) & 0xFFu;
+
+            let rank_info = subgroup_multisplit_8bit(digit, valid, sg_inv_id);
+            let intra_rank = rank_info.x;
+            let sg_count = rank_info.y;
+
+            for (var k = 0u; k < 16u; k = k + 1u) {
+                atomicStore(&sg_counts[k * WG_SIZE + tid], 0u);
+            }
+            workgroupBarrier();
+
+            if (valid && intra_rank == 0u) {
+                let word_idx = (sg_idx >> 1u) * RADIX + digit;
+                let shift16 = (sg_idx & 1u) * 16u;
+                atomicAdd(&sg_counts[word_idx], sg_count << shift16);
+            }
+            workgroupBarrier();
+
+            for (var s = 0u; s < num_subgroups; s = s + 1u) {
+                let shift16 = (s & 1u) * 16u;
+                let w0 = atomicLoad(&sg_counts[(s >> 1u) * RADIX + d0]);
+                let w1 = atomicLoad(&sg_counts[(s >> 1u) * RADIX + d1]);
+                count0 = count0 + ((w0 >> shift16) & 0xFFFFu);
+                count1 = count1 + ((w1 >> shift16) & 0xFFFFu);
+            }
+            workgroupBarrier();
+        }
+
+        histograms[d0 * params.num_tiles + tile_id] = count0;
+        histograms[d1 * params.num_tiles + tile_id] = count1;
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage 2: Spine Prefix Sum (256 workgroups, 1 per radix bucket)
+    // -------------------------------------------------------------------------
+    @compute @workgroup_size(256, 1, 1)
+    fn spine_scan(
+        @builtin(workgroup_id) wg_id: vec3<u32>,
+        @builtin(local_invocation_index) tid: u32,
+        @builtin(subgroup_invocation_id) sg_inv_id: u32,
+        @builtin(subgroup_size) sg_size: u32
+    ) {
+        let digit = wg_id.x;
+        let base = digit * params.num_tiles;
+        let sg_idx = tid / sg_size;
+        let num_subgroups = 256u / sg_size;
+
+        var carry: u32 = 0u;
+        for (var chunk = 0u; chunk < params.num_tiles; chunk = chunk + 256u) {
+            let idx = chunk + tid;
+            let val = select(0u, histograms[base + idx], idx < params.num_tiles);
+
+            let sg_excl = subgroupExclusiveAdd(val);
+            let sg_total = subgroupAdd(val);
+            if (sg_inv_id == 0u) {
+                scan_scratch[sg_idx] = sg_total;
+            }
+            workgroupBarrier();
+
+            if (tid == 0u) {
+                var run = 0u;
+                for (var s = 0u; s < num_subgroups; s = s + 1u) {
+                    let c = scan_scratch[s];
+                    scan_scratch[s] = run;
+                    run = run + c;
+                }
+                chunk_total_shared = run;
+            }
+            workgroupBarrier();
+
+            if (idx < params.num_tiles) {
+                histograms[base + idx] = carry + scan_scratch[sg_idx] + sg_excl;
+            }
+            carry = carry + chunk_total_shared;
+            workgroupBarrier();
+        }
+
+        if (tid == 0u) {
+            digit_totals[digit] = carry;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage 3: Global 256-Bucket Exclusive Prefix Sum (1 workgroup)
+    // -------------------------------------------------------------------------
+    @compute @workgroup_size(256, 1, 1)
+    fn digit_scan(
+        @builtin(local_invocation_index) tid: u32,
+        @builtin(subgroup_invocation_id) sg_inv_id: u32,
+        @builtin(subgroup_size) sg_size: u32
+    ) {
+        let sg_idx = tid / sg_size;
+        let num_subgroups = 256u / sg_size;
+
+        let val = digit_totals[tid];
+        let sg_excl = subgroupExclusiveAdd(val);
+        let sg_total = subgroupAdd(val);
+
+        if (sg_inv_id == 0u) {
+            scan_scratch[sg_idx] = sg_total;
+        }
+        workgroupBarrier();
+
+        if (tid == 0u) {
+            var run = 0u;
+            for (var s = 0u; s < num_subgroups; s = s + 1u) {
+                let c = scan_scratch[s];
+                scan_scratch[s] = run;
+                run = run + c;
+            }
+        }
+        workgroupBarrier();
+
+        digit_totals[tid] = scan_scratch[sg_idx] + sg_excl;
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage 4: Stable Scatter Downsweep
+    // -------------------------------------------------------------------------
+    @compute @workgroup_size(128, 1, 1)
+    fn scatter_downsweep(
+        @builtin(workgroup_id) wg_id: vec3<u32>,
+        @builtin(local_invocation_index) tid: u32,
+        @builtin(subgroup_invocation_id) sg_inv_id: u32,
+        @builtin(subgroup_size) sg_size: u32
+    ) {
+        let tile_id = wg_id.x;
+        let tile_base = tile_id * TILE_SIZE;
+        let sg_idx = tid / sg_size;
+        let num_subgroups = WG_SIZE / sg_size;
+
+        let d0 = tid;
+        let d1 = tid + 128u;
+        var base0 = digit_totals[d0] + histograms[d0 * params.num_tiles + tile_id];
+        var base1 = digit_totals[d1] + histograms[d1 * params.num_tiles + tile_id];
+
+        for (var i = 0u; i < ITEMS_PER_THREAD; i = i + 1u) {
+            let idx = tile_base + i * WG_SIZE + tid;
+            let valid = idx < params.num_elements;
+            let item = select(vec4<u32>(0u), src[idx], valid);
+            let digit = (item.x >> params.bit_shift) & 0xFFu;
+
+            let rank_info = subgroup_multisplit_8bit(digit, valid, sg_inv_id);
+            let intra_rank = rank_info.x;
+            let sg_count = rank_info.y;
+
+            for (var k = 0u; k < 16u; k = k + 1u) {
+                atomicStore(&sg_counts[k * WG_SIZE + tid], 0u);
+            }
+            workgroupBarrier();
+
+            if (valid && intra_rank == 0u) {
+                let word_idx = (sg_idx >> 1u) * RADIX + digit;
+                let shift16 = (sg_idx & 1u) * 16u;
+                atomicAdd(&sg_counts[word_idx], sg_count << shift16);
+            }
+            workgroupBarrier();
+
+            // Exclusive scan across subgroups for d0 and d1
+            var run0 = 0u;
+            var run1 = 0u;
+            for (var s = 0u; s < num_subgroups; s = s + 1u) {
+                let shift16 = (s & 1u) * 16u;
+                let mask16 = ~(0xFFFFu << shift16);
+
+                let idx0 = (s >> 1u) * RADIX + d0;
+                let w0 = atomicLoad(&sg_counts[idx0]);
+                let c0 = (w0 >> shift16) & 0xFFFFu;
+                atomicStore(&sg_counts[idx0], (w0 & mask16) | (run0 << shift16));
+                run0 = run0 + c0;
+
+                let idx1 = (s >> 1u) * RADIX + d1;
+                let w1 = atomicLoad(&sg_counts[idx1]);
+                let c1 = (w1 >> shift16) & 0xFFFFu;
+                atomicStore(&sg_counts[idx1], (w1 & mask16) | (run1 << shift16));
+                run1 = run1 + c1;
+            }
+
+            base_shared[d0] = base0;
+            base_shared[d1] = base1;
+            base0 = base0 + run0;
+            base1 = base1 + run1;
+            workgroupBarrier();
+
+            if (valid) {
+                let packed_sg = atomicLoad(&sg_counts[(sg_idx >> 1u) * RADIX + digit]);
+                let sg_offset = (packed_sg >> ((sg_idx & 1u) * 16u)) & 0xFFFFu;
+                let dst_idx = base_shared[digit] + sg_offset + intra_rank;
+                dst[dst_idx] = item;
+            }
+            workgroupBarrier();
+        }
+    }
+  </script>
+
+  <!-- Host Orchestrator & Benchmark UI -->
+  <script type="module">
+    const TILE_SIZE = 2048;
+    const RADIX = 256;
+    const PASS_SHIFTS = [0, 8]; // 16-bit keys require only 2 x 8-bit passes
+
+    class SubgroupRadixSorter16Bit {
+      constructor(device, shaderModule, maxElements) {
+        this.device = device;
+        this.maxElements = maxElements;
+
+        this.bindGroupLayout = device.createBindGroupLayout({
+          entries: [
+            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "read-only-storage" } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+            { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+            { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+          ],
+        });
+
+        const pipelineLayout = device.createPipelineLayout({
+          bindGroupLayouts: [this.bindGroupLayout],
+        });
+
+        const makePipeline = (entryPoint) =>
+          device.createComputePipeline({
+            layout: pipelineLayout,
+            compute: { module: shaderModule, entryPoint },
+          });
+
+        this.upsweepPipeline = makePipeline("histogram_upsweep");
+        this.spineScanPipeline = makePipeline("spine_scan");
+        this.digitScanPipeline = makePipeline("digit_scan");
+        this.scatterPipeline = makePipeline("scatter_downsweep");
+
+        const maxTiles = Math.ceil(maxElements / TILE_SIZE);
+
+        this.scratchBuffer = device.createBuffer({
+          size: maxElements * 16,
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        });
+
+        this.histogramBuffer = device.createBuffer({
+          size: RADIX * maxTiles * 4,
+          usage: GPUBufferUsage.STORAGE,
+        });
+
+        this.digitTotalsBuffer = device.createBuffer({
+          size: RADIX * 4,
+          usage: GPUBufferUsage.STORAGE,
+        });
+
+        this.uniformBuffers = PASS_SHIFTS.map(() =>
+          device.createBuffer({
+            size: 16,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+          })
+        );
+      }
+
+      static async create(wgslCode, desiredMaxElements = 1 << 24) {
+        if (!navigator.gpu) {
+          throw new Error("WebGPU is not supported in this browser.");
+        }
+        const adapter = await navigator.gpu.requestAdapter({ powerPreference: "high-performance" });
+        if (!adapter) {
+          throw new Error("No compatible WebGPU adapter found.");
+        }
+        if (!adapter.features.has("subgroups")) {
+          throw new Error("This WebGPU adapter does not support the 'subgroups' feature.");
+        }
+
+        const maxSupportedBytes = Math.min(
+          adapter.limits.maxStorageBufferBindingSize,
+          adapter.limits.maxBufferSize
+        );
+        const maxSupportedElements = Math.floor(maxSupportedBytes / 16);
+        const effectiveMaxElements = Math.min(desiredMaxElements, maxSupportedElements);
+        const requiredBytes = effectiveMaxElements * 16;
+
+        const device = await adapter.requestDevice({
+          requiredFeatures: ["subgroups"],
+          requiredLimits: {
+            maxStorageBufferBindingSize: requiredBytes,
+            maxBufferSize: requiredBytes,
+          },
+        });
+
+        const shaderModule = device.createShaderModule({ code: wgslCode });
+        const sorter = new SubgroupRadixSorter16Bit(device, shaderModule, effectiveMaxElements);
+        return { device, sorter, effectiveMaxElements };
+      }
+
+      /**
+       * Sorts `dataBuffer` (array<vec4<u32>>) in-place by the lower 16 bits of `.x` ascending,
+       * preserving `.y` (ID), `.z`, and `.w`.
+       * Pass 0 (shift 0): dataBuffer -> scratchBuffer
+       * Pass 1 (shift 8): scratchBuffer -> dataBuffer
+       */
+      sort(dataBuffer, numElements) {
+        if (numElements > this.maxElements) {
+          throw new Error(`numElements (${numElements}) exceeds maxElements (${this.maxElements}).`);
+        }
+        if (numElements <= 1) return;
+
+        const numTiles = Math.ceil(numElements / TILE_SIZE);
+
+        for (let pass = 0; pass < PASS_SHIFTS.length; pass++) {
+          const params = new Uint32Array([numElements, numTiles, PASS_SHIFTS[pass], 0]);
+          this.device.queue.writeBuffer(this.uniformBuffers[pass], 0, params);
+        }
+
+        const encoder = this.device.createCommandEncoder();
+
+        for (let pass = 0; pass < PASS_SHIFTS.length; pass++) {
+          const src = pass % 2 === 0 ? dataBuffer : this.scratchBuffer;
+          const dst = pass % 2 === 0 ? this.scratchBuffer : dataBuffer;
+
+          const bindGroup = this.device.createBindGroup({
+            layout: this.bindGroupLayout,
+            entries: [
+              { binding: 0, resource: { buffer: this.uniformBuffers[pass] } },
+              { binding: 1, resource: { buffer: src } },
+              { binding: 2, resource: { buffer: dst } },
+              { binding: 3, resource: { buffer: this.histogramBuffer } },
+              { binding: 4, resource: { buffer: this.digitTotalsBuffer } },
+            ],
+          });
+
+          const computePass = encoder.beginComputePass();
+          computePass.setBindGroup(0, bindGroup);
+
+          computePass.setPipeline(this.upsweepPipeline);
+          computePass.dispatchWorkgroups(numTiles);
+
+          computePass.setPipeline(this.spineScanPipeline);
+          computePass.dispatchWorkgroups(RADIX);
+
+          computePass.setPipeline(this.digitScanPipeline);
+          computePass.dispatchWorkgroups(1);
+
+          computePass.setPipeline(this.scatterPipeline);
+          computePass.dispatchWorkgroups(numTiles);
+
+          computePass.end();
+        }
+
+        this.device.queue.submit([encoder.finish()]);
+      }
+
+      destroy() {
+        this.scratchBuffer.destroy();
+        this.histogramBuffer.destroy();
+        this.digitTotalsBuffer.destroy();
+        for (const buf of this.uniformBuffers) buf.destroy();
+      }
+    }
+
+    // --- UI Wiring ---
+    const statusEl = document.getElementById("status");
+    const runBtn = document.getElementById("runBtn");
+    const countSelect = document.getElementById("countSelect");
+    const mElements = document.getElementById("mElements");
+    const mTime = document.getElementById("mTime");
+    const mRate = document.getElementById("mRate");
+    const mVerify = document.getElementById("mVerify");
+    const previewBody = document.getElementById("previewBody");
+
+    function setStatus(msg, type = "") {
+      statusEl.textContent = msg;
+      statusEl.className = `status ${type}`.trim();
+    }
+
+    let gpuContext = null;
+
+    async function init() {
+      runBtn.disabled = true;
+      try {
+        const wgslCode = document.getElementById("radix-sort-wgsl").textContent;
+        gpuContext = await SubgroupRadixSorter16Bit.create(wgslCode, 1 << 24);
+
+        // Disable options above device's maxStorageBufferBindingSize
+        for (const opt of countSelect.options) {
+          const n = 1 << Number(opt.value);
+          if (n > gpuContext.effectiveMaxElements) {
+            opt.disabled = true;
+            opt.textContent += " (exceeds device buffer limit)";
+          }
+        }
+        if ((1 << Number(countSelect.value)) > gpuContext.effectiveMaxElements) {
+          countSelect.value = String(Math.floor(Math.log2(gpuContext.effectiveMaxElements)));
+        }
+
+        setStatus(
+          `Ready. WebGPU subgroups enabled (max buffer: ${(gpuContext.effectiveMaxElements * 16 / (1024 * 1024)).toFixed(0)} MB).`,
+          "ok"
+        );
+        runBtn.disabled = false;
+      } catch (err) {
+        setStatus(`Initialization failed: ${err.message}`, "err");
+      }
+    }
+
+    runBtn.addEventListener("click", async () => {
+      if (!gpuContext) return;
+      runBtn.disabled = true;
+
+      const { device, sorter } = gpuContext;
+      const pow = Number(countSelect.value);
+      const N = 1 << pow;
+      const byteSize = N * 16;
+
+      mElements.textContent = N.toLocaleString();
+      mTime.textContent = "...";
+      mRate.textContent = "...";
+      mVerify.textContent = "...";
+      setStatus(`Generating ${N.toLocaleString()} random 16-bit key vec4u items...`);
+
+      // Allow UI paint before CPU buffer fill
+      await new Promise((r) => setTimeout(r, 16));
+
+      const hostData = new Uint32Array(N * 4);
+      for (let i = 0; i < N; i++) {
+        hostData[i * 4 + 0] = (Math.random() * 0x10000) >>> 0; // .x = 16-bit key [0..65535]
+        hostData[i * 4 + 1] = i;                               // .y = original ID
+        hostData[i * 4 + 2] = i ^ 0x5A5A;                      // .z = payload check
+        hostData[i * 4 + 3] = 0xDEAD0000 | (i & 0xFFFF);       // .w = payload check
+      }
+
+      const gpuBuffer = device.createBuffer({
+        size: byteSize,
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      });
+      device.queue.writeBuffer(gpuBuffer, 0, hostData);
+      await device.queue.onSubmittedWorkDone();
+
+      setStatus(`Sorting ${N.toLocaleString()} elements (2 passes: bits [0..7], [8..15])...`);
+      const t0 = performance.now();
+      sorter.sort(gpuBuffer, N);
+      await device.queue.onSubmittedWorkDone();
+      const elapsedMs = performance.now() - t0;
+
+      const mElemsPerSec = (N / 1e6) / (elapsedMs / 1000);
+      mTime.textContent = `${elapsedMs.toFixed(2)} ms`;
+      mRate.textContent = `${mElemsPerSec.toFixed(1)} M/s`;
+
+      setStatus("Reading back buffer to verify 16-bit key order and duplicate stability...");
+      const readback = device.createBuffer({
+        size: byteSize,
+        usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+      });
+      const enc = device.createCommandEncoder();
+      enc.copyBufferToBuffer(gpuBuffer, 0, readback, 0, byteSize);
+      device.queue.submit([enc.finish()]);
+
+      await readback.mapAsync(GPUMapMode.READ);
+      const sorted = new Uint32Array(readback.getMappedRange());
+
+      let valid = true;
+      let failMsg = "";
+      for (let i = 1; i < N; i++) {
+        const prevKey = sorted[(i - 1) * 4] & 0xFFFF;
+        const currKey = sorted[i * 4] & 0xFFFF;
+        const prevId = sorted[(i - 1) * 4 + 1];
+        const currId = sorted[i * 4 + 1];
+        if (prevKey > currKey) {
+          valid = false;
+          failMsg = `Order violation at ${i}: ${prevKey} > ${currKey}`;
+          break;
+        }
+        if (prevKey === currKey && prevId >= currId) {
+          valid = false;
+          failMsg = `Stability violation at ${i} (key=${currKey}): id ${prevId} >= ${currId}`;
+          break;
+        }
+      }
+
+      // Render sample rows (first 5 and last 5)
+      const sampleIndices = [0, 1, 2, 3, 4, N - 5, N - 4, N - 3, N - 2, N - 1];
+      previewBody.innerHTML = sampleIndices
+        .map((idx) => {
+          const base = idx * 4;
+          const k = sorted[base];
+          const id = sorted[base + 1];
+          const z = "0x" + sorted[base + 2].toString(16).toUpperCase().padStart(4, "0");
+          const w = "0x" + sorted[base + 3].toString(16).toUpperCase().padStart(8, "0");
+          return `<tr>
+            <td>${idx.toLocaleString()}</td>
+            <td>${k} (0x${k.toString(16).toUpperCase().padStart(4, "0")})</td>
+            <td>${id.toLocaleString()}</td>
+            <td>${z}</td>
+            <td>${w}</td>
+          </tr>`;
+        })
+        .join("");
+
+      readback.unmap();
+      readback.destroy();
+      gpuBuffer.destroy();
+
+      if (valid) {
+        mVerify.textContent = "PASS";
+        setStatus(
+          `Verified ${N.toLocaleString()} elements in ${elapsedMs.toFixed(2)} ms (${mElemsPerSec.toFixed(1)} M elem/s). Keys and stability intact.`,
+          "ok"
+        );
+      } else {
+        mVerify.textContent = "FAIL";
+        setStatus(failMsg, "err");
+      }
+
+      runBtn.disabled = false;
+    });
+
+    init();
+  </script>
+</body>
+</html>

@@ -8,11 +8,10 @@ diagnostic(off, subgroup_uniformity);
 @group(0) @binding(1) var<storage, read_write> entity_buffer_1 : array<vec4u>;
 // wesl override
 const ENTITY_COUNT_LOG2 : u32 = constants::ENTITY_COUNT_LOG2; // only down to 20
-const WORKGROUP_HISTOGRAM_LENGTH = (1u << ENTITY_COUNT_LOG2) >> 12;
-@group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<array<u32, WORKGROUP_HISTOGRAM_LENGTH>, 256>;
+@group(1) @binding(0) var<storage, read_write> workgroup_histogram : array<u32>;
 @group(1) @binding(1) var<storage, read_write> digit_histogram : array<u32, 256>;
 @group(2) @binding(0) var<storage, read_write> debug_buffer : u32;
-
+ 
 @group(3) @binding(0) var<storage, read_write> read_subgroup_size : u32;
 
 override BYTE_SHIFT : u32 = 0; // 0 -> 2
@@ -38,7 +37,7 @@ fn match_digit(digit:u32, lane:u32) -> MatchedDigits {
     for (var i = 0u; i < 4; i++) {
         let offset = i * 32;
         var mask_shift = 0u;
-        if (offset < lane) { mask_shift = min(32u, offset - lane); }
+        if (lane > offset) { mask_shift = min(32u, lane - offset); }
 
         let lower_mask = 0xFFFFFFFFu >> mask_shift;
         lower_ballot[i] &= lower_mask;
@@ -66,38 +65,34 @@ var<workgroup> shared_histogram:array<atomic<u32>, 256>;
 // 256, 16
 @compute @workgroup_size(256) fn local_accumulation(
     @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(local_invocation_index) local_index : u32,
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_size) subgroup_size : u32,
     @builtin(subgroup_invocation_id) sub_id : u32
 ) {
-    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
+    if (IS_CHECKING_SUBGROUP_SIZE && local_index == 0u) { read_subgroup_size = subgroup_size; }
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
-    let local_index = subgroup_id * subgroup_size + sub_id;
-    let first_element = workgroup_index * 256 * 16 + subgroup_id * 16 * subgroup_size + local_index;
+    let first_element = workgroup_index * 256 * 16 + local_index;
 
     for (var i = 0u; i < 16; i++) {
-        let chunk_byte = get_chunk_from_entity_vector(entity_buffer_0[workgroup_index * 256 * 16 + local_index + i * 256]);
-        let this_result = match_digit(chunk_byte, sub_id);
-
-        if (this_result.rank == 0u) { atomicAdd(&shared_histogram[chunk_byte], this_result.sum); }
-        workgroupBarrier();
+        let chunk_byte = get_chunk_from_entity_vector(entity_buffer_0[first_element + i * 256]);
+        atomicAdd(&shared_histogram[chunk_byte], 1u);
     }
     
-    workgroupBarrier();
-    workgroup_histogram[local_index][workgroup_index] = atomicLoad(&shared_histogram[local_index]);
+    workgroup_histogram[local_index + workgroup_index * 256] = atomicLoad(&shared_histogram[local_index]);
 }
 
 var<workgroup> previous_total:u32;
 var<workgroup> subgroup_totals:array<u32, SUBGROUP_COUNT>;
 // 256
 @compute @workgroup_size(256) fn global_accumulation(
-    @builtin(workgroup_id) workgroup_id : vec3u, 
+    @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(local_invocation_index) local_index : u32, 
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_invocation_id) sub_id : u32,
     @builtin(subgroup_size) subgroup_size : u32
 ) {
-    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    let local_index = subgroup_id * subgroup_size + sub_id;
+    if (IS_CHECKING_SUBGROUP_SIZE && local_index == 0u) { read_subgroup_size = subgroup_size; }
 
     for (var i  = 0u; i < 16; i++) {
         let this_increment:u32 = workgroup_histogram[local_index + i * 256];
@@ -117,14 +112,14 @@ var<workgroup> subgroup_totals:array<u32, SUBGROUP_COUNT>;
 
 // one workgroup
 @compute @workgroup_size(256) fn digit_prefix(
+    @builtin(local_invocation_index) local_index:u32,
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_invocation_id) sub_id : u32,
     @builtin(subgroup_size) subgroup_size : u32
 ) {
-    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    let local_index = subgroup_id * subgroup_size + sub_id;
+    if (IS_CHECKING_SUBGROUP_SIZE && local_index == 0u) { read_subgroup_size = subgroup_size; }
 
-    let this_increment:u32 = workgroup_histogram[local_index][WORKGROUP_HISTOGRAM_LENGTH - 1];
+    let this_increment:u32 = workgroup_histogram[local_index + (ENTITY_COUNT_LOG2 >> 12) - 256];
     let subgroup_prefix = subgroupExclusiveAdd(this_increment);
     if (sub_id == subgroup_size - 1) { subgroup_totals[subgroup_id] = subgroup_prefix + this_increment; }
     workgroupBarrier();
@@ -146,17 +141,17 @@ var<workgroup> running_offsets:array<u32, 256 * SUBGROUP_COUNT>;
 // 256 * 256 = 65536  workgroups for 2^24 entities
 @compute @workgroup_size(256) fn rescatter(
     @builtin(workgroup_id) workgroup_id : vec3u,
+    @builtin(local_invocation_index) local_index : u32,
     @builtin(subgroup_id) subgroup_id : u32,
     @builtin(subgroup_invocation_id) sub_id : u32,
     @builtin(subgroup_size) subgroup_size : u32,
 ) {
-    if (IS_CHECKING_SUBGROUP_SIZE) { read_subgroup_size = subgroup_size; }
-    let local_index = subgroup_id * subgroup_size + sub_id;
+    if (IS_CHECKING_SUBGROUP_SIZE && local_index == 0u) { read_subgroup_size = subgroup_size; }
     let workgroup_index = workgroup_id.x + workgroup_id.y * 256;
     let first_element = workgroup_index * 256 * 16 + subgroup_id * 16 * subgroup_size + local_index;
 
     digit_prefix_local[local_index] = digit_histogram[local_index];
-    workgroup_histogram_local[local_index] = workgroup_histogram[local_index];
+    workgroup_histogram_local[local_index] = workgroup_histogram[workgroup_index * 256 + local_index];
 
     var private_offsets:array<u32, 16>;
     
