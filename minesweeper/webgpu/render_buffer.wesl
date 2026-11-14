@@ -37,16 +37,3 @@ struct VertexOutput {
 
     return vec4f(f32(value >> 8)/255.0, f32(value & 0xFFu)/255.0, f32(position.y & 0xFu)/255.0, 1.0);
 }
-
-// @fragment fn fragment(vertex_output: VertexOutput) -> @location(0) vec4f {
-//     // let position = vec2u(vec2f(vertex_output.position.x, viewport.y - vertex_output.position.y));
-//     let position = vec2u(vertex_output.position.xy);
-//     let index = position.x + position.y * u32(viewport.x);
-//     let buffer_length = arrayLength(&buffer_to_render);
-//     if (index > buffer_length) { discard; }
-
-//     // digit_prefix
-//     let value = buffer_to_render[index].x >> 7;
-
-//     return vec4f(f32(value >> 8)/255.0, f32(value & 0xFFu)/255.0, 1.0, 1.0);
-// }
