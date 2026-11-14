@@ -1,14 +1,10 @@
-import { ENTITY_COUNT_LOG2, ENTRY_DETAILS } from "./compute_pipelines";
-
 const QUERY_SET_COUNT = 2;
 
 function create_gpu_objects(device:GPUDevice, ctx:GPUCanvasContext) {
     window.compute = {
         timing: create_timing_objects(device),
         debug: create_debug_objects(device),
-        subgroup_test: create_subgroup_objects(device),
-        entity: create_entity_objects(device),
-        sort: create_sort_objects(device),
+        minesweeper: create_minesweeper_objects(device)
     }
     
     // so its bind group can use any resource
@@ -62,112 +58,37 @@ function create_debug_objects(device:GPUDevice) {
     }
 }
 
-function create_subgroup_objects(device:GPUDevice) {
-    const bind_group_layout = device.createBindGroupLayout({
-        label: "subgroup test bind group layout",
-        entries: [{ binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }]
-    });
-
-    return {
-        bind_group_layout,
-        list: Array.from({ length: ENTRY_DETAILS.length }, (_, i) => {
-            const copied_buffer = device.createBuffer({
-                label: `subgroup test buffer no. ${i}`,
-                size: 4,
-                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC | GPUBufferUsage.STORAGE
-            });
-            const pasted_buffer = device.createBuffer({
-                label: `subgroup test buffer no. ${i}`,
-                size: 4,
-                usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
-            });
-
-            return {
-                copied_buffer,
-                pasted_buffer,
-                bind_group: device.createBindGroup({
-                    label: `subgroup test bind group no. ${i}`,
-                    layout: bind_group_layout,
-                    entries: [{ binding: 0, resource: { buffer: copied_buffer } }]
-                })
-            }
-        })
-    }
-}
-        
-
-function create_entity_objects(device:GPUDevice) {
-    const buffer_0 = device.createBuffer({
-            label: `entity buffer 0`,
-            size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    });
-    const buffer_1 =  device.createBuffer({
-        label: `entity buffer 0`,
-        size: 4 * 4 * 2**ENTITY_COUNT_LOG2,
+function create_minesweeper_objects(device:GPUDevice) {
+    const tiles_buffer = device.createBuffer({
+        label: `tiles buffer`,
+        size: window.grid_dimensions.height * window.grid_dimensions.width * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
     });
+
+    const mouse_pos_buffer = device.createBuffer({
+        label: `mouse position buffer`,
+        size: 2 * 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC
+    });
+
     const bind_group_layout = device.createBindGroupLayout({
-        label: `entity bind group layout`,
+        label: `minesweeper bind group layout`,
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
+            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
         ]
     });
 
     return {
-        buffer_0,
-        buffer_1,
+        tiles_buffer,
+        mouse_pos_buffer,
         bind_group_layout,
         bind_group: device.createBindGroup({
-            label: "entity bind group",
+            label: `minesweeper bind group`,
             layout: bind_group_layout,
             entries: [
-                { binding: 0, resource: { buffer: buffer_0 } },
-                { binding: 1, resource: { buffer: buffer_1 } },
-            ]
-        })
-    }
-}
-
-function create_sort_objects(device:GPUDevice) {
-    const workgroup_histogram =  device.createBuffer({
-        label: `digital prefix buffer`,
-        size: 4 * 256 * 65536 >> (24 - ENTITY_COUNT_LOG2),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    });
-    const global_histogram = device.createBuffer({
-        label: `global prefix buffer`,
-        size: 4 * 256 * 256 >> (24 - ENTITY_COUNT_LOG2),
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    });
-    const digit_histogram = device.createBuffer({
-        label: `data prefix buffer`,
-        size: 4 * 256,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
-    })
-    const bind_group_layout = device.createBindGroupLayout({
-        label: "sort bind group layoute",
-        entries: [
-            { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-            { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
-            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } }
-        ]
-    }) 
-
-    return {
-        workgroup_histogram,
-        global_histogram,
-        digit_histogram,
-        
-        bind_group_layout,
-        bind_group: device.createBindGroup({
-            label: "sort bind group",
-            layout: bind_group_layout,
-            entries: [
-                { binding: 0, resource: { buffer: workgroup_histogram } },
-                { binding: 1, resource: { buffer: global_histogram } },
-                { binding: 2, resource: { buffer: digit_histogram } }
+                { binding: 0, resource: { buffer: tiles_buffer } },
+                { binding: 1, resource: { buffer: mouse_pos_buffer } }
             ]
         })
     }
@@ -203,10 +124,10 @@ function create_render_objects(device:GPUDevice, ctx:GPUCanvasContext) {
             layout: bind_group_layout,
             entries: [
                 { binding: 0, resource: { buffer: viewport_buffer } },
-                { binding: 1, resource: { buffer: window.compute.sort.workgroup_histogram } },
+                { binding: 1, resource: { buffer: window.compute.minesweeper.tiles_buffer } },
             ]
         })
     }
 }
 
-export { create_gpu_objects }
+export { create_gpu_objects, create_minesweeper_objects }

@@ -17,12 +17,8 @@ async function get_gpu () {
     }) }
 
     const device = await requestWeslDevice(adapter, {
-        requiredLimits: {
-            maxStorageBuffersPerShaderStage: 12,
-        },
         requiredFeatures: [
-            "timestamp-query",
-            "subgroups"
+            "timestamp-query"
         ]
     });
     device.lost.then((e) => {

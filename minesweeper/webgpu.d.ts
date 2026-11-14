@@ -9,18 +9,14 @@ declare global {
     }
     
     interface Window {    
-        ENTITY_COUNT_LOG2:number,
+        grid_dimensions: { width:number; height:number; }
+
         compute: {
             timing: {
                 query_set: GPUQuerySet;
                 resolve_buffer: GPUBuffer;
                 /** mapped buffers to be unmapped to recieve gpu time */
                 mapped_timed_buffers:Array<GPUBuffer>;
-            };
-
-            subgroup_test: {
-                bind_group_layout:GPUBindGroupLayout;
-                list: Array<SubgroupBuffers>;
             };
 
             debug: {
@@ -33,19 +29,11 @@ declare global {
                 buffer: GPUBuffer;
             };
 
-            entity: {
-                buffer_0: GPUBuffer;
-                buffer_1: GPUBuffer;
-                bind_group_layout: GPUBindGroupLayout;
-                bind_group: GPUBindGroup;
-            };
-
-            sort: {
-                workgroup_histogram: GPUBuffer;
-                global_histogram: GPUBuffer;
-                digit_histogram: GPUBuffer;
-                bind_group_layout: GPUBindGroupLayout;
-                bind_group: GPUBindGroup;
+            minesweeper: {
+                tiles_buffer:GPUBuffer;
+                mouse_pos_buffer:GPUBuffer;
+                bind_group_layout:GPUBindGroupLayout;
+                bind_group:GPUBindGroup;
             }
         }
         
