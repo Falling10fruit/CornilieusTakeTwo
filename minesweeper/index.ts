@@ -1,12 +1,13 @@
 /* @refresh reload */
 import { render } from 'solid-js/web'
-import App from './App.tsx'
+import { App, } from './App.tsx'
 const root = document.getElementById('root')
 if (root) render(App, root);
 
+import track_mouse from './ts/track_mouse.ts'
 import { get_gpu } from './ts/get_device.ts';
 import { create_gpu_objects } from './ts/initialize.ts';
-import { encode_pipelines_to_pass, return_pipelines } from './ts/compute_pipelines.ts';
+import { encode_pipelines_to_pass, return_compute_pipelines } from './ts/compute_pipelines.ts';
 import { return_render_pipeline, render_grid } from './ts/render.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -15,6 +16,7 @@ canvas.height = 36 * 3;
 
 const { device, ctx } = await get_gpu();
 create_gpu_objects(device, ctx);
+track_mouse(device);
 
 device.queue.writeBuffer(window.render.viewport_buffer, 0,
     new Float32Array([ ctx.canvas.width, ctx.canvas.height ])
@@ -22,7 +24,7 @@ device.queue.writeBuffer(window.render.viewport_buffer, 0,
 
 var gpu_time_spent:Array<number> = [];
 
-const [render_pipeline, compute_pipelines] = await Promise.all([return_render_pipeline(device), return_pipelines(device)]);
+const [render_pipeline, compute_pipelines] = await Promise.all([return_render_pipeline(device), return_compute_pipelines(device)]);
 
 
 tick();

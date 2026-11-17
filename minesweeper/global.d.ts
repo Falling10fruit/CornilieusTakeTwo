@@ -7,12 +7,26 @@ declare global {
         bind_group: GPUBindGroup
     }
     
-    interface Window {    
-        grid_dimensions: {
+    interface Window {
+        minesweeper: {
+            /** If the level is generated yet (generates during first click) */
+            generated:boolean;
+        }
+
+        mouse: {
+            down:boolean;
+            pos:{x:number,y:number}
+        }
+        
+        grid: {
+            viewport_padding: 50;
+
             width:number;
             max_width:number;
             height:number;
             max_height: number;
+
+            no_of_tiles:number;
         }
 
         compute: {
@@ -35,7 +49,19 @@ declare global {
 
             minesweeper: {
                 tiles_buffer:GPUBuffer;
+                /**
+                 * ```wgsl
+                 * struct Grid {
+                 *     dimensions:vec2u,
+                 *     square_len:u32,
+                 *     grid_size:vec2u,
+                 *     grid_top_left:vec2u
+                 * }
+                 * ```
+                 */
+                grid_dimensions_buffer:GPUBuffer;
                 mouse_pos_buffer:GPUBuffer;
+
                 bind_group_layout:GPUBindGroupLayout;
                 bind_group:GPUBindGroup;
             }
@@ -54,8 +80,8 @@ declare global {
 
     
     declare module '*.wgsl?raw' {
-    const value: string;
-    export default value;
+        const value: string;
+        export default value;
     }
 }
 

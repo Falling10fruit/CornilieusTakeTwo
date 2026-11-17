@@ -1,24 +1,31 @@
 import wgsl from "../webgpu/main.wgsl?raw"
-import { create_minesweeper_objects } from "./initialize";
 
-interface EntryDetails { fn_name:string; workgroups:Array<number>;}
-let ENTRY_DETAILS:Array<EntryDetails> = [
-    { fn_name: "plant_bombs" , workgroups: [256, 1, 1] }
-];
+async function encode_pipelines_to_pass(pipelines:Record<string, GPUComputePipeline>, pass:GPUComputePassEncoder) {
+    if (window.mouse.down) {
+        pass.setBindGroup(0, window.compute.minesweeper.bind_group);
+        pass.setBindGroup(1, window.compute.debug.bind_group);
 
-async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pass:GPUComputePassEncoder) {
-    pass.setBindGroup(0, window.compute.minesweeper.bind_group);
-    pass.setBindGroup(2, window.compute.debug.bind_group); // For some reason the console is saying that there is a bindg group at index 3
+        if (window.minesweeper.generated) {
+            pass.setPipeline(pipelines["plant_bombs"]);
+            pass.dispatchWorkgroups(Math.ceil(window.grid.no_of_tiles/256));
+            pass.setPipeline(pipelines["mark_squares"]);
+            pass.dispatchWorkgroups(Math.ceil(window.grid.no_of_tiles/256));
+        }
 
-    pipelines.forEach((pipeline, index) => {
-        pass.setPipeline(pipeline);
-        pass.dispatchWorkgroups(ENTRY_DETAILS[index].workgroups[0], ENTRY_DETAILS[index].workgroups[1], ENTRY_DETAILS[index].workgroups[2]);
-    });
+        pass.setPipeline
+    }
 }
 
-async function return_pipelines(device:GPUDevice) {
+async function return_compute_pipelines(device:GPUDevice) {
     const shader = device.createShaderModule({ label: "minesweeper shader module", code: wgsl });;
-    return await Promise.all(ENTRY_DETAILS.map(({ fn_name }, index) => device.createComputePipelineAsync({
+    return {
+        "plant_bombs": create_pipeline(device, shader, "plant_bombs"),
+        "mark_squares": create_pipeline(device, shader, "mark_squares")
+    } // Promise.all(ENTRY_DETAILS.map(({ fn_name }, index) => ));
+}
+
+async function create_pipeline(device:GPUDevice, shader:GPUShaderModule, fn_name:string) {
+    return device.createComputePipelineAsync({
         label: `${fn_name} pipeline`,
         layout: device.createPipelineLayout({
             label: `${fn_name} pipeline layouts`,
@@ -31,15 +38,35 @@ async function return_pipelines(device:GPUDevice) {
             module: shader,
             entryPoint: fn_name,
             constants: {
-                
+                "seed": Date.now() & 0xFFFFFFFF,
+                "viewport_width": window.innerWidth,
+                "viewport_height": window.innerHeight,
             }
         }
-    })));
+    })
 }
 
-function update_minesweeper_grid(device:GPUDevice, parameters:{width:number, height:number}) {
-    window.grid_dimensions = parameters;
-    window.compute.minesweeper = create_minesweeper_objects(device);
+function update_minesweeper_grid(device:GPUDevice) {
+    let viewport_div_tiles = {
+        x: (window.innerWidth - 2 * window.grid.viewport_padding)/window.grid.width,
+        y: (window.innerHeight - 2 * window.grid.viewport_padding)/window.grid.height,
+    };
+    let square_len = Math.min(viewport_div_tiles.x, viewport_div_tiles.y);
+    let grid_size = {
+        x: square_len * window.grid.width,
+        y: square_len * window.grid.height
+    };
+    let grid_top_left = {
+        x: window.innerWidth/2 - grid_size.x/2,
+        y: window.innerHeight/2 - grid_size.y/2,
+    };
+
+    device.queue.writeBuffer(window.compute.minesweeper.grid_dimensions_buffer, 0, new Uint32Array([
+        window.grid.width, window.grid.height,
+        square_len, 0,
+        grid_size.x, grid_size.y,
+        grid_top_left.x, grid_top_left.y
+    ]));
 }
 
-export { ENTRY_DETAILS, return_pipelines, encode_pipelines_to_pass, update_minesweeper_grid }
+export { return_compute_pipelines, encode_pipelines_to_pass, update_minesweeper_grid }

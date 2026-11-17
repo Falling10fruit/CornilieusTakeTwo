@@ -28,7 +28,7 @@ async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pas
     });
 }
 
-async function return_pipelines(device:GPUDevice) {
+async function return_compute_pipelines(device:GPUDevice) {
     const shader = createShaderModule(linked, device, { label: "sort shader module" });;
     const subgroup_sizes = await test_shaders(device, shader);
     console.log(subgroup_sizes);
@@ -118,4 +118,4 @@ async function generate_test_pipeline(device:GPUDevice, shader:GPUShaderModule, 
     });
 }
 
-export { ENTITY_COUNT_LOG2, ENTRY_DETAILS, return_pipelines, encode_pipelines_to_pass }
+export { ENTITY_COUNT_LOG2, ENTRY_DETAILS, return_compute_pipelines, encode_pipelines_to_pass }

@@ -6,7 +6,7 @@ if (root) render(App, root);
 
 import { get_gpu } from './ts/get_device.ts';
 import { create_gpu_objects } from './ts/initialize.ts';
-import { encode_pipelines_to_pass, return_pipelines } from './ts/compute_pipelines.ts';
+import { encode_pipelines_to_pass, return_compute_pipelines } from './ts/compute_pipelines.ts';
 import { return_render_pipeline } from './ts/render_pipeline.ts';
 
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
@@ -34,7 +34,7 @@ device.queue.writeBuffer(window.compute.entity.buffer_0, 0, new Uint32Array([
 
 var gpu_time_spent:Array<number> = [];
 
-const [render_pipeline,compute_pipelines] = await Promise.all([return_render_pipeline(device), return_pipelines(device)]);
+const [render_pipeline,compute_pipelines] = await Promise.all([return_render_pipeline(device), return_compute_pipelines(device)]);
 
 let eyedropper_x = 0, eyedropper_y = 0;
 let mouse_x = 0, mouse_y = 0, mouse_down = false;

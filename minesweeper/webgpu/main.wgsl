@@ -1,14 +1,15 @@
+struct Grid {
+    dimensions:vec2u,
+    square_len:u32,
+    size:vec2u,
+    top_left:vec2u
+}
+
+// most significant bit is if it's uncovered and the bit next to it is if it's a bomb
 @group(0) @binding(0) var<storage, read_write> tiles:array<u32>;
-@group(1) @binding(1) var<uniform> mouse_pos:vec2u;
-
-// idk random numbers
-override tiles_dimensions = vec2u(28, 32); 
-override viewport = vec2u(1280, 840);
-
-override viewport_div_tiles = (viewport - vec2u(100, 100))/tiles_dimensions;
-override square_len:u32 = min(viewport_div_tiles.x, viewport_div_tiles.y);
-override grid_dimensions = square_len * tiles_dimensions;
-override grid_top_left = viewport/2 - grid_dimensions/2;
+@group(0) @binding(1) var<uniform> grid:Grid;
+@group(0) @binding(2) var<uniform> mouse_pos:vec2u;
+@group(1) @binding(0) var<storage, read_write> debug_buffer : u32;
 
 override seed:u32;
 // Jarzynski and Olano
@@ -18,39 +19,44 @@ fn pcg_hash(input:u32) -> u32 {
     return (word >> 22u) ^ word;
 }
 
-fn coord_to_index(coord:vec2u) -> u32 { return coord.x + coord.y * tiles_dimensions.x; }
+fn coord_to_index(coord:vec2u) -> u32 { return coord.x + coord.y * grid.dimensions.x; }
+fn index_to_coord(index:u32) -> vec2u {return vec2u(index %)}
+
+fn get_tile_idx_on_mouse() -> u32 {
+    let relative_mouse_pos = mouse_pos - grid.top_left;
+    let tile_pos = relative_mouse_pos/grid.square_len;
+    return tile_pos.x + tile_pos.y * grid.dimensions.x;
+}
+
+const surrounding_tile_offsets:array<vec2i, 9> = array(
+    vec2i( 0,  0),
+    vec2i( 0,  1),
+    vec2i( 1,  0),
+    vec2i( 0, -1),
+    vec2i(-1,  0),
+    vec2i( 1,  1),
+    vec2i( 1, -1),
+    vec2i(-1, -1),
+    vec2i(-1,  1)
+);
 
 @compute @workgroup_size(256) fn plant_bombs(
     @builtin(global_invocation_id) global_id:vec3u
 ) { if (global_id.x >= arrayLength(&tiles)) { return; }
-    let relative_mouse_pos = mouse_pos - grid_top_left;
-    let tile_pos_on_mouse = relative_mouse_pos/square_len;
-
-    let on_mouse = coord_to_index(tile_pos_on_mouse) == global_id.x;
-    let top_mouse          = coord_to_index(tile_pos_on_mouse + vec2u( 0,  1)) == global_id.x;
-    let right_mouse        = coord_to_index(tile_pos_on_mouse + vec2u( 1,  0)) == global_id.x;
-    let bottom_mouse       = coord_to_index(tile_pos_on_mouse + vec2u( 0, -1)) == global_id.x;
-    let left_mouse         = coord_to_index(tile_pos_on_mouse + vec2u(-1,  0)) == global_id.x;
-    let top_right_mouse    = coord_to_index(tile_pos_on_mouse + vec2u( 1,  1)) == global_id.x;
-    let bottom_right_mouse = coord_to_index(tile_pos_on_mouse + vec2u( 1, -1)) == global_id.x;
-    let bottom_left_mouse  = coord_to_index(tile_pos_on_mouse + vec2u(-1, -1)) == global_id.x;
-    let top_left_mouse     = coord_to_index(tile_pos_on_mouse + vec2u(-1,  1)) == global_id.x;
-    let is_on_any = 
-        on_mouse ||
-        top_mouse ||
-        right_mouse ||
-        bottom_mouse ||
-        left_mouse ||
-        top_right_mouse ||
-        bottom_right_mouse ||
-        bottom_left_mouse ||
-        top_left_mouse;
+    
+    let tile_pos = vec2u(global_id.x % grid.dimensions.x, global_id.x / grid.dimensions.y);
+    let tile_idx = get_tile_idx_on_mouse();
+    
+    var is_on_any = false;
+    for (var i = 0u; i < 9; i++) {
+        is_on_any = is_on_any || coord_to_index(vec2u(vec2i(tile_pos) + surrounding_tile_offsets[i])) == tile_idx;
+    }
 
     if (is_on_any) {
-        tiles[global_id.x] = 0u;
+        tiles[global_id.x] = 1u << 31;
     } else {
         let ran = f32(pcg_hash(global_id.x))/f32(0xFFFFFFFFu);
-        tiles[global_id.x] = select(0u, 0xFFFFFFFFu, ran < 0.2);
+        tiles[global_id.x] = select(1u << 31, 3u << 30, ran < 0.2);
     }
 }
 
@@ -59,25 +65,20 @@ fn coord_to_index(coord:vec2u) -> u32 { return coord.x + coord.y * tiles_dimensi
 ) { if (global_id.x >= arrayLength(&tiles)) { return; }
 
     let this_tile = tiles[global_id.x];
-    if (this_tile == 0xFFFFFFFFu) { return; }
+    if (this_tile >> 30 == 3) { return; }
+    let tile_pos
     
-    let top_tile_is_bomb          = tiles[coord_to_index(global_id.x + vec2u( 0,  1))] == 0xFFFFFFFFu;
-    let right_tile_is_bomb        = tiles[coord_to_index(global_id.x + vec2u( 1,  0))] == 0xFFFFFFFFu;
-    let bottom_tile_is_bomb       = tiles[coord_to_index(global_id.x + vec2u( 0, -1))] == 0xFFFFFFFFu;
-    let left_tile_is_bomb         = tiles[coord_to_index(global_id.x + vec2u(-1,  0))] == 0xFFFFFFFFu;
-    let top_right_tile_is_bomb    = tiles[coord_to_index(global_id.x + vec2u( 1,  1))] == 0xFFFFFFFFu;
-    let bottom_right_tile_is_bomb = tiles[coord_to_index(global_id.x + vec2u( 1, -1))] == 0xFFFFFFFFu;
-    let bottom_left_tile_is_bomb  = tiles[coord_to_index(global_id.x + vec2u(-1, -1))] == 0xFFFFFFFFu;
-    let top_left_tile_is_bomb     = tiles[coord_to_index(global_id.x + vec2u(-1,  1))] == 0xFFFFFFFFu;
-    let total_bombs =
-            u32(top_tile_is_bomb) +
-            u32(right_tile_is_bomb) +
-            u32(bottom_tile_is_bomb) +
-            u32(left_tile_is_bomb) +
-            u32(top_right_tile_is_bomb) +
-            u32(bottom_right_tile_is_bomb) +
-            u32(bottom_left_tile_is_bomb) +
-            u32(top_left_tile_is_bomb);
+    var count = 0;
+    for (var i = 0u; i < 9; i++) {
+        count += u32(coord_to_index(vec2u(vec2i(this_tile) + surrounding_tile_offsets[i])) == tile_idx);
+    }
 
-    tiles[global_id.x] = total_bombs;
+    let tile_pos = vec2u(global_id.x % grid.dimensions.x, global_id.x / grid.dimensions.x);
+    tiles[global_id.x] = countOneBits(surrounding_tiles_ballot(tile_pos, tile_idx));
+}
+
+@compute @workgroup_size(256) fn propagate(
+    @builtin(global_invocation_id) global_id:vec3u
+) { if (global_id.x >= arrayLength(&tiles)) { return; }
+
 }

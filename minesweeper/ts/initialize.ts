@@ -61,8 +61,14 @@ function create_debug_objects(device:GPUDevice) {
 function create_minesweeper_objects(device:GPUDevice) {
     const tiles_buffer = device.createBuffer({
         label: `tiles buffer`,
-        size: window.grid_dimensions.height * window.grid_dimensions.width * 4,
+        size: window.grid.max_height * window.grid.max_width * 4,
         usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+    });
+
+    const grid_dimensions_buffer = device.createBuffer({
+        label: `grid dimensions buffer`,
+        size: 32,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_SRC
     });
 
     const mouse_pos_buffer = device.createBuffer({
@@ -76,19 +82,23 @@ function create_minesweeper_objects(device:GPUDevice) {
         entries: [
             { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: "storage" } },
             { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
+            { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: "uniform" } },
         ]
     });
 
     return {
         tiles_buffer,
+        grid_dimensions_buffer,
         mouse_pos_buffer,
+
         bind_group_layout,
         bind_group: device.createBindGroup({
             label: `minesweeper bind group`,
             layout: bind_group_layout,
             entries: [
                 { binding: 0, resource: { buffer: tiles_buffer } },
-                { binding: 1, resource: { buffer: mouse_pos_buffer } }
+                { binding: 1, resource: { buffer: mouse_pos_buffer } },
+                { binding: 2, resource: { buffer: mouse_pos_buffer } }
             ]
         })
     }
@@ -130,4 +140,4 @@ function create_render_objects(device:GPUDevice, ctx:GPUCanvasContext) {
     }
 }
 
-export { create_gpu_objects, create_minesweeper_objects }
+export { create_gpu_objects }

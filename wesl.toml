@@ -2,5 +2,5 @@
 edition = "2026_pre"
 
 # Where are the shaders located. This is the path of `package::`.
-root = "./compare/sort_subgroup/webgpu"
-include = ["compare/sort_subgroup/webgpu/**/*.wesl"]
+root = "./src/wesl"
+include = ["src/wesl/**/*.wesl"]
