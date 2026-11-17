@@ -1,5 +1,4 @@
 /// <reference types="@webgpu/types" />
-/// <reference types="wesl-plugin/suffixes" />
 
 declare global {
     interface SubgroupBuffers {
@@ -9,7 +8,12 @@ declare global {
     }
     
     interface Window {    
-        grid_dimensions: { width:number; height:number; }
+        grid_dimensions: {
+            width:number;
+            max_width:number;
+            height:number;
+            max_height: number;
+        }
 
         compute: {
             timing: {
@@ -46,6 +50,12 @@ declare global {
             bind_group_layout: GPUBindGroupLayout;
             bind_group: GPUBindGroup;
         };
+    }
+
+    
+    declare module '*.wgsl?raw' {
+    const value: string;
+    export default value;
     }
 }
 

@@ -1,10 +1,5 @@
-import { link, createShaderModule } from "wesl";
-import wesl_source from "../webgpu/main.wesl?link"
+import wgsl from "../webgpu/main.wgsl?raw"
 import { create_minesweeper_objects } from "./initialize";
-
-const linked = await link({
-    ...wesl_source
-});
 
 interface EntryDetails { fn_name:string; workgroups:Array<number>;}
 let ENTRY_DETAILS:Array<EntryDetails> = [
@@ -22,7 +17,7 @@ async function encode_pipelines_to_pass(pipelines:Array<GPUComputePipeline>, pas
 }
 
 async function return_pipelines(device:GPUDevice) {
-    const shader = createShaderModule(linked, device, { label: "sort shader module" });;
+    const shader = device.createShaderModule({ label: "minesweeper shader module", code: wgsl });;
     return await Promise.all(ENTRY_DETAILS.map(({ fn_name }, index) => device.createComputePipelineAsync({
         label: `${fn_name} pipeline`,
         layout: device.createPipelineLayout({
