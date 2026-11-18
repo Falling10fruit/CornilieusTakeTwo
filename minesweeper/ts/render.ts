@@ -1,10 +1,9 @@
-import wgsl from "../webgpu/render_buffer.wgsl?raw"
+import { createShaderModule, link } from "wesl";
+import wesl from "./../webgpu/render_buffer.wesl?link"
+const linked_wesl = await link({...wesl});
 
 async function return_render_pipeline(device:GPUDevice) {
-    const shader = device.createShaderModule({
-        label: "render shader module",
-        code: wgsl
-    });
+    const shader = createShaderModule(linked_wesl, device, { label: 'render shader module'} );
 
     return await device.createRenderPipelineAsync({
         label: "render buffer pipeline",

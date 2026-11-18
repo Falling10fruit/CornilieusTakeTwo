@@ -1,3 +1,5 @@
+import { requestWeslDevice } from "wesl";
+
 /** Create the WebGPU device and context.
  * @async
  * 
@@ -14,10 +16,8 @@ async function get_gpu () {
         message: "your device does not support WebGPU"
     }) }
 
-    const device = await adapter.requestDevice({
-        requiredFeatures: [
-            "timestamp-query"
-        ]
+    const device = await requestWeslDevice(adapter, {
+        requiredFeatures: ["timestamp-query"]
     });
     device.lost.then((e) => {
         console.error({

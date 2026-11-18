@@ -5,6 +5,6 @@ import weslPlugin from "wesl-plugin/vite"
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [solidPlugin()],
+  plugins: [solidPlugin(), weslPlugin({extensions:[linkBuildExtension, staticBuildExtension]})],
   server: { port: 8402 }
 }));

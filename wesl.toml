@@ -3,4 +3,7 @@ edition = "2026_pre"
 
 # Where are the shaders located. This is the path of `package::`.
 root = "./src/wesl"
-include = ["src/wesl/**/*.wesl"]
+include = [
+    "src/wesl/**/*.wesl",
+    "minesweeper/webgpu/**/*.wesl"
+]

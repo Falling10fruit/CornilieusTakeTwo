@@ -1,4 +1,5 @@
 /// <reference types="@webgpu/types" />
+/// <reference types="wesl-plugin/suffixes" />
 
 declare global {
     interface SubgroupBuffers {

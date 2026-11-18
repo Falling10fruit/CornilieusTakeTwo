@@ -1,4 +1,6 @@
-import wgsl from "../webgpu/main.wgsl?raw"
+import { createShaderModule, link } from "wesl";
+import wesl from "./../webgpu/main.wesl?link"
+const linked_wesl = await link({...wesl})
 
 async function encode_pipelines_to_pass(pipelines:Record<string, GPUComputePipeline>, pass:GPUComputePassEncoder) {
     if (window.mouse.down) {
@@ -17,7 +19,7 @@ async function encode_pipelines_to_pass(pipelines:Record<string, GPUComputePipel
 }
 
 async function return_compute_pipelines(device:GPUDevice) {
-    const shader = device.createShaderModule({ label: "minesweeper shader module", code: wgsl });;
+    const shader = createShaderModule(linked_wesl, device, { label: 'compute shader module' });
     return {
         "plant_bombs": create_pipeline(device, shader, "plant_bombs"),
         "mark_squares": create_pipeline(device, shader, "mark_squares")

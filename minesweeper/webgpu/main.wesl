@@ -20,7 +20,7 @@ fn pcg_hash(input:u32) -> u32 {
 }
 
 fn coord_to_index(coord:vec2u) -> u32 { return coord.x + coord.y * grid.dimensions.x; }
-fn index_to_coord(index:u32) -> vec2u {return vec2u(index %)}
+fn index_to_coord(index:u32) -> vec2u { return vec2u(index % grid.dimensions.x, index / grid.dimensions.x); }
 
 fn get_tile_idx_on_mouse() -> u32 {
     let relative_mouse_pos = mouse_pos - grid.top_left;
