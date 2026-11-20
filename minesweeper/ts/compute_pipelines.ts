@@ -2,19 +2,46 @@ import { createShaderModule, link } from "wesl";
 import wesl from "./../webgpu/main.wesl?link"
 const linked_wesl = await link({...wesl})
 
-async function encode_pipelines_to_pass(pipelines:Record<string, GPUComputePipeline>, pass:GPUComputePassEncoder) {
+const get_tile_idx_on_mouse = () => {
+    let relative_mouse_pos = {
+        x: window.mouse.pos.x - window.grid.top_left.x,
+        y: window.mouse.pos.y - window.grid.top_left.y
+    };
+    let tile_pos = {
+        x: Math.floor(relative_mouse_pos.x/window.grid.square_len),
+        y: Math.floor(relative_mouse_pos.y/window.grid.square_len)
+    };
+    return tile_pos.x + tile_pos.y * window.grid.width;
+};
+
+async function encode_pipelines_to_pass(pass:GPUComputePassEncoder, pipelines:Record<string, GPUComputePipeline>, device:GPUDevice) {
+    let inbound = handle_mouse(pass, pipelines, device);
+
     if (window.mouse.down) {
         pass.setBindGroup(0, window.compute.minesweeper.bind_group);
         pass.setBindGroup(1, window.compute.debug.bind_group);
 
-        if (window.minesweeper.generated) {
-            pass.setPipeline(pipelines["plant_bombs"]);
-            pass.dispatchWorkgroups(Math.ceil(window.grid.no_of_tiles/256));
-            pass.setPipeline(pipelines["mark_squares"]);
-            pass.dispatchWorkgroups(Math.ceil(window.grid.no_of_tiles/256));
-        }
 
-        pass.setPipeline
+        pass.setPipeline(pipelines["tick"])
+    }
+}
+
+function handle_mouse(pass:GPUComputePassEncoder, pipelines:Record<string, GPUComputePipeline>, device:GPUDevice) {
+    let mouse_inbound =
+        window.mouse.pos.x > window.grid.top_left.x &&
+        window.mouse.pos.y > window.grid.top_left.y &&
+        window.mouse.pos.x < (window.grid.top_left.x + window.grid.size.x) &&
+        window.mouse.pos.y < (window.grid.top_left.y + window.grid.size.y);
+    if (!mouse_inbound) { return; }
+
+    if (window.minesweeper.generated) {
+        pass.setPipeline(pipelines["plant_bombs"]);
+        pass.dispatchWorkgroups(Math.ceil(window.grid.no_of_tiles/256));
+        pass.setPipeline(pipelines["mark_squares"]);
+        pass.dispatchWorkgroups(Math.ceil(window.grid.no_of_tiles/256));
+    } else {
+        let mouse_idx = get_tile_idx_on_mouse();
+        
     }
 }
 
@@ -53,21 +80,21 @@ function update_minesweeper_grid(device:GPUDevice) {
         x: (window.innerWidth - 2 * window.grid.viewport_padding)/window.grid.width,
         y: (window.innerHeight - 2 * window.grid.viewport_padding)/window.grid.height,
     };
-    let square_len = Math.min(viewport_div_tiles.x, viewport_div_tiles.y);
-    let grid_size = {
-        x: square_len * window.grid.width,
-        y: square_len * window.grid.height
+    window.grid.square_len = Math.min(viewport_div_tiles.x, viewport_div_tiles.y);
+    window.grid.size = {
+        x: window.grid.square_len * window.grid.width,
+        y: window.grid.square_len * window.grid.height
     };
-    let grid_top_left = {
-        x: window.innerWidth/2 - grid_size.x/2,
-        y: window.innerHeight/2 - grid_size.y/2,
+    window.grid.top_left = {
+        x: window.innerWidth/2 - window.grid.size.x/2,
+        y: window.innerHeight/2 - window.grid.size.y/2,
     };
 
     device.queue.writeBuffer(window.compute.minesweeper.grid_dimensions_buffer, 0, new Uint32Array([
         window.grid.width, window.grid.height,
-        square_len, 0,
-        grid_size.x, grid_size.y,
-        grid_top_left.x, grid_top_left.y
+        window.grid.square_len, 0,
+        window.grid.size.x, window.grid.size.y,
+        window.grid.top_left.x, window.grid.top_left.y
     ]));
 }
 

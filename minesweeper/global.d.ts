@@ -7,25 +7,35 @@ declare global {
         pasted_buffer: GPUBuffer,
         bind_group: GPUBindGroup
     }
-    
+
     interface Window {
         minesweeper: {
             /** If the level is generated yet (generates during first click) */
             generated:boolean;
         }
 
+        
         mouse: {
             down:boolean;
+            /** 0: left | 1 right
+             * Set upon mouse down
+            */
+            button:number;
             pos:{x:number,y:number}
         }
         
         grid: {
             viewport_padding: 50;
 
-            width:number;
             max_width:number;
-            height:number;
             max_height: number;
+
+            width:number;
+            height:number;
+            square_len:number;
+            size:{x:number, y:number};
+            top_left:{x:number, y:number};
+
 
             no_of_tiles:number;
         }
